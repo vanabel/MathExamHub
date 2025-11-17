@@ -38,32 +38,26 @@ function isInMathEnvironment(text, index) {
  * 匹配嵌套花括号内容（辅助函数）
  */
 function matchNestedBraces(text, startIndex) {
-  if (text[startIndex] !== '{') return null;
+  if (startIndex < 0 || startIndex >= text.length || text[startIndex] !== '{') return null;
   
-  let depth = 0;
-  let i = startIndex;
+  let depth = 1; // 从 1 开始，因为我们已经知道 startIndex 是 '{'
+  let i = startIndex + 1; // 从 '{' 后面开始
   
   while (i < text.length) {
+    // 处理反斜杠转义
     if (text[i] === '\\' && i + 1 < text.length) {
-      i++;
-      if (/[a-zA-Z]/.test(text[i])) {
-        while (i < text.length && /[a-zA-Z]/.test(text[i])) {
-          i++;
-        }
-        continue;
-      } else {
-        i++;
-        continue;
-      }
+      i += 2; // 跳过反斜杠和下一个字符
+      continue;
     }
     
     if (text[i] === '{') {
       depth++;
     } else if (text[i] === '}') {
+      depth--;
       if (depth === 0) {
+        // 找到了匹配的结束花括号
         return text.substring(startIndex + 1, i);
       }
-      depth--;
     }
     i++;
   }
@@ -281,14 +275,16 @@ export function processQuestionText(text) {
   
   while ((match = pickoutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
-    const braceStart = startIndex + 8; // '\\pickout'.length
-    const content = matchNestedBraces(processed, braceStart - 1);
-    if (content !== null) {
-      pickoutReplacements.push({
-        start: startIndex,
-        end: braceStart + content.length + 1,
-        replacement: `(${content})`
-      });
+    const braceStart = startIndex + 8; // '\\pickout'.length = 8
+    if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
+      const content = matchNestedBraces(processed, braceStart - 1);
+      if (content !== null) {
+        pickoutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 1,
+          replacement: `(${content})`
+        });
+      }
     }
   }
   
@@ -310,44 +306,20 @@ export function processQuestionText(text) {
   
   while ((match = fillinRegex.exec(processed)) !== null) {
     const startIndex = match.index;
-    if (!isInMathEnvironment(processed, startIndex)) {
-      // 找到匹配的结束花括号
-      let depth = 0;
-      let braceStart = startIndex + 7; // '\\fillin'.length
-      let i = braceStart;
-      let content = '';
-      
-      while (i < processed.length) {
-        if (processed[i] === '\\' && i + 1 < processed.length) {
-          // 跳过转义字符或命令
-          i++;
-          if (/[a-zA-Z]/.test(processed[i])) {
-            while (i < processed.length && /[a-zA-Z]/.test(processed[i])) {
-              i++;
-            }
-            continue;
-          } else {
-            i++;
-            continue;
-          }
+    // 检查是否在数学环境中
+    const inMath = isInMathEnvironment(processed, startIndex);
+    if (!inMath) {
+      // 使用 matchNestedBraces 来正确匹配嵌套花括号
+      const braceStart = startIndex + 7; // '\\fillin'.length = 7
+      if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
+        const content = matchNestedBraces(processed, braceStart - 1);
+        if (content !== null) {
+          replacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 1,
+            replacement: `$\\fillin{${content}}$`
+          });
         }
-        
-        if (processed[i] === '{') {
-          depth++;
-        } else if (processed[i] === '}') {
-          if (depth === 0) {
-            // 找到了匹配的结束花括号
-            content = processed.substring(braceStart, i);
-            replacements.push({
-              start: startIndex,
-              end: i + 1,
-              replacement: `$$\\fillin{${content}}$$`
-            });
-            break;
-          }
-          depth--;
-        }
-        i++;
       }
     }
   }
@@ -366,40 +338,15 @@ export function processQuestionText(text) {
   while ((match = filloutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
     if (!isInMathEnvironment(processed, startIndex)) {
-      let depth = 0;
-      let braceStart = startIndex + 8; // '\\fillout'.length
-      let i = braceStart;
-      let content = '';
-      
-      while (i < processed.length) {
-        if (processed[i] === '\\' && i + 1 < processed.length) {
-          i++;
-          if (/[a-zA-Z]/.test(processed[i])) {
-            while (i < processed.length && /[a-zA-Z]/.test(processed[i])) {
-              i++;
-            }
-            continue;
-          } else {
-            i++;
-            continue;
-          }
-        }
-        
-        if (processed[i] === '{') {
-          depth++;
-        } else if (processed[i] === '}') {
-          if (depth === 0) {
-            content = processed.substring(braceStart, i);
-            filloutReplacements.push({
-              start: startIndex,
-              end: i + 1,
-              replacement: `$$\\fillout{${content}}$$`
-            });
-            break;
-          }
-          depth--;
-        }
-        i++;
+      // 使用 matchNestedBraces 来正确匹配嵌套花括号
+      const braceStart = startIndex + 8; // '\\fillout'.length
+      const content = matchNestedBraces(processed, braceStart - 1);
+      if (content !== null) {
+        filloutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 1,
+          replacement: `$$\\fillout{${content}}$$`
+        });
       }
     }
   }
@@ -432,8 +379,32 @@ export function processAnswerText(text) {
 
   let processed = text;
 
-  // 处理 \pickout{A} -> (A)
-  processed = processed.replace(/\\pickout\{([^}]*)\}/g, '($1)');
+  // 处理 \pickout{A} -> (A)（支持嵌套花括号）
+  const pickoutRegex = /\\pickout\{/g;
+  const pickoutReplacements = [];
+  pickoutRegex.lastIndex = 0; // 重置正则表达式
+  let match;
+  
+  while ((match = pickoutRegex.exec(processed)) !== null) {
+    const startIndex = match.index;
+    const braceStart = startIndex + 8; // '\\pickout'.length = 8
+    if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
+      const content = matchNestedBraces(processed, braceStart - 1);
+      if (content !== null) {
+        pickoutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 1,
+          replacement: `(${content})`
+        });
+      }
+    }
+  }
+  
+  // 从后往前替换
+  for (let i = pickoutReplacements.length - 1; i >= 0; i--) {
+    const r = pickoutReplacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
 
   // 处理 \[ ... \] -> $$ ... $$
   processed = processed.replace(/\\\[/g, '$$');
