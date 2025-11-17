@@ -257,10 +257,15 @@ const { LatexParser, LatexGenerator } = require('../utils/latexParser');
 const upload = multer({
   dest: 'uploads/',
   fileFilter: (req, file, cb) => {
+    // 允许 .tex 文件和图片/PDF 文件
     if (file.mimetype === 'text/plain' || file.originalname.endsWith('.tex')) {
       cb(null, true);
+    } else if (file.mimetype.startsWith('image/') || 
+               file.mimetype === 'application/pdf' ||
+               /\.(png|jpg|jpeg|gif|pdf)$/i.test(file.originalname)) {
+      cb(null, true);
     } else {
-      cb(new Error('只支持 .tex 文件'));
+      cb(new Error('只支持 .tex 文件和图片/PDF 文件（png/jpg/jpeg/gif/pdf）'));
     }
   },
   limits: {
@@ -275,22 +280,57 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // 导入 LaTeX 文件
-router.post('/import/latex', upload.single('file'), async (req, res) => {
+router.post('/import/latex', upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'images', maxCount: 20 }
+]), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: '请上传文件' });
+    if (!req.files || !req.files['file'] || req.files['file'].length === 0) {
+      return res.status(400).json({ error: '请上传 .tex 文件' });
     }
 
-    // 读取文件内容
-    const fileContent = fs.readFileSync(req.file.path, 'utf-8');
+    const texFile = req.files['file'][0];
+    const imageFiles = req.files['images'] || [];
 
-    // 解析 LaTeX 内容
+    // 读取文件内容
+    const fileContent = fs.readFileSync(texFile.path, 'utf-8');
+
+    // 从 tex 文件名提取信息，用于生成唯一文件名
+    // 例如：AnalyticGeometry2024MiddleTermA.tex -> 解析几何-2024-midterm
+    const texFileName = texFile.originalname.replace(/\.tex$/i, '');
+    const filePrefix = generateFilePrefix(texFileName, fileContent);
+
+    // 处理图片/PDF 文件：重命名并移动到 uploads 目录
+    const imageMap = {}; // 原始文件名（不含扩展名）-> 新文件名的映射
+    for (const imgFile of imageFiles) {
+      // 提取原始文件名（不含扩展名）和扩展名（支持 pdf）
+      const extMatch = imgFile.originalname.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'png';
+      const originalName = imgFile.originalname.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      const newFileName = `${filePrefix}-${originalName}.${ext}`;
+      const newPath = path.join(uploadDir, newFileName);
+      
+      // 移动文件到新路径
+      fs.renameSync(imgFile.path, newPath);
+      // 存储映射：原始文件名（不含扩展名）-> 新文件名（含扩展名）
+      imageMap[originalName] = newFileName;
+      // 也支持带扩展名的查找（向后兼容）
+      imageMap[imgFile.originalname] = newFileName;
+    }
+
+    // 解析 LaTeX 内容，传入图片映射和文件前缀
     const parser = new LatexParser();
-    const questions = parser.parse(fileContent);
+    const questions = parser.parse(fileContent, { imageMap, filePrefix });
 
     if (questions.length === 0) {
       // 删除临时文件
-      fs.unlinkSync(req.file.path);
+      fs.unlinkSync(texFile.path);
+      // 清理已上传的图片文件
+      for (const imgFile of imageFiles) {
+        if (fs.existsSync(imgFile.path)) {
+          fs.unlinkSync(imgFile.path);
+        }
+      }
       return res.status(400).json({ error: '未能从文件中解析出题目' });
     }
 
@@ -326,8 +366,8 @@ router.post('/import/latex', upload.single('file'), async (req, res) => {
       }
     }
 
-    // 删除临时文件
-    fs.unlinkSync(req.file.path);
+    // 删除临时 tex 文件（图片文件已移动到 uploads 目录，保留）
+    fs.unlinkSync(texFile.path);
 
     res.json({
       success: true,
@@ -339,12 +379,57 @@ router.post('/import/latex', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('导入 LaTeX 文件失败:', error);
     // 清理临时文件
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (req.files && req.files['file'] && req.files['file'].length > 0) {
+      const texFile = req.files['file'][0];
+      if (fs.existsSync(texFile.path)) {
+        fs.unlinkSync(texFile.path);
+      }
+    }
+    if (req.files && req.files['images']) {
+      for (const imgFile of req.files['images']) {
+        if (fs.existsSync(imgFile.path)) {
+          fs.unlinkSync(imgFile.path);
+        }
+      }
     }
     res.status(500).json({ error: '导入失败: ' + error.message });
   }
 });
+
+/**
+ * 从 tex 文件名和内容生成文件前缀
+ * 例如：AnalyticGeometry2024MiddleTermA.tex -> 解析几何-2024-midterm
+ */
+function generateFilePrefix(texFileName, fileContent) {
+  // 尝试从文件内容中提取课程信息
+  const courseMatch = fileContent.match(/\\course\{([^}]+)\}/);
+  const course = courseMatch ? courseMatch[1].trim() : '解析几何';
+  
+  // 尝试提取年份和考试类型
+  const yearMatch = fileContent.match(/\\grade\{([^}]+)\}/);
+  const year = yearMatch ? yearMatch[1].trim() : '';
+  
+  const finalMiddleMatch = fileContent.match(/\\finalmiddle\{([^}]+)\}/);
+  const finalMiddle = finalMiddleMatch ? finalMiddleMatch[1].trim() : '';
+  
+  // 生成前缀：课程-年份-考试类型
+  const parts = [course];
+  if (year) parts.push(year);
+  if (finalMiddle) {
+    // 转换考试类型：期末 -> final, 期中 -> midterm
+    const typeMap = {
+      '期末': 'final',
+      '期中': 'midterm',
+      'Final': 'final',
+      'Middle': 'midterm',
+      'Midterm': 'midterm'
+    };
+    const type = typeMap[finalMiddle] || finalMiddle.toLowerCase();
+    parts.push(type);
+  }
+  
+  return parts.join('-');
+}
 
 // 导出题目为 LaTeX 文件
 router.post('/export/latex', async (req, res) => {

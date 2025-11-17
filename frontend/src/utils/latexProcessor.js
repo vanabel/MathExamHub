@@ -3,6 +3,8 @@
  * 用于在前端显示时处理 LaTeX 命令
  */
 
+import axios from 'axios';
+
 /**
  * 检查字符串是否在数学公式环境中（$...$, $$...$$, \[...\], \(...\), \begin{equation}...\end{equation}）
  */
@@ -251,14 +253,66 @@ export function processQuestionTextToHTML(text) {
   }
   
   // 只处理文本部分，保留 HTML 标签
-  const result = parts.map(part => {
+  let result = parts.map(part => {
     if (part.type === 'html') {
-      return part.content;
+      // 处理自定义标签：<image> 和 <a>
+      let content = part.content;
+      
+      // 处理 <image> 标签，转换为 <img> 或 <embed> 标签（PDF 使用 embed）
+      const imageRegex = /<image\s+([^>]+)\s*\/?>/gi;
+      content = content.replace(imageRegex, (match, attrs) => {
+        // 解析属性
+        const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+        const idMatch = attrs.match(/id=["']([^"']+)["']/);
+        const href = hrefMatch ? hrefMatch[1] : '';
+        const id = idMatch ? idMatch[1] : '';
+        
+        // 构建文件 URL（假设文件在 /uploads/ 目录下）
+        // 对文件名进行 URL 编码，确保中文字符正确处理
+        // 使用完整的后端 URL，因为 PDF.js 需要完整的 URL
+        const backendBaseURL = axios.defaults.baseURL || 'http://localhost:3000';
+        const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
+        
+        // 检查是否是 PDF 文件
+        const isPdf = href && /\.pdf$/i.test(href);
+        
+        if (isPdf) {
+          // PDF 文件使用 PDF.js 渲染
+          // 创建一个容器，使用 data 属性标记，稍后在 Vue 组件中初始化
+          // 清理 ID，移除无效的 CSS 选择器字符（如冒号）
+          let cleanId = (id || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+          const uniqueId = cleanId;
+          return `
+            <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${uniqueId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
+              <canvas id="pdf-canvas-${uniqueId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
+              <div style="text-align: center; margin-top: 10px;">
+                <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">
+                  <i class="bi bi-download"></i> 下载/在新窗口打开 PDF
+                </a>
+              </div>
+            </div>
+          `;
+        } else {
+          // 图片文件使用 <img> 标签
+          // 也使用完整的后端 URL，确保跨域访问正常
+          const imgUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
+          return `<img src="${imgUrl}" id="${id}" alt="图片" class="latex-figure" style="max-width: 100%; height: auto;" />`;
+        }
+      });
+      
+      return content;
     } else {
       // 处理文本中的 LaTeX 命令
       return processQuestionText(part.content);
     }
   }).join('');
+  
+  // 处理 <a> 标签中的 href，确保链接正确
+  // 注意：<a> 标签可能已经在文本中，需要确保它们被正确处理
+  result = result.replace(/<a\s+href=["']#fig:([^"']+)["']>([^<]+)<\/a>/g, (match, id, text) => {
+    // 保持链接格式，但确保 id 正确
+    return `<a href="#fig:${id}" class="latex-ref">${text}</a>`;
+  });
   
   return result;
 }

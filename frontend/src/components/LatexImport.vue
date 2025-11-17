@@ -40,6 +40,15 @@
                   class="d-none"
                   id="fileInput"
                 />
+                <input
+                  ref="imageInput"
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.gif,.pdf"
+                  @change="handleImageSelect"
+                  class="d-none"
+                  multiple
+                  id="imageInput"
+                />
                 <label
                   for="fileInput"
                   class="upload-label"
@@ -55,8 +64,23 @@
                       <i class="bi bi-check-circle"></i> {{ selectedFile.name }}
                     </h5>
                     <p class="text-muted mb-0">支持 .tex 格式文件，最大 10MB</p>
+                    <p class="text-muted mb-0 small">图片支持：png/jpg/jpeg/gif/pdf</p>
                   </div>
                 </label>
+                <!-- 图片文件上传区域 -->
+                <div class="mt-3">
+                  <label for="imageInput" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-image"></i> 上传图片文件（可选）
+                  </label>
+                  <div v-if="selectedImages.length > 0" class="mt-2">
+                    <small class="text-muted">已选择 {{ selectedImages.length }} 个文件：</small>
+                    <ul class="list-unstyled mt-1">
+                      <li v-for="(img, index) in selectedImages" :key="index" class="text-sm">
+                        <i :class="img.name.endsWith('.pdf') ? 'bi bi-file-pdf' : 'bi bi-file-image'"></i> {{ img.name }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               <!-- 导入选项 -->
@@ -166,6 +190,7 @@ export default {
   data() {
     return {
       selectedFile: null,
+      selectedImages: [],
       isDragging: false,
       importing: false,
       createdBy: "",
@@ -186,17 +211,37 @@ export default {
     },
     handleDrop(event) {
       this.isDragging = false;
-      const file = event.dataTransfer.files[0];
-      if (file) {
-        if (!file.name.endsWith(".tex")) {
-          alert("请选择 .tex 格式的文件");
-          return;
-        }
-        this.selectedFile = file;
-        // 更新文件输入框
+      const files = Array.from(event.dataTransfer.files);
+      const texFile = files.find(f => f.name.endsWith(".tex"));
+      const imageFiles = files.filter(f => 
+        f.name.match(/\.(png|jpg|jpeg|gif|pdf)$/i)
+      );
+      
+      if (texFile) {
+        this.selectedFile = texFile;
         const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
+        dataTransfer.items.add(texFile);
         this.$refs.fileInput.files = dataTransfer.files;
+      }
+      
+      if (imageFiles.length > 0) {
+        this.selectedImages = [...this.selectedImages, ...imageFiles];
+        const dataTransfer = new DataTransfer();
+        this.selectedImages.forEach(img => dataTransfer.items.add(img));
+        this.$refs.imageInput.files = dataTransfer.files;
+      }
+      
+      if (!texFile && imageFiles.length === 0) {
+        alert("请选择 .tex 文件或图片文件");
+      }
+    },
+    handleImageSelect(event) {
+      const files = Array.from(event.target.files);
+      const imageFiles = files.filter(f => 
+        f.name.match(/\.(png|jpg|jpeg|gif|pdf)$/i)
+      );
+      if (imageFiles.length > 0) {
+        this.selectedImages = [...this.selectedImages, ...imageFiles];
       }
     },
     async importFile() {
@@ -210,6 +255,10 @@ export default {
 
       const formData = new FormData();
       formData.append("file", this.selectedFile);
+      // 添加图片文件
+      this.selectedImages.forEach((img) => {
+        formData.append("images", img);
+      });
       if (this.createdBy) {
         formData.append("createdBy", this.createdBy);
       }
@@ -243,10 +292,14 @@ export default {
     },
     resetForm() {
       this.selectedFile = null;
+      this.selectedImages = [];
       this.importResult = null;
       this.createdBy = "";
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = "";
+      }
+      if (this.$refs.imageInput) {
+        this.$refs.imageInput.value = "";
       }
     },
   },

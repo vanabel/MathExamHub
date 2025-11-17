@@ -201,11 +201,16 @@ export default {
     this.getQuestionList();
   },
   updated() {
-    // 组件更新后重新渲染 MathJax
+    // 组件更新后重新渲染 MathJax 和 PDF
     this.$nextTick(() => {
       // 延迟一下，确保 v-html 已经更新
       setTimeout(() => {
         this.renderMathJax();
+        // 只在没有正在渲染的 PDF 时才调用 renderPDFs
+        const hasRenderingPDFs = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
+        if (!hasRenderingPDFs) {
+          this.renderPDFs();
+        }
       }, 100);
     });
   },
@@ -223,15 +228,93 @@ export default {
         }, 50);
       }
     },
+    renderPDFs() {
+      // 使用 PDF.js 渲染 PDF 文件
+      if (typeof window.pdfjsLib === 'undefined') {
+        return; // PDF.js 未加载
+      }
+
+      // 配置 PDF.js worker
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      // 查找所有 PDF 容器
+      const pdfContainers = document.querySelectorAll('.pdf-container[data-pdf-url]');
+      
+      pdfContainers.forEach((container) => {
+        const pdfUrl = container.getAttribute('data-pdf-url');
+        const pdfId = container.getAttribute('data-pdf-id');
+        // 使用 getElementById 或直接通过类名查找 canvas（更安全，避免选择器问题）
+        const canvas = container.querySelector('.pdf-canvas') || document.getElementById(`pdf-canvas-${pdfId}`);
+        
+        // 如果已经渲染过或正在渲染，跳过
+        if (canvas && (canvas.dataset.rendered === 'true' || canvas.dataset.rendering === 'true')) {
+          return;
+        }
+
+        if (canvas && pdfUrl) {
+          // 标记为正在渲染，防止重复渲染
+          canvas.dataset.rendering = 'true';
+          
+          // 存储渲染任务，以便可以取消
+          let renderTask = null;
+          
+          // 渲染 PDF
+          window.pdfjsLib.getDocument(pdfUrl).promise
+            .then((pdf) => {
+              // 渲染第一页
+              return pdf.getPage(1);
+            })
+            .then((page) => {
+              const viewport = page.getViewport({ scale: 1.5 });
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              const context = canvas.getContext('2d');
+              
+              // 创建渲染任务
+              renderTask = page.render({
+                canvasContext: context,
+                viewport: viewport
+              });
+              
+              // 等待渲染完成
+              return renderTask.promise;
+            })
+            .then(() => {
+              // 渲染完成，标记为已渲染
+              canvas.dataset.rendered = 'true';
+              canvas.dataset.rendering = 'false';
+            })
+            .catch((error) => {
+              // 清除渲染标志
+              canvas.dataset.rendering = 'false';
+              
+              // 如果是取消错误，不显示错误信息
+              if (error.name === 'RenderingCancelledException') {
+                return;
+              }
+              
+              console.error('PDF 加载错误:', error);
+              const errorMsg = document.createElement('p');
+              errorMsg.style.cssText = 'color: red; text-align: center; padding: 20px;';
+              errorMsg.innerHTML = `PDF 加载失败。请<a href="${pdfUrl}" target="_blank" style="color: #007bff;">点击这里</a>在新窗口打开。`;
+              container.innerHTML = '';
+              container.appendChild(errorMsg);
+            });
+        }
+      });
+    },
     async getQuestionList() {
       this.loading = true;
       try {
         const response = await axios.get("/questions/list");
         this.allQuestions = response.data;
         this.questions = response.data;
-        // 等待 DOM 更新后再渲染 MathJax
+        // 等待 DOM 更新后再渲染 MathJax 和 PDF
         await this.$nextTick();
-        this.renderMathJax();
+        setTimeout(() => {
+          this.renderMathJax();
+          this.renderPDFs();
+        }, 100);
       } catch (error) {
         console.error("Failed to retrieve question list:", error);
       } finally {
@@ -259,9 +342,12 @@ export default {
       });
       // 搜索时清空选中
       this.selectedQuestionIds = [];
-      // 等待 DOM 更新后再渲染 MathJax
+      // 等待 DOM 更新后再渲染 MathJax 和 PDF
       await this.$nextTick();
-      this.renderMathJax();
+      setTimeout(() => {
+        this.renderMathJax();
+        this.renderPDFs();
+      }, 100);
     },
     renderWithScoreAndMath(content) {
       const replacedContent = content.replace(

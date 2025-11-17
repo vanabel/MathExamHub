@@ -8,6 +8,9 @@ class LatexParser {
     this.questions = [];
     this.currentPart = null;
     this.currentQuestion = null;
+    this.imageMap = {}; // 原始图片名 -> 新文件名的映射
+    this.filePrefix = ''; // 文件前缀
+    this.figureLabels = {}; // label -> 图片信息的映射
   }
 
   /**
@@ -64,16 +67,23 @@ class LatexParser {
   /**
    * 解析 LaTeX 文件内容
    * @param {string} latexContent - LaTeX 文件内容
+   * @param {Object} options - 选项，包含 imageMap 和 filePrefix
    * @returns {Array} 解析后的题目数组
    */
-  parse(latexContent) {
+  parse(latexContent, options = {}) {
     this.questions = [];
     this.currentPart = null;
     this.currentQuestion = null;
     this.fullContent = latexContent; // 保存完整内容用于提取元数据
+    this.imageMap = options.imageMap || {};
+    this.filePrefix = options.filePrefix || '';
+    this.figureLabels = {}; // 清空之前的标签映射
 
     // 移除注释
     latexContent = this.removeComments(latexContent);
+
+    // 先处理 figure 环境，提取图片信息和标签
+    latexContent = this.processFigures(latexContent);
 
     // 解析各个部分
     this.parseParts(latexContent);
@@ -86,6 +96,160 @@ class LatexParser {
    */
   removeComments(content) {
     return content.replace(/%.*$/gm, '');
+  }
+
+  /**
+   * 处理 figure 环境，转换为 <image> 标签
+   * 同时提取 label 信息，用于后续处理 \ref
+   */
+  processFigures(content) {
+    // 匹配 \begin{figure}...\end{figure}，支持可选参数
+    const figureRegex = /\\begin\{figure\}(?:\[([^\]]*)\])?(.*?)\\end\{figure\}/gs;
+    let match;
+    const replacements = [];
+
+    while ((match = figureRegex.exec(content)) !== null) {
+      const figureContent = match[2];
+      const fullMatch = match[0];
+      const startIndex = match.index;
+
+      // 提取 \includegraphics{figName}
+      const includegraphicsMatch = figureContent.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+      if (!includegraphicsMatch) {
+        continue; // 如果没有 includegraphics，跳过
+      }
+
+      const originalFigName = includegraphicsMatch[1].trim();
+      
+      // 提取 \label{fig:xxx}
+      const labelMatch = figureContent.match(/\\label\{([^}]+)\}/);
+      const label = labelMatch ? labelMatch[1].trim() : null;
+
+      // 确定新文件名
+      let newFileName = originalFigName;
+      
+      // 先尝试直接匹配（可能包含扩展名）
+      if (this.imageMap[originalFigName]) {
+        newFileName = this.imageMap[originalFigName];
+      } else {
+        // 尝试去掉扩展名后匹配（支持 pdf）
+        const nameWithoutExt = originalFigName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+        if (this.imageMap[nameWithoutExt]) {
+          newFileName = this.imageMap[nameWithoutExt];
+        } else if (this.filePrefix) {
+          // 如果没有上传，使用前缀生成文件名
+          // 尝试提取图片序号（如 fig3 -> 3）
+          const figNumMatch = nameWithoutExt.match(/fig(\d+)/i);
+          if (figNumMatch) {
+            const figNum = figNumMatch[1];
+            // 尝试从原始名称中提取扩展名，否则默认 pdf（因为用户说图片是 PDF 格式）
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-fig${figNum}.${ext}`;
+          } else {
+            // 尝试从原始名称中提取扩展名，默认 pdf
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-${nameWithoutExt}.${ext}`;
+          }
+        }
+      }
+
+      // 生成 image 标签的 id
+      let imageId = originalFigName;
+      if (label) {
+        // 如果有 label，使用 label 作为 id（去掉 fig: 前缀）
+        imageId = label.replace(/^fig:/, '');
+        // 如果有前缀，添加到 id
+        if (this.filePrefix) {
+          imageId = `${this.filePrefix}-${imageId}`;
+        }
+      } else if (this.filePrefix) {
+        // 如果没有 label，使用前缀+原始名称
+        imageId = `${this.filePrefix}-${originalFigName}`;
+      }
+
+      // 保存 label 到图片的映射（用于 \ref 处理）
+      if (label) {
+        this.figureLabels[label] = {
+          fileName: newFileName,
+          id: imageId,
+          originalName: originalFigName
+        };
+      }
+
+      // 生成替换内容：<image href="..." id="..." />
+      const replacement = `<image href="${newFileName}" id="fig:${imageId}" />`;
+
+      replacements.push({
+        start: startIndex,
+        end: startIndex + fullMatch.length,
+        replacement: replacement
+      });
+    }
+
+    // 从后往前替换，避免索引变化
+    let processed = content;
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const r = replacements[i];
+      processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+    }
+
+    return processed;
+  }
+
+  /**
+   * 处理 \ref{label} 命令，转换为 <a href="#...">...</a>
+   */
+  processRefs(content) {
+    // 匹配 \ref{label}
+    const refRegex = /\\ref\{([^}]+)\}/g;
+    let match;
+    const replacements = [];
+
+    while ((match = refRegex.exec(content)) !== null) {
+      const label = match[1].trim();
+      const fullMatch = match[0];
+      const startIndex = match.index;
+
+      // 查找对应的图片信息
+      const figureInfo = this.figureLabels[label];
+      if (figureInfo) {
+        // 如果有对应的图片，生成链接
+        const href = `#fig:${figureInfo.id}`;
+        // 提取标签中的数字部分作为显示文本（如 fig:3 -> 3, fig:正方体 -> 正方体）
+        const displayText = label.replace(/^fig:/, '');
+        // 如果 displayText 是纯数字，直接使用；否则尝试提取数字
+        const numMatch = displayText.match(/(\d+)/);
+        const text = numMatch ? numMatch[1] : displayText;
+
+        const replacement = `<a href="${href}">${text}</a>`;
+        replacements.push({
+          start: startIndex,
+          end: startIndex + fullMatch.length,
+          replacement: replacement
+        });
+      } else {
+        // 如果没有找到对应的图片，保留原始文本但移除 \ref
+        const displayText = label.replace(/^fig:/, '');
+        const numMatch = displayText.match(/(\d+)/);
+        const text = numMatch ? numMatch[1] : displayText;
+        replacements.push({
+          start: startIndex,
+          end: startIndex + fullMatch.length,
+          replacement: text
+        });
+      }
+    }
+
+    // 从后往前替换
+    let processed = content;
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const r = replacements[i];
+      processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+    }
+
+    return processed;
   }
 
   /**
@@ -194,6 +358,9 @@ class LatexParser {
   parseQuestionContent(content, question) {
     // 移除 problem 环境的开始和结束标记
     let text = content;
+
+    // 处理 \ref 命令（在移除其他内容之前）
+    text = this.processRefs(text);
 
     // 提取选择题选项
     if (question.type === '单选题' || question.type === '多选题') {
@@ -354,7 +521,10 @@ class LatexParser {
     const match = content.match(solutionRegex);
 
     if (match) {
-      question.solution = this.cleanText(match[3] || match[2] || match[1] || '').trim();
+      let solutionText = match[3] || match[2] || match[1] || '';
+      // 处理解答中的 \ref 命令
+      solutionText = this.processRefs(solutionText);
+      question.solution = this.cleanText(solutionText).trim();
       // 如果答案为空，使用解答作为答案
       if (!question.correctAnswer && question.solution) {
         question.correctAnswer = question.solution;

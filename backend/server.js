@@ -68,6 +68,25 @@ app.use(passport.session());
 // 注册路由
 app.use('/auth', authRoutes);
 app.use('/questions', questionRoutes);
+
+// 提供静态文件服务（用于访问上传的图片和PDF）
+const path = require('path');
+const expressStatic = express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    // 确保 PDF 文件使用正确的 Content-Type
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+    }
+  },
+  // 确保正确处理中文文件名
+  dotfiles: 'ignore',
+  etag: true,
+  extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif'],
+  index: false,
+  maxAge: '1d',
+  redirect: false
+});
+app.use('/uploads', expressStatic);
 // 定义一个根路由
 app.get('/', (req, res) => {
   res.send('Welcome to the question library application.'); // 可以根据你的需求修改响应内容
