@@ -1,0 +1,4 @@
+{
+  "watch": ["electron/main.js"],
+  "exec": "electron"
+}
