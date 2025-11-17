@@ -4,9 +4,11 @@
  */
 
 /**
- * 检查字符串是否在数学公式环境中（$...$, $$...$$, \[...\], \begin{equation}...\end{equation}）
+ * 检查字符串是否在数学公式环境中（$...$, $$...$$, \[...\], \(...\), \begin{equation}...\end{equation}）
  */
 function isInMathEnvironment(text, index) {
+  const beforeText = text.substring(0, index);
+  
   // 检查是否在 $...$ 中
   let dollarCount = 0;
   for (let i = 0; i < index; i++) {
@@ -17,7 +19,6 @@ function isInMathEnvironment(text, index) {
   if (dollarCount % 2 === 1) return true;
 
   // 检查是否在 $$...$$ 中（连续两个$）
-  const beforeText = text.substring(0, index);
   const doubleDollarMatches = beforeText.match(/\$\$/g);
   if (doubleDollarMatches && doubleDollarMatches.length % 2 === 1) return true;
 
@@ -25,6 +26,11 @@ function isInMathEnvironment(text, index) {
   const openBrackets = (beforeText.match(/\\\[/g) || []).length;
   const closeBrackets = (beforeText.match(/\\\]/g) || []).length;
   if (openBrackets > closeBrackets) return true;
+
+  // 检查是否在 \(...\) 中（行内数学公式）
+  const openParens = (beforeText.match(/\\\(/g) || []).length;
+  const closeParens = (beforeText.match(/\\\)/g) || []).length;
+  if (openParens > closeParens) return true;
 
   // 检查是否在 \begin{equation}...\end{equation} 中
   const beginEq = (beforeText.match(/\\begin\{equation\}/g) || []).length;
@@ -306,12 +312,15 @@ export function processQuestionText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
-  // 2. 处理 \[ ... \] 数学公式 -> $$ ... $$
+  // 2. 处理 \( ... \) 行内数学公式 -> $ ... $
+  processed = processed.replace(/\\\(/g, '$');
+  processed = processed.replace(/\\\)/g, '$');
+
+  // 3. 处理 \[ ... \] 数学公式 -> $$ ... $$
   processed = processed.replace(/\\\[/g, '$$');
   processed = processed.replace(/\\\]/g, '$$');
 
-  // 3. 处理没有 $ 包围的 \fillin{...}，添加 $$
-  // 需要匹配嵌套花括号，并检查是否在数学环境中
+  // 4. 处理 \fillin{...}，移除内容中的 $，然后确保在数学环境中
   const fillinRegex = /\\fillin\{/g;
   const replacements = [];
   fillinRegex.lastIndex = 0; // 重置正则表达式
@@ -320,18 +329,53 @@ export function processQuestionText(text) {
     const startIndex = match.index;
     // 检查是否在数学环境中
     const inMath = isInMathEnvironment(processed, startIndex);
-    if (!inMath) {
-      // 使用 matchNestedBraces 来正确匹配嵌套花括号
-      const braceStart = startIndex + 7; // '\\fillin'.length = 7
-      if (braceStart < processed.length && processed[braceStart] === '{') {
-        const content = matchNestedBraces(processed, braceStart);
-        if (content !== null) {
-          replacements.push({
-            start: startIndex,
-            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
-            replacement: `$\\fillin{${content}}$`
-          });
+    // 使用 matchNestedBraces 来正确匹配嵌套花括号
+    const braceStart = startIndex + 7; // '\\fillin'.length = 7
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        // 检查内容是否包含 $...$ 模式（可能后面还有其他字符）
+        let cleanContent = content;
+        
+        // 检查是否以 $ 开头（单个 $，不是 $$）
+        if (content.trim().startsWith('$') && !content.trim().startsWith('$$')) {
+          // 找到第一个 $ 后的匹配 $（不在转义序列中）
+          let dollarStart = -1;
+          let dollarEnd = -1;
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === '\\' && i + 1 < content.length) {
+              i++; // 跳过转义字符
+              continue;
+            }
+            if (content[i] === '$') {
+              if (dollarStart === -1) {
+                dollarStart = i;
+              } else {
+                dollarEnd = i;
+                break;
+              }
+            }
+          }
+          
+          if (dollarStart !== -1 && dollarEnd !== -1) {
+            // 提取 $...$ 之间的内容，保留前后的字符
+            const mathContent = content.substring(dollarStart + 1, dollarEnd);
+            const beforeMath = content.substring(0, dollarStart);
+            const afterMath = content.substring(dollarEnd + 1);
+            cleanContent = beforeMath + mathContent + afterMath;
+          }
+        } else if (content.trim().startsWith('$$') && content.trim().endsWith('$$')) {
+          // 处理 $$...$$ 的情况
+          const contentTrimmed = content.trim();
+          cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
         }
+        
+        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        replacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
+          replacement: inMath ? `\\fillin{${cleanContent}}` : `$\\fillin{${cleanContent}}$`
+        });
       }
     }
   }
@@ -342,25 +386,61 @@ export function processQuestionText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
-  // 4. 处理没有 $ 包围的 \fillout{...}，添加 $$
+  // 5. 处理 \fillout{...}，移除内容中的 $，然后确保在数学环境中
   const filloutRegex = /\\fillout\{/g;
   const filloutReplacements = [];
   filloutRegex.lastIndex = 0; // 重置正则表达式
   
   while ((match = filloutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
-    if (!isInMathEnvironment(processed, startIndex)) {
-      // 使用 matchNestedBraces 来正确匹配嵌套花括号
-      const braceStart = startIndex + 8; // '\\fillout'.length
-      if (braceStart < processed.length && processed[braceStart] === '{') {
-        const content = matchNestedBraces(processed, braceStart);
-        if (content !== null) {
-          filloutReplacements.push({
-            start: startIndex,
-            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
-            replacement: `$$\\fillout{${content}}$$`
-          });
+    const inMath = isInMathEnvironment(processed, startIndex);
+    // 使用 matchNestedBraces 来正确匹配嵌套花括号
+    const braceStart = startIndex + 8; // '\\fillout'.length
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        // 检查内容是否包含 $...$ 模式（可能后面还有其他字符）
+        let cleanContent = content;
+        
+        // 检查是否以 $ 开头（单个 $，不是 $$）
+        if (content.trim().startsWith('$') && !content.trim().startsWith('$$')) {
+          // 找到第一个 $ 后的匹配 $（不在转义序列中）
+          let dollarStart = -1;
+          let dollarEnd = -1;
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === '\\' && i + 1 < content.length) {
+              i++; // 跳过转义字符
+              continue;
+            }
+            if (content[i] === '$') {
+              if (dollarStart === -1) {
+                dollarStart = i;
+              } else {
+                dollarEnd = i;
+                break;
+              }
+            }
+          }
+          
+          if (dollarStart !== -1 && dollarEnd !== -1) {
+            // 提取 $...$ 之间的内容，保留前后的字符
+            const mathContent = content.substring(dollarStart + 1, dollarEnd);
+            const beforeMath = content.substring(0, dollarStart);
+            const afterMath = content.substring(dollarEnd + 1);
+            cleanContent = beforeMath + mathContent + afterMath;
+          }
+        } else if (content.trim().startsWith('$$') && content.trim().endsWith('$$')) {
+          // 处理 $$...$$ 的情况
+          const contentTrimmed = content.trim();
+          cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
         }
+        
+        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        filloutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
+          replacement: inMath ? `\\fillout{${cleanContent}}` : `$\\fillout{${cleanContent}}$`
+        });
       }
     }
   }
@@ -421,6 +501,139 @@ export function processAnswerText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
+  // 处理 \fillin{...} 和 \fillout{...}
+  // MathJax 已经定义了这些命令为 \underline{#1}，所以只需要确保它们在数学环境中
+  // 如果内容已经在 $...$ 中，移除内容中的 $，然后确保整个命令在数学环境中
+  const fillinRegex = /\\fillin\{/g;
+  const fillinReplacements = [];
+  fillinRegex.lastIndex = 0;
+  
+  while ((match = fillinRegex.exec(processed)) !== null) {
+    const startIndex = match.index;
+    const braceStart = startIndex + 7; // '\\fillin'.length = 7
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        // 检查命令本身是否已经在数学环境中
+        const commandInMath = isInMathEnvironment(processed, startIndex);
+        // 检查内容是否包含 $...$ 模式（可能后面还有其他字符）
+        let cleanContent = content;
+        
+        // 检查是否以 $ 开头（单个 $，不是 $$）
+        if (content.trim().startsWith('$') && !content.trim().startsWith('$$')) {
+          // 找到第一个 $ 后的匹配 $（不在转义序列中）
+          let dollarStart = -1;
+          let dollarEnd = -1;
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === '\\' && i + 1 < content.length) {
+              i++; // 跳过转义字符
+              continue;
+            }
+            if (content[i] === '$') {
+              if (dollarStart === -1) {
+                dollarStart = i;
+              } else {
+                dollarEnd = i;
+                break;
+              }
+            }
+          }
+          
+          if (dollarStart !== -1 && dollarEnd !== -1) {
+            // 提取 $...$ 之间的内容，保留前后的字符
+            const mathContent = content.substring(dollarStart + 1, dollarEnd);
+            const beforeMath = content.substring(0, dollarStart);
+            const afterMath = content.substring(dollarEnd + 1);
+            cleanContent = beforeMath + mathContent + afterMath;
+          }
+        } else if (content.trim().startsWith('$$') && content.trim().endsWith('$$')) {
+          // 处理 $$...$$ 的情况
+          const contentTrimmed = content.trim();
+          cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
+        }
+        
+        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        fillinReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2,
+          replacement: commandInMath ? `\\fillin{${cleanContent}}` : `$\\fillin{${cleanContent}}$`
+        });
+      }
+    }
+  }
+  
+  for (let i = fillinReplacements.length - 1; i >= 0; i--) {
+    const r = fillinReplacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
+
+  const filloutRegex = /\\fillout\{/g;
+  const filloutReplacements = [];
+  filloutRegex.lastIndex = 0;
+  
+  while ((match = filloutRegex.exec(processed)) !== null) {
+    const startIndex = match.index;
+    const braceStart = startIndex + 8; // '\\fillout'.length = 8
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        // 检查命令本身是否已经在数学环境中
+        const commandInMath = isInMathEnvironment(processed, startIndex);
+        // 检查内容是否包含 $...$ 模式（可能后面还有其他字符）
+        let cleanContent = content;
+        
+        // 检查是否以 $ 开头（单个 $，不是 $$）
+        if (content.trim().startsWith('$') && !content.trim().startsWith('$$')) {
+          // 找到第一个 $ 后的匹配 $（不在转义序列中）
+          let dollarStart = -1;
+          let dollarEnd = -1;
+          for (let i = 0; i < content.length; i++) {
+            if (content[i] === '\\' && i + 1 < content.length) {
+              i++; // 跳过转义字符
+              continue;
+            }
+            if (content[i] === '$') {
+              if (dollarStart === -1) {
+                dollarStart = i;
+              } else {
+                dollarEnd = i;
+                break;
+              }
+            }
+          }
+          
+          if (dollarStart !== -1 && dollarEnd !== -1) {
+            // 提取 $...$ 之间的内容，保留前后的字符
+            const mathContent = content.substring(dollarStart + 1, dollarEnd);
+            const beforeMath = content.substring(0, dollarStart);
+            const afterMath = content.substring(dollarEnd + 1);
+            cleanContent = beforeMath + mathContent + afterMath;
+          }
+        } else if (content.trim().startsWith('$$') && content.trim().endsWith('$$')) {
+          // 处理 $$...$$ 的情况
+          const contentTrimmed = content.trim();
+          cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
+        }
+        
+        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        filloutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2,
+          replacement: commandInMath ? `\\fillout{${cleanContent}}` : `$\\fillout{${cleanContent}}$`
+        });
+      }
+    }
+  }
+  
+  for (let i = filloutReplacements.length - 1; i >= 0; i--) {
+    const r = filloutReplacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
+
+  // 处理 \( ... \) -> $ ... $
+  processed = processed.replace(/\\\(/g, '$');
+  processed = processed.replace(/\\\)/g, '$');
+
   // 处理 \[ ... \] -> $$ ... $$
   // 需要匹配完整的 \[...\] 块，避免破坏嵌套结构
   // 使用非贪婪匹配，但要处理嵌套的情况
@@ -433,7 +646,8 @@ export function processAnswerText(text) {
   // 题目文本中的 \pickout{A} 会在 processQuestionText 中转换为 (A)
 
   // 如果答案包含数学符号（如负号、分数、LaTeX 命令等）且不在数学环境中，包装为行内数学公式
-  // 检查是否已经在数学环境中（$...$ 或 $$...$$ 或 \[...\]）
+  // 检查是否已经在数学环境中（$...$ 或 $$...$$ 或 \[...\] 或 \begin{align*}...\end{align*}）
+  // MathJax 原生支持块级数学环境，不需要转换
   const trimmed = processed.trim();
   
   // 检查是否以 $$ 开头和结尾（块级数学公式）
@@ -450,22 +664,42 @@ export function processAnswerText(text) {
   // 检查是否还包含未处理的 \[ 或 \]
   const hasUnprocessedBrackets = processed.includes('\\[') || processed.includes('\\]');
   
-  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets;
+  // 检查是否包含块级数学环境（MathJax 原生支持，不需要转换）
+  // 支持的块级环境：align, alignat, aligned, equation, eqnarray, gather, multline, split
+  const blockMathEnvs = ['align', 'alignat', 'aligned', 'equation', 'eqnarray', 'gather', 'multline', 'split'];
+  const hasBlockMathEnv = blockMathEnvs.some(env => {
+    return processed.includes(`\\begin{${env}`) || processed.includes(`\\begin{${env}*`);
+  });
+  
+  // 检查文本中是否包含 $$ 或单个 $（即使不是整个文本）
+  // 如果文本中包含任何 $ 符号，说明已经有数学公式标记，不需要再添加
+  const containsDoubleDollar = processed.includes('$$');
+  const containsSingleDollar = processed.includes('$');
+  
+  // 如果文本中包含 $$ 或整个文本已经被 $ 包围，就不需要再添加
+  // 注意：如果文本中包含任何 $ 符号或块级数学环境，说明已经有数学公式，不需要再添加
+  // 重要：只要包含任何 $ 符号（包括 $$ 或单个 $），就认为已经在数学环境中，不要添加额外的 $
+  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets || hasBlockMathEnv || containsDoubleDollar || containsSingleDollar;
   
   // 如果不在数学环境中，检查是否包含数学符号
-  // 但是，如果答案已经以 $ 开头或结尾（但不完整），不要添加额外的 $
+  // 但是，如果答案已经包含任何 $ 符号（包括单个 $），不要添加额外的 $
+  // 这是最后的检查，确保不会添加多余的 $
   if (!isInMathEnv) {
     // 检查是否包含数学符号：负号、分数、指数、LaTeX 命令等
     // 注意：在字符类 [] 中，某些字符不需要转义
     const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
     
-    // 检查是否已经有部分 $ 符号（可能是被破坏的 $$）
-    const hasPartialDollar = (startsWithDollar && !endsWithDollar) || (!startsWithDollar && endsWithDollar);
-    
-    if (hasMathSymbols && !hasPartialDollar) {
+    if (hasMathSymbols) {
       // 包装为行内数学公式
       processed = `$${processed}$`;
     }
+  }
+  
+  // 最后的安全检查：如果文本以 $$ $ 结尾（不应该出现），移除多余的 $
+  // 这可以防止某些边缘情况
+  const trimmedFinal = processed.trim();
+  if (trimmedFinal.endsWith('$$ $')) {
+    processed = processed.replace(/\$\$ \$$/, '$$');
   }
 
   return processed;
