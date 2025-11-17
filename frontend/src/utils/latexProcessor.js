@@ -420,6 +420,15 @@ export function processQuestionText(text) {
   // 3. 处理 \[ ... \] 数学公式 -> $$ ... $$
   processed = processed.replace(/\\\[/g, '$$');
   processed = processed.replace(/\\\]/g, '$$');
+  
+  // 清理多余的 $ 符号：$ $ -> $（两个相邻的单个 $ 合并为一个）
+  processed = processed.replace(/\$\s+\$/g, '$');
+  
+  // 清理 $$ $ -> $$（块级公式后的单个 $）
+  processed = processed.replace(/\$\$\s+\$/g, '$$');
+  
+  // 清理 $ $$ -> $$（单个 $ 后跟块级公式）
+  processed = processed.replace(/\$\s+\$\$/g, '$$');
 
   // 4. 处理 \fillin{...}，移除内容中的 $，然后确保在数学环境中
   const fillinRegex = /\\fillin\{/g;
@@ -777,30 +786,58 @@ export function processAnswerText(text) {
   const containsDoubleDollar = processed.includes('$$');
   const containsSingleDollar = processed.includes('$');
   
+  // 检查是否包含块级数学公式模式：$$...$$（即使不在开头和结尾）
+  // 使用正则表达式匹配 $$...$$ 模式（可能跨行）
+  const hasBlockMathPattern = /\$\$[\s\S]*?\$\$/.test(processed);
+  
+  // 检查是否包含未转换的 \[ 或 \]（虽然应该已经转换了，但作为安全检查）
+  const hasUnconvertedBrackets = processed.includes('\\[') || processed.includes('\\]');
+  
   // 如果文本中包含 $$ 或整个文本已经被 $ 包围，就不需要再添加
   // 注意：如果文本中包含任何 $ 符号或块级数学环境，说明已经有数学公式，不需要再添加
-  // 重要：只要包含任何 $ 符号（包括 $$ 或单个 $），就认为已经在数学环境中，不要添加额外的 $
-  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets || hasBlockMathEnv || containsDoubleDollar || containsSingleDollar;
+  // 重要：只要包含任何 $ 符号（包括 $$ 或单个 $）或块级数学公式模式，就认为已经在数学环境中，不要添加额外的 $
+  // 注意：containsSingleDollar 可能会误判（因为文本中可能有单个 $），所以优先检查块级公式模式
+  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets || hasUnconvertedBrackets || hasBlockMathEnv || hasBlockMathPattern || containsDoubleDollar || containsSingleDollar;
   
   // 如果不在数学环境中，检查是否包含数学符号
-  // 但是，如果答案已经包含任何 $ 符号（包括单个 $），不要添加额外的 $
+  // 但是，如果答案已经包含任何 $ 符号（包括单个 $）或块级数学公式，不要添加额外的 $
   // 这是最后的检查，确保不会添加多余的 $
   if (!isInMathEnv) {
-    // 检查是否包含数学符号：负号、分数、指数、LaTeX 命令等
-    // 注意：在字符类 [] 中，某些字符不需要转义
-    const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
+    // 再次检查是否包含块级数学公式模式（作为双重保险）
+    // 如果包含 $$...$$ 模式，即使 isInMathEnv 为 false，也不要添加 $...$
+    const hasBlockMathPatternFinal = /\$\$[\s\S]*?\$\$/.test(processed);
     
-    if (hasMathSymbols) {
-      // 包装为行内数学公式
-      processed = `$${processed}$`;
+    if (!hasBlockMathPatternFinal) {
+      // 检查是否包含数学符号：负号、分数、指数、LaTeX 命令等
+      // 注意：在字符类 [] 中，某些字符不需要转义
+      const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
+      
+      if (hasMathSymbols) {
+        // 包装为行内数学公式
+        processed = `$${processed}$`;
+      }
     }
   }
   
-  // 最后的安全检查：如果文本以 $$ $ 结尾（不应该出现），移除多余的 $
-  // 这可以防止某些边缘情况
+  // 最后的安全检查：清理多余的 $ 符号
+  // 清理 $ $ -> $（两个相邻的单个 $ 合并为一个）
+  processed = processed.replace(/\$\s+\$/g, '$');
+  
+  // 清理 $$ $ -> $$（块级公式后的单个 $）
+  processed = processed.replace(/\$\$\s+\$/g, '$$');
+  
+  // 清理 $ $$ -> $$（单个 $ 后跟块级公式）
+  processed = processed.replace(/\$\s+\$\$/g, '$$');
+  
+  // 清理文本结尾的 $$ $ -> $$
   const trimmedFinal = processed.trim();
   if (trimmedFinal.endsWith('$$ $')) {
-    processed = processed.replace(/\$\$ \$$/, '$$');
+    processed = processed.replace(/\$\$\s+\$$/g, '$$');
+  }
+  
+  // 清理文本开头的 $ $ -> $
+  if (trimmedFinal.startsWith('$ $')) {
+    processed = processed.replace(/^\$\s+\$/g, '$');
   }
 
   return processed;
