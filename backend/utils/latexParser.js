@@ -468,23 +468,39 @@ class LatexParser {
   parseProblems(content, partType, defaultScore = 0, originalPartContent = null) {
     // 匹配 \begin{problem}...\end{problem}
     // 使用非贪婪匹配，但要处理嵌套的 solution 环境
+    // 使用 's' 标志使 . 匹配换行符，确保能正确匹配多行内容
     const problemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
     let match;
     let lastProblemEnd = 0; // 跟踪上一个 problem 的结束位置
     let problemIndex = 0; // 当前 problem 的索引
-
+    
+    // 先找到所有 problem 的位置，确保索引匹配
+    const allProblems = [];
+    problemRegex.lastIndex = 0;
     while ((match = problemRegex.exec(content)) !== null) {
+      allProblems.push({
+        index: match.index,
+        fullMatch: match[0],
+        score: match[1],
+        content: match[2]
+      });
+    }
+
+    // 遍历所有找到的 problem
+    for (let i = 0; i < allProblems.length; i++) {
+      match = allProblems[i];
+      problemIndex = i; // 使用循环索引，确保一致性
       // 解析分数：优先使用题目自己指定的分数，如果没有则使用部分级别的默认分数
       let score = defaultScore; // 默认使用部分级别的分数
-      if (match[1] && match[1].trim() !== '') {
-        const parsedScore = parseInt(match[1].trim(), 10);
+      if (match.score && match.score.trim() !== '') {
+        const parsedScore = parseInt(match.score.trim(), 10);
         // 检查是否为有效数字
         if (!isNaN(parsedScore) && parsedScore >= 0) {
           score = parsedScore; // 题目自己指定了分数，优先使用
         }
       }
       
-      let problemContent = match[2];
+      let problemContent = match.content;
       
       // 检查 problem 内容中是否有 \ref{fig:xxx} 引用
       const refRegex = /\\ref\{([^}]+)\}/g;
@@ -522,51 +538,86 @@ class LatexParser {
         problemContent = imagesToAdd.join('\n') + '\n' + problemContent;
       }
       
-      lastProblemEnd = match.index + match[0].length;
+      lastProblemEnd = match.index + match.fullMatch.length;
 
       // 从原始内容中提取对应的 problem 内容（未处理的）
       let originalProblemContent = null;
       
       // 首先尝试从原始 part 内容中提取
       if (originalPartContent) {
-        const originalProblemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
-        let originalMatch;
-        let originalIndex = 0;
-        originalProblemRegex.lastIndex = 0; // 重置正则表达式
-        while ((originalMatch = originalProblemRegex.exec(originalPartContent)) !== null) {
-          if (originalIndex === problemIndex) {
-            // 找到对应的 problem，使用原始内容
-            // 清理前导和尾随的空白字符，包括多个连续的空行和空格
-            let content = originalMatch[2];
+        // 使用更精确的匹配方法：找到所有 problem 的开始和结束位置
+        const problemStarts = [];
+        const problemEnds = [];
+        const beginRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?/g;
+        const endRegex = /\\end\{problem\}/g;
+        
+        let beginMatch;
+        beginRegex.lastIndex = 0;
+        while ((beginMatch = beginRegex.exec(originalPartContent)) !== null) {
+          problemStarts.push(beginMatch.index);
+        }
+        
+        let endMatch;
+        endRegex.lastIndex = 0;
+        while ((endMatch = endRegex.exec(originalPartContent)) !== null) {
+          problemEnds.push(endMatch.index + endMatch[0].length);
+        }
+        
+        // 找到对应的 problem（通过索引匹配）
+        if (problemIndex < problemStarts.length && problemIndex < problemEnds.length) {
+          const startPos = problemStarts[problemIndex];
+          const endPos = problemEnds[problemIndex];
+          
+          // 提取 problem 内容（不包括 \begin{problem} 和 \end{problem}）
+          const fullProblem = originalPartContent.substring(startPos, endPos);
+          const contentMatch = fullProblem.match(/\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/s);
+          if (contentMatch && contentMatch[2]) {
+            let content = contentMatch[2];
             // 移除开头的所有空白字符（包括空格、制表符、换行符）
             content = content.replace(/^[\s\n\r]+/, '');
             // 移除结尾的所有空白字符
             content = content.replace(/[\s\n\r]+$/, '');
             originalProblemContent = content;
-            break;
           }
-          originalIndex++;
         }
       }
       
       // 如果从 part 内容中提取失败，尝试从完整原始内容中查找
       if (!originalProblemContent && this.originalContent) {
-        const originalProblemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
-        let originalMatch;
-        let originalIndex = 0;
-        originalProblemRegex.lastIndex = 0; // 重置正则表达式
-        while ((originalMatch = originalProblemRegex.exec(this.originalContent)) !== null) {
-          if (originalIndex === problemIndex) {
-            // 清理前导和尾随的空白字符，包括多个连续的空行和空格
-            let content = originalMatch[2];
-            // 移除开头的所有空白字符（包括空格、制表符、换行符）
+        // 使用更精确的匹配方法
+        const problemStarts = [];
+        const problemEnds = [];
+        const beginRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?/g;
+        const endRegex = /\\end\{problem\}/g;
+        
+        let beginMatch;
+        beginRegex.lastIndex = 0;
+        while ((beginMatch = beginRegex.exec(this.originalContent)) !== null) {
+          problemStarts.push(beginMatch.index);
+        }
+        
+        let endMatch;
+        endRegex.lastIndex = 0;
+        while ((endMatch = endRegex.exec(this.originalContent)) !== null) {
+          problemEnds.push(endMatch.index + endMatch[0].length);
+        }
+        
+        // 找到对应的 problem（通过索引匹配）
+        if (problemIndex < problemStarts.length && problemIndex < problemEnds.length) {
+          const startPos = problemStarts[problemIndex];
+          const endPos = problemEnds[problemIndex];
+          
+          // 提取 problem 内容
+          const fullProblem = this.originalContent.substring(startPos, endPos);
+          const contentMatch = fullProblem.match(/\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/s);
+          if (contentMatch && contentMatch[2]) {
+            let content = contentMatch[2];
+            // 移除开头的所有空白字符
             content = content.replace(/^[\s\n\r]+/, '');
             // 移除结尾的所有空白字符
             content = content.replace(/[\s\n\r]+$/, '');
             originalProblemContent = content;
-            break;
           }
-          originalIndex++;
         }
       }
       

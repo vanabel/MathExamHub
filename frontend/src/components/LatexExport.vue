@@ -146,7 +146,7 @@
                           <span class="badge bg-info">{{ question.totalScore }} 分</span>
                         </div>
                       </div>
-                      <p class="mb-0 small">{{ question.questionText }}</p>
+                      <p class="mb-0 small">{{ question.originalLaTeX || question.questionText }}</p>
                     </label>
                   </div>
                 </div>
@@ -165,14 +165,17 @@
             </div>
             <div class="card-body">
               <div class="mb-3">
-                <label for="filename" class="form-label">文件名</label>
+                <label for="filename" class="form-label">文件名（不含扩展名）</label>
                 <input
                   v-model="metadata.filename"
                   id="filename"
                   type="text"
                   class="form-control"
-                  placeholder="mathexam.tex"
+                  placeholder="mathexam-2025-01-01"
                 />
+                <small class="form-text text-muted">
+                  系统会根据是否有图片自动添加 .tex 或 .zip 扩展名
+                </small>
               </div>
 
               <div class="mb-3">
@@ -275,7 +278,7 @@ export default {
       },
       availableSubjects: [], // 所有可用的科目列表
       metadata: {
-        filename: `mathexam-${new Date().toISOString().split("T")[0]}.tex`,
+        filename: `mathexam-${new Date().toISOString().split("T")[0]}`,
         university: "西南大学",
         school: "数学与统计学院",
         course: "高等代数",
@@ -294,6 +297,17 @@ export default {
   computed: {
     selectedQuestions() {
       return this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
+    },
+  },
+  watch: {
+    // 当选择的题目改变时，自动更新文件名和元数据
+    selectedQuestions: {
+      handler(newVal) {
+        if (newVal.length > 0) {
+          this.updateMetadataFromQuestions(newVal);
+        }
+      },
+      immediate: false,
     },
   },
   mounted() {
@@ -361,6 +375,30 @@ export default {
     deselectAll() {
       this.selectedQuestionIds = [];
     },
+    // 根据选择的题目更新元数据
+    updateMetadataFromQuestions(questions) {
+      if (questions.length === 0) return;
+      
+      // 获取最常见的科目
+      const subjects = questions.map(q => q.subject).filter(s => s);
+      const subjectCounts = {};
+      subjects.forEach(s => {
+        subjectCounts[s] = (subjectCounts[s] || 0) + 1;
+      });
+      const mostCommonSubject = Object.keys(subjectCounts).reduce((a, b) => 
+        subjectCounts[a] > subjectCounts[b] ? a : b, subjects[0] || ''
+      );
+      
+      // 更新课程名称（使用最常见的科目）
+      if (mostCommonSubject) {
+        this.metadata.course = mostCommonSubject;
+      }
+      
+      // 生成文件名：科目-日期
+      const date = new Date().toISOString().split("T")[0];
+      const subjectPart = mostCommonSubject ? mostCommonSubject.replace(/\s+/g, '-') : 'mathexam';
+      this.metadata.filename = `${subjectPart}-${date}`;
+    },
     async exportToLatex() {
       if (this.selectedQuestionIds.length === 0) {
         alert("请至少选择一道题目");
@@ -381,11 +419,44 @@ export default {
           }
         );
 
+        // 从响应头中获取文件名，如果没有则从 Content-Disposition 中提取
+        let filename = this.metadata.filename || "mathexam";
+        const contentDisposition = response.headers['content-disposition'];
+        if (contentDisposition) {
+          // 首先尝试 RFC 5987 格式：filename*=UTF-8''encoded
+          const rfc5987Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+          if (rfc5987Match && rfc5987Match[1]) {
+            try {
+              filename = decodeURIComponent(rfc5987Match[1]);
+            } catch (e) {
+              console.warn('解码文件名失败:', e);
+            }
+          } else {
+            // 回退到标准格式：filename="value"
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+              filename = filenameMatch[1].replace(/['"]/g, '');
+              // 移除可能的路径分隔符
+              filename = filename.split('/').pop().split('\\').pop();
+            }
+          }
+        }
+        
+        // 如果后端返回的是 zip，确保文件名是 .zip；如果是 tex，确保是 .tex
+        const contentType = response.headers['content-type'] || '';
+        if (contentType.includes('application/zip')) {
+          // 移除 .tex 扩展名（如果有），添加 .zip
+          filename = filename.replace(/\.tex$/, '').replace(/\.zip$/, '') + '.zip';
+        } else if (contentType.includes('text/plain')) {
+          // 确保是 .tex 扩展名
+          filename = filename.replace(/\.zip$/, '').replace(/\.tex$/, '') + '.tex';
+        }
+
         // 创建下载链接
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", this.metadata.filename || "mathexam.tex");
+        link.setAttribute("download", filename);
         document.body.appendChild(link);
         link.click();
         link.remove();

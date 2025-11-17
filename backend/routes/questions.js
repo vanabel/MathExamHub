@@ -532,16 +532,25 @@ router.post('/export/latex', async (req, res) => {
     const imageFilesMap = {}; // 原始文件名 -> 实际文件名的映射
     
     // 从 LaTeX 内容中提取 \includegraphics{figName}
+    // 也检查 \begin{figure} 环境中的 \includegraphics
     const includegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
     let imgMatch;
+    let hasImages = false;
+    
     while ((imgMatch = includegraphicsRegex.exec(latexContent)) !== null) {
+      hasImages = true;
       const originalName = imgMatch[1].trim();
       // 去掉可能的扩展名
       const nameWithoutExt = originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
       
       // 在 uploads 目录中查找对应的文件（可能带前缀）
       const uploadDir = path.join(__dirname, '../uploads');
-      const files = fs.readdirSync(uploadDir);
+      let files = [];
+      try {
+        files = fs.readdirSync(uploadDir);
+      } catch (error) {
+        console.error('读取 uploads 目录失败:', error);
+      }
       
       // 查找匹配的文件（支持带前缀的文件名）
       for (const file of files) {
@@ -554,6 +563,18 @@ router.post('/export/latex', async (req, res) => {
         }
       }
     }
+    
+    // 如果从 LaTeX 内容中没有找到 \includegraphics，检查是否有 <image> 标签（不应该发生，但作为后备）
+    if (!hasImages) {
+      const imageTagRegex = /<image\s+[^>]*href=["']([^"']+)["'][^>]*>/gi;
+      let tagMatch;
+      while ((tagMatch = imageTagRegex.exec(latexContent)) !== null) {
+        hasImages = true;
+        const href = tagMatch[1];
+        imageFiles.add(href);
+        imageFilesMap[href] = href;
+      }
+    }
 
     // 检查是否有图片文件需要打包
     if (imageFiles.size > 0) {
@@ -562,15 +583,23 @@ router.post('/export/latex', async (req, res) => {
       const archive = archiver('zip', { zlib: { level: 9 } });
 
       // 设置响应头
-      const filename = (metadata?.filename || `mathexam-${Date.now()}`).replace(/\.tex$/, '');
+      // 确保文件名不包含 .tex 扩展名，因为我们要创建 .zip 文件
+      let baseFilename = metadata?.filename || `mathexam-${Date.now()}`;
+      baseFilename = baseFilename.replace(/\.tex$/, '').replace(/\.zip$/, '');
+      const zipFilename = `${baseFilename}.zip`;
+      
+      // 对文件名进行编码，避免中文字符等特殊字符导致错误
+      const encodedFilename = encodeURIComponent(zipFilename);
+      
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.zip"`);
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
 
       // 将 zip 流连接到响应
       archive.pipe(res);
 
-      // 添加 LaTeX 文件
-      archive.append(latexContent, { name: `${filename}.tex` });
+      // 添加 LaTeX 文件（zip 内部的 .tex 文件名）
+      const texFilename = `${baseFilename}.tex`;
+      archive.append(latexContent, { name: texFilename });
 
       // 添加图片文件
       const uploadDir = path.join(__dirname, '../uploads');
@@ -592,9 +621,18 @@ router.post('/export/latex', async (req, res) => {
       await archive.finalize();
     } else {
       // 没有图片，直接返回 LaTeX 文件
-      const filename = metadata?.filename || `mathexam-${Date.now()}.tex`;
+      // 确保文件名包含 .tex 扩展名
+      let filename = metadata?.filename || `mathexam-${Date.now()}`;
+      filename = filename.replace(/\.zip$/, '');
+      if (!filename.endsWith('.tex')) {
+        filename = `${filename}.tex`;
+      }
+      
+      // 对文件名进行编码，避免中文字符等特殊字符导致错误
+      const encodedFilename = encodeURIComponent(filename);
+      
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
       res.send(latexContent);
     }
   } catch (error) {
