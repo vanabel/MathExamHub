@@ -4,6 +4,8 @@ import QuestionEditView from "../views/QuestionEditView.vue";
 import QuestionAddView from "../views/QuestionAddView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import LoginView from "../views/LoginView.vue";
+import LatexImportView from "../views/LatexImportView.vue";
+import LatexExportView from "../views/LatexExportView.vue";
 
 const routes = [
   {
@@ -34,6 +36,16 @@ const routes = [
     path: "/question-edit/:id",
     name: "question-edit",
     component: QuestionEditView,
+  },
+  {
+    path: "/latex-import",
+    name: "latex-import",
+    component: LatexImportView,
+  },
+  {
+    path: "/latex-export",
+    name: "latex-export",
+    component: LatexExportView,
   },
 ];
 

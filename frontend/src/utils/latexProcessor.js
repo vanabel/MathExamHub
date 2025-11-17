@@ -267,7 +267,8 @@ export function processQuestionText(text) {
 
   let processed = text;
 
-  // 1. 处理 \pickout{A} -> (A)（支持嵌套花括号）
+  // 1. 处理 \pickout{A} -> $\text{(A)}$（支持嵌套花括号）
+  // 使用 \text{} 明确告诉 MathJax 这是文本，不是数学公式
   const pickoutRegex = /\\pickout\{/g;
   const pickoutReplacements = [];
   pickoutRegex.lastIndex = 0; // 重置正则表达式
@@ -276,14 +277,25 @@ export function processQuestionText(text) {
   while ((match = pickoutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
     const braceStart = startIndex + 8; // '\\pickout'.length = 8
-    if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
-      const content = matchNestedBraces(processed, braceStart - 1);
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
       if (content !== null) {
-        pickoutReplacements.push({
-          start: startIndex,
-          end: braceStart + content.length + 1,
-          replacement: `(${content})`
-        });
+        // 检查是否已经在数学环境中
+        const inMath = isInMathEnvironment(processed, startIndex);
+        if (!inMath) {
+          pickoutReplacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
+            replacement: `$\\text{(${content})}$`
+          });
+        } else {
+          // 如果已经在数学环境中，只使用 \text{}
+          pickoutReplacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 2,
+            replacement: `\\text{(${content})}`
+          });
+        }
       }
     }
   }
@@ -311,12 +323,12 @@ export function processQuestionText(text) {
     if (!inMath) {
       // 使用 matchNestedBraces 来正确匹配嵌套花括号
       const braceStart = startIndex + 7; // '\\fillin'.length = 7
-      if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
-        const content = matchNestedBraces(processed, braceStart - 1);
+      if (braceStart < processed.length && processed[braceStart] === '{') {
+        const content = matchNestedBraces(processed, braceStart);
         if (content !== null) {
           replacements.push({
             start: startIndex,
-            end: braceStart + content.length + 1,
+            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
             replacement: `$\\fillin{${content}}$`
           });
         }
@@ -340,13 +352,15 @@ export function processQuestionText(text) {
     if (!isInMathEnvironment(processed, startIndex)) {
       // 使用 matchNestedBraces 来正确匹配嵌套花括号
       const braceStart = startIndex + 8; // '\\fillout'.length
-      const content = matchNestedBraces(processed, braceStart - 1);
-      if (content !== null) {
-        filloutReplacements.push({
-          start: startIndex,
-          end: braceStart + content.length + 1,
-          replacement: `$$\\fillout{${content}}$$`
-        });
+      if (braceStart < processed.length && processed[braceStart] === '{') {
+        const content = matchNestedBraces(processed, braceStart);
+        if (content !== null) {
+          filloutReplacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
+            replacement: `$$\\fillout{${content}}$$`
+          });
+        }
       }
     }
   }
@@ -379,7 +393,8 @@ export function processAnswerText(text) {
 
   let processed = text;
 
-  // 处理 \pickout{A} -> (A)（支持嵌套花括号）
+  // 处理 \pickout{A} -> A（答案中只保留内容，不添加括号）
+  // 题目文本中的 \pickout{A} 会在 processQuestionText 中转换为 (A)
   const pickoutRegex = /\\pickout\{/g;
   const pickoutReplacements = [];
   pickoutRegex.lastIndex = 0; // 重置正则表达式
@@ -388,13 +403,13 @@ export function processAnswerText(text) {
   while ((match = pickoutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
     const braceStart = startIndex + 8; // '\\pickout'.length = 8
-    if (braceStart - 1 < processed.length && processed[braceStart - 1] === '{') {
-      const content = matchNestedBraces(processed, braceStart - 1);
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
       if (content !== null) {
         pickoutReplacements.push({
           start: startIndex,
-          end: braceStart + content.length + 1,
-          replacement: `(${content})`
+          end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
+          replacement: content // 答案中只保留内容，不添加括号
         });
       }
     }
@@ -407,8 +422,51 @@ export function processAnswerText(text) {
   }
 
   // 处理 \[ ... \] -> $$ ... $$
-  processed = processed.replace(/\\\[/g, '$$');
-  processed = processed.replace(/\\\]/g, '$$');
+  // 需要匹配完整的 \[...\] 块，避免破坏嵌套结构
+  // 使用非贪婪匹配，但要处理嵌套的情况
+  // 注意：需要处理可能包含换行符的情况
+  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => {
+    return `$$${content}$$`;
+  });
+
+  // 注意：答案不需要添加括号，保持原样
+  // 题目文本中的 \pickout{A} 会在 processQuestionText 中转换为 (A)
+
+  // 如果答案包含数学符号（如负号、分数、LaTeX 命令等）且不在数学环境中，包装为行内数学公式
+  // 检查是否已经在数学环境中（$...$ 或 $$...$$ 或 \[...\]）
+  const trimmed = processed.trim();
+  
+  // 检查是否以 $$ 开头和结尾（块级数学公式）
+  // 注意：需要检查开头和结尾，即使中间有换行符
+  const startsWithDoubleDollar = trimmed.startsWith('$$');
+  const endsWithDoubleDollar = trimmed.endsWith('$$');
+  const isBlockMath = startsWithDoubleDollar && endsWithDoubleDollar;
+  
+  // 检查是否以 $ 开头和结尾（行内数学公式），但不是 $$
+  const startsWithDollar = trimmed.startsWith('$');
+  const endsWithDollar = trimmed.endsWith('$');
+  const isInlineMath = startsWithDollar && endsWithDollar && !isBlockMath;
+  
+  // 检查是否还包含未处理的 \[ 或 \]
+  const hasUnprocessedBrackets = processed.includes('\\[') || processed.includes('\\]');
+  
+  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets;
+  
+  // 如果不在数学环境中，检查是否包含数学符号
+  // 但是，如果答案已经以 $ 开头或结尾（但不完整），不要添加额外的 $
+  if (!isInMathEnv) {
+    // 检查是否包含数学符号：负号、分数、指数、LaTeX 命令等
+    // 注意：在字符类 [] 中，某些字符不需要转义
+    const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
+    
+    // 检查是否已经有部分 $ 符号（可能是被破坏的 $$）
+    const hasPartialDollar = (startsWithDollar && !endsWithDollar) || (!startsWithDollar && endsWithDollar);
+    
+    if (hasMathSymbols && !hasPartialDollar) {
+      // 包装为行内数学公式
+      processed = `$${processed}$`;
+    }
+  }
 
   return processed;
 }

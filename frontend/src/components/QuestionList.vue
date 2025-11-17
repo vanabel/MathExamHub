@@ -435,6 +435,13 @@ export default {
   display: block;
 }
 
+.question-text-content .pickout-answer {
+  font-weight: 500;
+  color: #495057;
+  /* 防止 MathJax 处理 */
+  display: inline;
+}
+
 .latex-enumerate {
   margin: 0.5rem 0;
   padding-left: 1.5rem;

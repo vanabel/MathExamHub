@@ -29,25 +29,45 @@
                 <i class="bi bi-plus-circle"></i> 添加题目
               </router-link>
             </li>
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                id="latexDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="bi bi-file-earmark-text"></i> LaTeX 导入/导出
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="latexDropdown">
+                <li>
+                  <router-link class="dropdown-item" :class="{ active: $route.name === 'latex-import' }" to="/latex-import">
+                    <i class="bi bi-upload"></i> 导入 LaTeX
+                  </router-link>
+                </li>
+                <li>
+                  <router-link class="dropdown-item" :class="{ active: $route.name === 'latex-export' }" to="/latex-export">
+                    <i class="bi bi-download"></i> 导出 LaTeX
+                  </router-link>
+                </li>
+              </ul>
+            </li>
           </ul>
           <ul class="navbar-nav">
-            <li class="nav-item dropdown" :class="{ show: showUserMenu }">
+            <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"
                 href="#"
                 id="navbarDropdown"
                 role="button"
-                @click.prevent="toggleUserMenu"
+                data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
                 <i class="bi bi-person-circle"></i>
                 {{ currentUser?.username || '用户' }}
               </a>
-              <ul 
-                class="dropdown-menu dropdown-menu-end" 
-                :class="{ show: showUserMenu }"
-                aria-labelledby="navbarDropdown"
-              >
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                 <li>
                   <a class="dropdown-item" href="#" @click.prevent="logout">
                     <i class="bi bi-box-arrow-right"></i> 退出登录
@@ -75,7 +95,6 @@ export default {
   data() {
     return {
       currentUser: null,
-      showUserMenu: false,
     };
   },
   computed: {
@@ -86,17 +105,10 @@ export default {
   },
   mounted() {
     this.loadUser();
-    // 点击外部关闭下拉菜单
-    document.addEventListener('click', this.handleClickOutside);
-  },
-  beforeUnmount() {
-    document.removeEventListener('click', this.handleClickOutside);
   },
   watch: {
     $route() {
       this.loadUser();
-      // 路由变化时关闭下拉菜单
-      this.showUserMenu = false;
     },
   },
   methods: {
@@ -112,20 +124,7 @@ export default {
         this.currentUser = null;
       }
     },
-    toggleUserMenu(event) {
-      event.stopPropagation();
-      this.showUserMenu = !this.showUserMenu;
-    },
-    handleClickOutside(event) {
-      const dropdown = event.target.closest('.dropdown');
-      if (!dropdown && this.showUserMenu) {
-        this.showUserMenu = false;
-      }
-    },
     async logout() {
-      // 关闭下拉菜单
-      this.showUserMenu = false;
-      
       // 调用后端登出接口
       try {
         await axios.post('/auth/logout');

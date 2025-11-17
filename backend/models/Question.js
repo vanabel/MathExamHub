@@ -39,16 +39,12 @@ questionSchema.add({
   },
 });
 // 添加一个字段来表示试题科目
+// 不限制为枚举值，允许动态添加新科目
 questionSchema.add({
- subject: {
+  subject: {
     type: String,
-    enum: [
-      '微分几何',
-      '解析几何', 
-      '高等几何', 
-      '线性代数II',
-      /* Add other subjects as needed */
-    ],
+    // 移除 enum 限制，允许任意科目名称
+    // 常用科目：微分几何、解析几何、高等几何、线性代数II、高等代数
   },
 });
 

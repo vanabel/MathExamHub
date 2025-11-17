@@ -186,14 +186,35 @@ export default {
         const questionId = this.$route.params.id;
         const response = await axios.get(`/questions/${questionId}/get`);
 
-        this.questionText = response.data.questionText;
-        this.questionAnswer = response.data.questionAnswer;
+        // 设置基本字段
+        this.questionText = response.data.questionText || '';
+        this.questionAnswer = response.data.questionAnswer || '';
 
-        // 如果后端返回了更多字段，可以在这里设置
-        if (response.data.type) this.questionType = response.data.type;
-        if (response.data.totalScore) this.questionScore = response.data.totalScore;
-        if (response.data.difficulty) this.questionDifficulty = response.data.difficulty;
-        if (response.data.options) this.options = response.data.options;
+        // 设置类型、分值、难度
+        this.questionType = response.data.type || '';
+        this.questionScore = response.data.totalScore || null;
+        this.questionDifficulty = response.data.difficulty || '';
+
+        // 设置选项（如果是选择题）
+        if ((response.data.type === '单选题' || response.data.type === '多选题') &&
+            response.data.options && typeof response.data.options === 'object') {
+          // 合并后端返回的选项和默认选项，确保所有选项键都存在
+          this.options = {
+            A: response.data.options.A || '',
+            B: response.data.options.B || '',
+            C: response.data.options.C || '',
+            D: response.data.options.D || '',
+            ...response.data.options, // 保留后端返回的其他选项（如 E, F 等）
+          };
+        } else {
+          // 如果不是选择题或没有选项，保持默认的空选项
+          this.options = {
+            A: '',
+            B: '',
+            C: '',
+            D: '',
+          };
+        }
       } catch (error) {
         console.error("获取试题信息失败:", error);
         alert("获取题目信息失败，请稍后重试");
@@ -212,26 +233,45 @@ export default {
 
         // 如果有其他字段，也添加到 payload
         if (this.questionType) payload.type = this.questionType;
-        if (this.questionScore) payload.totalScore = this.questionScore;
-        if (this.questionDifficulty) payload.difficulty = this.questionDifficulty;
-        if (
-          (this.questionType === "单选题" || this.questionType === "多选题") &&
-          this.options
-        ) {
-          payload.options = this.options;
+        if (this.questionScore !== null && this.questionScore !== undefined) {
+          payload.totalScore = this.questionScore;
         }
+        if (this.questionDifficulty) payload.difficulty = this.questionDifficulty;
+        
+        // 对于选择题，添加选项；对于非选择题，清除选项
+        if (this.questionType === "单选题" || this.questionType === "多选题") {
+          if (this.options) {
+            // 过滤掉空选项，只保留有内容的选项
+            const filteredOptions = {};
+            Object.keys(this.options).forEach(key => {
+              if (this.options[key] && this.options[key].trim() !== '') {
+                filteredOptions[key] = this.options[key];
+              }
+            });
+            payload.options = filteredOptions;
+          }
+        } else {
+          // 非选择题类型，清除选项字段
+          payload.options = {};
+        }
+        
+        console.log('发送的 payload:', payload);
 
-        await axios.put(`/questions/${questionId}/edit`, payload, {
+        const response = await axios.put(`/questions/${questionId}/edit`, payload, {
           headers: {
             "Content-Type": "application/json",
           },
         });
 
-        alert("编辑成功！");
-        this.$router.push({ name: "question-list" });
+        if (response.status === 200 || response.status === 201) {
+          alert("编辑成功！");
+          this.$router.push({ name: "question-list" });
+        }
       } catch (error) {
         console.error("编辑试题失败:", error);
-        alert("编辑失败，请稍后重试");
+        const errorMessage = error.response?.data?.error || error.message || "编辑失败，请稍后重试";
+        console.error("错误详情:", error.response?.data);
+        alert(`编辑失败: ${errorMessage}`);
       } finally {
         this.loading = false;
       }

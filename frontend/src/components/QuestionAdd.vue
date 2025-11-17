@@ -38,17 +38,25 @@
                     <label for="subject" class="form-label">
                       <i class="bi bi-book"></i> 试题科目
                     </label>
-                    <select
+                    <input
                       v-model="subject"
                       id="subject"
-                      class="form-select"
+                      type="text"
+                      class="form-control"
+                      list="subjectList"
+                      placeholder="输入或选择科目"
                       required
-                    >
-                      <option value="解析几何">解析几何</option>
-                      <option value="线性代数II">线性代数II</option>
-                      <option value="高等几何">高等几何</option>
-                      <option value="微分几何">微分几何</option>
-                    </select>
+                    />
+                    <datalist id="subjectList">
+                      <option v-for="subj in availableSubjects" :key="subj" :value="subj">
+                        {{ subj }}
+                      </option>
+                    </datalist>
+                    <small class="form-text text-muted">
+                      常用科目：解析几何、线性代数II、高等代数、高等几何、微分几何
+                      <br />
+                      如果输入新科目，系统会自动添加
+                    </small>
                   </div>
                   <div class="col-md-6">
                     <label for="questionType" class="form-label">
@@ -200,7 +208,7 @@
                     <span class="badge bg-primary">{{ item.subject }}</span>
                     <span class="badge bg-secondary">{{ item.type }}</span>
                   </div>
-                  <p class="mb-2 small">{{ item.questionText }}</p>
+                  <p class="mb-2 small" v-html="item.questionText"></p>
                   <template v-if="item.type === '单选题' || item.type === '多选题'">
                     <ol class="small mb-0" style="list-style-type: upper-alpha; padding-left: 1.2rem;">
                       <li v-for="(option, index) in (item.options || [])" :key="index">
@@ -249,9 +257,39 @@ export default {
       subject: "微分几何",
       searchResults: [],
       loading: false,
+      availableSubjects: [], // 所有可用的科目列表
     };
   },
+  mounted() {
+    this.loadSubjects();
+  },
   methods: {
+    async loadSubjects() {
+      try {
+        const response = await axios.get("/questions/subjects");
+        // 合并常用科目和已使用的科目，去重并排序
+        const commonSubjects = [
+          "解析几何",
+          "线性代数II",
+          "高等代数",
+          "高等几何",
+          "微分几何",
+        ];
+        const allSubjects = [...new Set([...commonSubjects, ...response.data])];
+        allSubjects.sort();
+        this.availableSubjects = allSubjects;
+      } catch (error) {
+        console.error("加载科目列表失败:", error);
+        // 如果加载失败，使用默认的常用科目列表
+        this.availableSubjects = [
+          "解析几何",
+          "线性代数II",
+          "高等代数",
+          "高等几何",
+          "微分几何",
+        ];
+      }
+    },
     async addQuestion() {
       this.loading = true;
 

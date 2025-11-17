@@ -1,0 +1,740 @@
+%%
+%% This is file `mathexam.sty',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% mathexam.dtx  (with options: `package')
+%% ----------------------------------------------------------------
+%% mathexam --- 数学类考试出题宏包
+%% ===============================================================
+%% E-mail: van141.abel(AT)gmail.com
+%% Released under the LaTeX Project Public License v1.3c or later
+%% See http://www.latex-project.org/lppl.txt
+%% ----------------------------------------------------------------
+%% 
+\NeedsTeXFormat{LaTeX2e}[2005/12/01]
+\ProvidesPackage{mathexam}
+[2020/12/12 v.2.3.0 一个数学类考试宏包]
+\NeedsTeXFormat{LaTeX2e}[2005/12/01]
+\ProvidesPackage{mathexam}
+[2020/07/03 v.2.2.0 一个数学类考试宏包]
+\NeedsTeXFormat{LaTeX2e}[1996/06/01]
+\ProvidesPackage{mathexam}[2020/07/03 一个数学类考试宏包 v2.2.0]
+\RequirePackage{mathtools, amssymb, amsthm}
+\RequirePackage{ulem}
+\RequirePackage[contents={}]{background}
+\RequirePackage{ctex}
+\RequirePackage{bookmark}
+\RequirePackage{geometry}
+\RequirePackage{tabu}
+\RequirePackage{refcount, fancyhdr}
+
+\RequirePackage{calc}
+\RequirePackage{tikzpagenodes}
+\usetikzlibrary{calc}
+\RequirePackage{eso-pic}
+\RequirePackage{etoolbox,xparse,  multido, ifthen}
+\RequirePackage{zhnumber}
+\RequirePackage{datatool}
+\RequirePackage{ifplatform}
+\IfFileExists{\jobname.dat}{
+  \DTLloaddb{\jobname}{\jobname.dat}
+  }{
+ \DTLnewdb{\jobname}
+}
+
+\newif\ifmathexam@showans\mathexam@showansfalse % 是否显示答案
+\newif\ifmathexam@sidebyside\mathexam@sidebysidefalse
+\newif\ifmathexam@fixlast\mathexam@fixlastfalse % 是否修复末页
+\newif\ifmathexam@nospace\mathexam@nospacefalse%解答题不留空白
+\newif\ifmathexam@caogaozhi\mathexam@caogaozhifalse%输出草稿纸
+\DeclareOption{showans}{ \mathexam@showanstrue}
+\DeclareOption{fixlast}{\mathexam@fixlasttrue}
+\DeclareOption{nospace}{\mathexam@nospacetrue}
+\DeclareOption{caogaozhi}{\mathexam@caogaozhitrue}
+\DeclareOption{a3paper}{\mathexam@sidebysidetrue}
+
+\ProcessOptions\relax
+
+\newcommand{\university}[1]{\def\mathexam@value@university{#1}}
+\newcommand{\school}[1]{\def\mathexam@value@school{#1}}
+\newcommand{\course}[1]{\def\mathexam@value@course{#1}}
+\newcommand{\AorB}[1]{\def\mathexam@value@AorB{#1}}
+\newcommand{\semester}[1]{\def\mathexam@value@semester{#1}}
+\newcommand{\finalmiddle}[1]{\def\mathexam@value@finalmiddle{#1}}
+\newcommand{\totaltime}[1]{\def\mathexam@value@totaltime{#1}}
+\newcommand{\openclose}[1]{\def\mathexam@value@openclose{#1}}
+\newcommand{\degree}[1]{\def\mathexam@value@degree{#1}}
+\newcommand{\totalstu}[1]{\def\mathexam@value@totalstudent{#1}}
+\newcommand{\major}[1]{\def\mathexam@value@major{#1}}
+\newcommand{\grade}[1]{\def\mathexam@value@grade{#1}}
+\newcommand{\examiner}[1]{\def\mathexam@value@examiner{#1}}
+\newcommand{\director}[1]{\def\mathexam@value@director{#1}}
+\newcommand{\dean}[1]{\def\mathexam@value@dean{#1}}
+
+\newcommand{\mathexam@value@semester}{%
+\ifnum\the\month<9\ifnum\the\month>2 {2}\fi\else {1}\fi%
+}%
+\newcommand{\mathexam@lasttwoofyear}[1]{%#1 is the offset
+    \expandafter\mathexam@getlasttwo\number\numexpr\year+(#1)\relax\relax
+}
+\def\mathexam@getlasttwo#1#2#3#4\relax{#3#4}
+\def\tobecalculate{\mbox{??}}
+\def\totalnumpages{%
+  \@ifundefined{mathexam@totalpages}{%
+    \tobecalculate%
+    }{%
+    \mathexam@totalpages%
+  }%
+}
+\newcommand{\mathexam@barfill}{%
+  \leavevmode\xleaders\hb@xt@1em{\hss | \hss }\hfill\kern\z@%
+}
+\newcommand{\mathexam@barfilltext}[1]{~\rotatebox[origin=c]{270}{#1}~}
+
+\newlength\myleft
+\newlength\myinner
+\newlength\myouter
+\newlength\mytop
+\newlength\mybottom
+\newlength\myhead
+\setlength\myleft{.75in}
+\setlength\myinner{1in}
+\setlength\myouter{.4in}
+\setlength\mytop{.2in}
+\setlength\myhead{.3in}
+\setlength\mybottom{.6in}
+
+\newgeometry{
+  top=\mytop,
+  inner=\myinner,
+  outer=\myouter,
+  bottom=\mybottom,
+  headheight=\myhead,
+  includeheadfoot,
+  twoside
+}
+
+\newlength\lefttable
+\setlength{\lefttable}{(\textheight-11\ccwd-\tabcolsep*15)/17}
+
+\newcommand{\myheaderright}{%
+  \zihao{5}(试题【\mathexam@value@AorB 】卷\ifmathexam@showans 参考答案\fi)
+}
+\newcommand{\myheader}{\zihao{5}\mathexam@value@university 课程考核}
+\newlength\headertextlen
+\newcounter{temp}
+\setcounter{temp}{0}
+\def\tand{&}
+\ifnum0\DTLcolumncount{\jobname}>2%
+  \DTLsumforkeys{\jobname}{problem}{\totalproblems}%
+\else%
+  \let\totalproblems\tobecalculate%
+\fi%
+\ifnum0\DTLcolumncount{\jobname}>2%
+  \DTLsumforkeys{\jobname}{score}{\totalscores}%
+\else%
+  \let\totalscores\tobecalculate%
+\fi%
+\newcommand{\makehead}{%
+  \pagestyle{plain} %plain
+  \settowidth{\headertextlen}{\myheader}
+  \ifmathexam@sidebyside
+      \AddEverypageHook{%
+        \ifthenelse{\isodd{\value{page}}}%
+        {
+          %% The header line
+          \AddToShipoutPictureBG*{
+            % Add background picture to every page/ *version for current page
+            \begin{tikzpicture}[overlay,remember picture]
+              \draw [line width=1pt ]
+              ($(current page text area.north west)-(.6\myinner,0pt)$)
+              to
+              ($(current page text area.north east)$);
+              \draw [line width=1pt]
+              ($(current page footer area.south west)-(.6\myinner,0pt)$)
+              to
+              ($(current page footer area.south east)$);
+            \end{tikzpicture}
+          }
+          \newgeometry{
+            top=\mytop,
+            inner=\myinner,
+            outer=\myouter,
+            bottom=\mybottom,
+            headheight=\myhead,
+            includeheadfoot,
+            twoside
+          }
+          \backgroundsetup{
+            color=black,
+            angle=90,
+            scale=1.01,
+            opacity=1,
+            position={-\myinner+\myleft,-\textheight/2},
+            vshift=5.5pt,
+            hshift=13pt,
+            contents={
+              \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c}
+                \hline 学院            &
+                \hspace*{3\lefttable}  &
+                专业                   &
+                \hspace*{3\lefttable}  &
+                年级                   &
+                \hspace*{2\lefttable}  &
+                班                     &
+                \hspace*{2\lefttable}  &
+                姓名                   &
+                \hspace*{3\lefttable}  &
+                学号                   &
+                \hspace*{3\lefttable} \\
+                \hline
+                \multicolumn{12}{c}{
+                  \mathexam@barfill\mathexam@barfilltext{线}
+                  \mathexam@barfill\mathexam@barfilltext{封}
+                  \mathexam@barfill\mathexam@barfilltext{密}
+                \mathexam@barfill}    \\
+                \hline
+              \end{tabular}
+            }
+          }
+          }{
+          \restoregeometry
+          \AddToShipoutPictureBG*{
+            % Add background picture to every page/ *version for current page
+            \begin{tikzpicture}[overlay,remember picture]
+              \draw [line width=1pt ]
+              ($(current page text area.north west)-0.8*(\myleft,0)$)
+              to
+              ($(current page text area.north east)-0.8*(\myleft,0)$);
+              \draw [line width=1pt]
+              ($(current page footer area.south west)-.8*(\myleft,0)$)
+              to
+              ($(current page footer area.south east)-0.8*(\myleft,0)$);
+            \end{tikzpicture}
+          }
+        }
+        \BgMaterial
+  }\fi
+  \ifthenelse{\value{page}=1}{
+    %% The header
+    \newgeometry{
+      top=\mytop,
+      inner=\myinner,
+      outer=\myouter,
+      bottom=\mybottom,
+      headheight=\myhead,
+      includeheadfoot,
+      twoside
+    }
+    \begin{center}
+      {\zihao{-2}\heiti\mathexam@value@university\quad
+      \mathexam@value@school}\\[2em]
+      {%
+\zihao{-3}\heiti《\mathexam@value@course 》\quad
+课程试题【\mathexam@value@AorB】卷\ifmathexam@showans 参考答案 \fi%
+      }\\[2em]
+    \end{center}
+    \zihao{-4}
+    \begin{tabu}to \linewidth{|*{12}{X[c]|}}
+      \hline
+      \multicolumn{8}{|c}{
+        \ifnum\the\month<9
+          {20\mathexam@lasttwoofyear{-1} 至 20\mathexam@lasttwoofyear{0} 学年}
+        \else
+          {20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年}
+        \fi
+        \qquad 第\mathexam@value@semester 学期
+      }                                                            &
+      \multicolumn{4}{|c|}{\mathexam@value@finalmiddle\quad 考试} \\
+      \hline
+      \multicolumn{2}{|c}{考试时间}                                &
+      \multicolumn{2}{|c}{\mathexam@value@totaltime 分钟}          &
+      \multicolumn{2}{|c}{考核方式}                                &
+      \multicolumn{1}{|c}{\mathexam@value@openclose}               &
+      \multicolumn{2}{|c|}{学生类别}                               &
+      \mathexam@value@degree                                       &
+      人数                                                         &
+      \mathexam@value@totalstudent                                 \\
+      \hline
+      \multicolumn{3}{|c}{适用专业或科类}                          &
+      \multicolumn{6}{|c|}{\mathexam@value@major}                  &
+      年级                                                         &
+      \multicolumn{2}{c|}{\mathexam@value@grade 级}                \\
+      \hline
+      \ifnum\numexpr\DTLcolumncount{\jobname}\relax>2
+      \multicolumn{1}{|r}{题号}&
+      \multicolumn{11}{l|}{\begin{tabu}to %
+  \dimexpr\textwidth-\tabucolX-4\tabcolsep-3\arrayrulewidth\relax%
+  {*{\numexpr\DTLrowcount{\jobname}+1\relax}{|X[c]}}
+  \whiledo{\thetemp<\DTLrowcount{\jobname}}{%
+  \stepcounter{temp}%
+  \chinese{temp} \tand
+}
+   合计\\
+  \end{tabu}}\\
+      \hline
+      \multicolumn{1}{|r}{分值}&
+      \multicolumn{11}{l|}{\begin{tabu}to %
+  \dimexpr\textwidth-\tabucolX-4\tabcolsep-3\arrayrulewidth\relax%
+  {*{\numexpr\DTLrowcount{\jobname}+1\relax}{|X[c]}}
+  \setcounter{temp}{0}
+  \whiledo{\thetemp<\DTLrowcount{\jobname}}{%
+  \stepcounter{temp}%
+  \DTLgetvalue{\tempscore}{\jobname}{\thetemp}{3}\tempscore \tand
+}\totalscores\\
+      \end{tabu}}\\
+      \hline
+      \multicolumn{1}{|r}{得分}&
+      \multicolumn{11}{l|}{\begin{tabu}to %
+  \dimexpr\textwidth-\tabucolX-4\tabcolsep-3\arrayrulewidth\relax%
+  {*{\numexpr\DTLrowcount{\jobname}+1\relax}{|X[c]}}
+  \setcounter{temp}{0}
+  \whiledo{\thetemp<\DTLrowcount{\jobname}}{%
+  \stepcounter{temp}%
+  \tand
+}\\
+      \end{tabu}}\\
+      \hline
+      \multicolumn{1}{|r}{签名}&
+      \multicolumn{11}{l|}{\begin{tabu}to %
+  \dimexpr\textwidth-\tabucolX-4\tabcolsep-3\arrayrulewidth\relax%
+  {*{\numexpr\DTLrowcount{\jobname}+1\relax}{|X[c]}}
+  \setcounter{temp}{0}
+  \whiledo{\thetemp<\DTLrowcount{\jobname}}{%
+  \stepcounter{temp}%
+  \tand
+}\\
+      \end{tabu}}\\
+    \hline
+    \tabuphantomline
+    \else
+    题号&
+    一  & 二 & 三 & 四 & 五 & 六 & 七 & 八 & 九 & 十 & 合计 \\
+    \hline
+    得分&
+&    &    &    &    &    &    &    &    &    &      \\
+    \hline
+    签名&
+&    &    &    &    &    &    &    &    &    &      \\
+    \hline
+    \fi
+    \end{tabu}
+
+    \noindent \zihao{5}阅卷须知: 阅卷用红色墨水笔书写，%
+    得分用阿拉伯数字写在每小题题号前，%
+    用正分表示，不得分则在题号前写0; %
+    大题得分登录在对应的分数框内;%
+    统一命题的课程应集体阅卷，%
+    流水作业; %
+    阅卷后要进行复核，发现漏评、漏记或总分统计错误应及时更正;%
+    对评定分数或统分记录进行修改时，修改人必须签名。%
+    \begin{center}
+      \setlength\fboxsep{1em}
+      \setlength\fboxrule{1pt}
+      \fbox{%
+\zihao{4}\heiti{%
+  特别提醒: 学生必须遵守课程考核纪律，%
+违者将受到严肃处理。}
+      }
+    \end{center}
+    \noindent\zihao{-4}本试卷分为%
+    \ifnum0\DTLcolumncount{\jobname}>2%
+      \textbf{\DTLrowcount{\jobname}}%
+    \else%
+      \textbf{\tobecalculate}%
+    \fi%
+    部分、共有\textbf{\totalnumpages}页、\textbf{\totalproblems}道试题，%
+    共计\textbf{\totalscores}分。在答题之前，请认真阅读题目，按题目要求解答。%
+    \ifmathexam@nospace
+    注意解答要写在专用答题纸上对应题号的空白处. %
+    \else
+    解答写在题目之后预留的空白处，写不下时可以加纸，%
+    但请务必写清题号，交卷时一起交上来。
+    \fi
+  }\ignorespace}%
+
+\fancypagestyle{plain}{
+  \ifmathexam@sidebyside
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+  \else
+    \renewcommand{\headrulewidth}{0.8pt}
+    \renewcommand{\footrulewidth}{0.8pt}
+  \fi
+  \settowidth{\headertextlen}{\myheader}
+  \fancyhf{}
+  \fancyhead[CE]{
+    《\mathexam@value@course 》课程试题【\mathexam@value@AorB 】卷
+    \ifmathexam@showans 参考答案 \fi
+  }
+  \fancyhead[CO]{\makebox[2\headertextlen][s]{\myheader}}
+  \fancyhead[RO]{\ifthenelse{\value{page}=1}{}{\myheaderright}
+  }
+  %% The footer
+  \cfoot{
+    \ifthenelse{\value{page}=1}{%\isodd{\value{page}}
+      \zihao{-5}
+      \begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}clclclc}
+\ifmathexam@sidebyside\\[2em]\fi
+        命题教师:                             &
+        \mathexam@value@examiner              &
+        教研室或系负责人:                     &
+        \mathexam@value@director              &
+        主管院长:                             &
+        \mathexam@value@dean                  &
+\the\year 年\the\month 月\the\day 日 \\[2em]
+        \multicolumn{7}{c}{
+          \mathexam@value@AorB 卷\quad%
+          第 \thepage 页, 共 \totalnumpages 页%
+        }
+      \end{tabular*}
+      }{
+      \ifmathexam@sidebyside\vspace*{2em}\fi
+      第 \thepage 页, 共 \totalnumpages 页%
+    }
+  }
+}%
+
+%% \makedata 题型/数据标题
+\def\solutionname{解}
+\newcounter{problem}
+\newcounter{mypart}
+\newcounter{score}
+\newcounter{prescore}
+\newcounter{totalblanks}
+\setcounter{mypart}{0}
+\setcounter{problem}{0}
+\NewDocumentEnvironment{makepart}{O{%
+    \ifnum0\DTLrowcount{\jobname}<\numexpr\themypart\else%
+    \edtlgetrowforvalue{\jobname}{1}{\themypart}%
+    \dtlgetentryfromcurrentrow{\totalprobinpart}{2}%
+    \dtlgetentryfromcurrentrow{\totalscoreinpart}{3}%
+    \fi%
+    共\@ifundefined{totalprobinpart}{\tobecalculate}{\totalprobinpart}题，%
+    \edef\blanknamegiven{#2}\edef\blanknameset{填空题}%
+    \ifnum#3>0每\ifx\blanknamegiven\blanknameset{}空\else{}题\fi{#3}分,\fi%
+    共计\@ifundefined{totalscoreinpart}{\tobecalculate}{\totalscoreinpart}分%
+}%
+  m%
+  O{0}%
+  }{
+  \noindent\par
+  \stepcounter{mypart}
+  \setcounter{problem}{0}
+  \setcounter{score}{0}
+  \setcounter{prescore}{#3}
+  \setcounter{totalblanks}{0}
+  \noindent\zihao{-4}\chinese{mypart}、#2%
+  \if\relax\detokenize{#1}\relax\else(#1)\fi%
+  \par%
+  \phantomsection
+  \addcontentsline{toc}{section}{\chinese{mypart}、#2}
+  }{
+  \ifnum\thetotalblanks>0
+    \addtocounter{score}{\the\numexpr(\thetotalblanks-\theproblem)*\theprescore}
+  \fi
+  \ifnum\DTLrowcount{\jobname}>\numexpr\themypart
+    \dtlexpandnewvalue
+    \edtlgetrowforvalue{\jobname}{1}{\themypart}
+    %this seems weird just because update is not expand the value
+    \dtlremoveentryincurrentrow{1}
+    \dtlappendentrytocurrentrow{mypart}{\themypart}
+    \dtlremoveentryincurrentrow{2}
+    \dtlappendentrytocurrentrow{problem}{\theproblem}
+    \dtlremoveentryincurrentrow{3}
+    \dtlappendentrytocurrentrow{score}{\thescore}
+    \dtlrecombine
+  \else
+    \ifnum\DTLrowcount{\jobname}=\numexpr\themypart
+      \dtlexpandnewvalue
+      \edtlgetrowforvalue{\jobname}{1}{\themypart}
+      %this seems weird just because update is not expand the value
+      \dtlremoveentryincurrentrow{1}
+      \dtlappendentrytocurrentrow{mypart}{\themypart}
+      \dtlremoveentryincurrentrow{2}
+      \dtlappendentrytocurrentrow{problem}{\theproblem}
+      \dtlremoveentryincurrentrow{3}
+      \dtlappendentrytocurrentrow{score}{\thescore}
+      \dtlrecombine
+    \else
+      \DTLnewrow{\jobname}
+      \dtlexpandnewvalue
+      \DTLnewdbentry{\jobname}{mypart}{\themypart}
+      \DTLnewdbentry{\jobname}{problem}{\theproblem}
+      \DTLnewdbentry{\jobname}{score}{\thescore}
+    \fi
+    \fi
+  \setcounter{prescore}{0}
+\par}
+\newcommand{\centertext}{%
+  \leavevmode\xleaders\hb@xt@.25em{\hss - \hss }\hfill\kern\z@%
+}
+\newcommand{\makedata}[1]{
+  \noindent\centertext~{\heiti\zihao{4}附录\quad#1~\centertext}\par
+  \smallskip\ignorespaces\noindent
+}
+%% problem/solution 题目/解答环境
+\newcounter{choice}
+\NewDocumentEnvironment{problem}{O{0}}{
+  \setcounter{choice}{0}
+  \stepcounter{problem}
+  \noindent\arabic{problem}.\,\ignorespaces
+  \ifnum#1>0($#1'$)\addtocounter{score}{#1}\fi
+  }{
+  \addtocounter{score}{\theprescore}
+  \par
+}
+%% showans 显示解答环境
+\newcommand{\answer}[1]{\ifmathexam@showans#1\else\phantom{#1}\fi}
+
+%% 判断题
+\newcommand{\cdotfill}{%
+  \leavevmode\xleaders\hbox to 0.5em{\hss$\cdot$\hss}\hfill\kern0pt\relax
+}
+\newcommand{\true}{%
+  \unskip\nobreak\cdotfill(\makebox[1.5em]{\answer{$\checkmark$}})%
+}%
+\newcommand{\false}{%
+  \unskip\nobreak\cdotfill(\makebox[1.5em]{\answer{\sffamily x}})%
+}%
+%% 填空题
+\newcommand{\ulinefill}[1]{%
+  \xleaders\hbox{\uline{\vphantom{#1}\kern1pt}}\hfill\kern0pt%
+}
+\newcommand{\fillin}[2][1em]{%
+  \stepcounter{totalblanks}
+  \uline{\hspace{#1}\answer{#2}\hspace{#1}}
+}
+\newcommand{\fillout}[1]{%
+  \stepcounter{totalblanks}
+  \allowbreak\hbox{}\nobreak\ulinefill{#1}\uline{\answer{#1}}\ulinefill{#1}
+}
+%% 选择题
+\newcommand{\pickout}[1]{%
+  %\addtocounter{score}{\theprescore}
+  \unskip\nobreak\cdotfill(\makebox[1.5em]{\answer{#1}})
+}
+\newlength{\my@item@len}
+\newcommand\my@item@temp{%
+  \unskip\cr\stepcounter{choice}(\Alph{choice})%
+}
+\newcommand\my@item@box{%
+  \hfill\egroup\hfill\hbox to \my@item@len\bgroup
+  \stepcounter{choice}(\Alph{choice})\ignorespaces
+}
+\newcommand\my@item@par{%
+  \par\stepcounter{choice}(\Alph{choice})\ignorespaces
+}
+\NewDocumentEnvironment{abcd}{+b}{
+  \unskip
+  \setlength{\parindent}{0pt}%
+  \setlength{\parskip}{0pt}%
+  %\setcounter{choice}{0}%
+  \let\item=\my@item@temp
+  \settowidth{\my@item@len}{\vbox{\halign{##\hfil\cr #1\crcr}}}%
+  \setcounter{choice}{0}%
+  \ifdim\my@item@len>0.486\linewidth
+    \setlength{\my@item@len}{\linewidth}%
+    \let\item=\my@item@par
+    #1\par
+  \else
+    \ifdim\my@item@len>.243\linewidth
+      \setlength{\my@item@len}{0.5\linewidth}%
+    \else
+      \setlength{\my@item@len}{0.25\linewidth}%
+    \fi
+    \let\item=\my@item@box
+    \par\bgroup #1 \hfill\egroup\par
+  \fi
+}{}
+
+%% \score 评分
+\newcommand{\score}[1]{%
+  \ifmmode%
+    \tag*{$\cdots\cdots$(#1\, 分)}
+  \else%
+    \cdotfill(#1\, 分)\par\noindent
+  \fi
+}
+\newlength\ansheight
+\newcounter{cnt}
+\newcommand{\ansskip}[1]{
+  \setcounter{cnt}{0}
+  \whiledo {\value{cnt} <100}
+  {
+    \vspace*{.01#1}\goodbreak
+    \stepcounter{cnt}
+  }
+}
+\newbox{\ansbox}
+\NewDocumentEnvironment{solution}{O{0em} O{\solutionname} +b}
+{ \savebox{\ansbox}{
+  \parbox[b]{\linewidth}{#3}}
+  \settoheight{\ansheight}{\usebox\ansbox}
+  \ifmathexam@showans
+    \par\noindent\textbf{#2}:~#3\qed\par
+  \else
+    \ifmathexam@nospace
+      \setlength{\ansheight}{0em}
+    \else
+      \addtolength{\ansheight}{#1}
+    \fi
+  \ansskip{\ansheight}
+  \fi
+}{\par}
+
+\NewDocumentEnvironment{rmk}{+b}{
+  \ifmathexam@showans
+    \par\noindent\textbf{注}: #1\par
+  \fi
+}
+
+%% ---------------------------------------------------------------------------
+%% 答题栏命令 \answertable
+%% ---------------------------------------------------------------------------
+
+\gdef\answer@lines@temp{}%
+\newcommand{\answer@lines@add}[1]{%
+  \xdef\answer@lines@temp{\answer@lines@temp#1}%
+}
+
+\newrobustcmd{\answer@number@hided}[1]{序号} % 在 PDFLaTeX 中需要保护中文
+\newrobustcmd{\answer@cell@strut}[1]{\parbox[c][#1][c]{2em}{\hbox{答案}}}
+
+\newcounter{answer@col}
+\newcounter{answer@row}
+\newcounter{answer@total}
+
+\newcommand{\answer@lines}[3]{%
+  % #1 答题栏各栏指定高度
+  % #2 答题栏总共答案个数
+  % #3 答题栏每行答案个数
+  \setcounter{answer@row}{(#2-1)/#3+1}% 除法向下取整，改为向上取整
+  \begingroup
+  \let\hline=\relax  \let\\=\relax % 禁止展开
+  \gdef\answer@lines@temp{}%
+  \setcounter{answer@total}{1}%
+  \whileboolexpr{%
+    test{\ifnumgreater{\value{answer@row}}{0}}
+  }{%
+  \addtocounter{answer@row}{-1}%
+  \answer@lines@add{\answer@number@hided}%
+  \setcounter{answer@col}{1}%
+  \unlessboolexpr{%
+    test{\ifnumgreater{\value{answer@col}}{#3}}%
+  }{%
+  \answer@lines@add{&}%
+  \ifnumgreater{\value{answer@total}}{#2}{}{%
+      \answer@lines@add{\arabic{answer@total}}%
+    }%
+    \stepcounter{answer@col}%
+    \stepcounter{answer@total}%
+  }%
+  \answer@lines@add{\\ \hline \answer@cell@strut{#1}}%
+  \setcounter{answer@col}{1}%
+  \unlessboolexpr{
+    test{\ifnumgreater{\value{answer@col}}{#3}}
+  }{%
+      \answer@lines@add{&}%
+      \stepcounter{answer@col}%
+    }%
+    \answer@lines@add{\\ \hline}%
+  }%
+  \endgroup
+  \answer@lines@temp
+}
+
+\newcommand{\answertable}[3][1em]{%
+  \noindent 答题须知：本部分答案必须写在如下表格中，否则不给分．
+  若为填空题, 则编号是按空的顺序.\par
+  \noindent\begin{tabu}to \linewidth{|X[c]|*{#3}{X[c]|}}
+    \hline
+    \answer@lines{#1}{#2}{#3}
+  \end{tabu}%
+  \par\vspace{0.8em}%
+}
+
+\newcommand{\caogaozhi}{%
+  \begin{tikzpicture}[%
+    remember picture,overlay,font=\sffamily\fontsize{100pt}{100pt}\selectfont%
+    ]%
+    \node[text=lightgray!20, rotate=45] at (current page text area.center)%
+    {草\quad 稿\quad 纸};
+\end{tikzpicture}}
+\ifmathexam@caogaozhi
+  \preto{\@enddocumenthook}{%
+    \clearpage
+    \pagestyle{empty}
+    \caogaozhi
+    \clearpage
+    \caogaozhi
+    \addtocounter{page}{-2}
+  }
+\fi
+
+\ifmathexam@sidebyside
+  \RequirePackage{pgfpages}
+  \ifmathexam@fixlast
+    \preto{\@enddocumenthook}{
+      %insert an enpty page for odd total page
+      \clearpage
+      \thinspace
+    }
+  \fi
+  \pgfpagesuselayout{2 on 1}[a3paper, border shrink=5mm,landscape]
+\fi
+
+\preto{\@enddocumenthook}{
+  \if@filesw
+    \immediate\write\@mainaux
+    \ifmathexam@fixlast
+      {\string\gdef\string\mathexam@totalpages{\number\numexpr\arabic{page}+1}}%
+    \else
+      {\string\gdef\string\mathexam@totalpages{\number\numexpr\arabic{page}-1}}%
+    \fi
+  \fi
+  \DTLsavedb{\jobname}{\jobname.dat}
+  \DTLsavetexdb{\jobname}{\jobname.dbtex}
+  \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}
+}
+\ifmathexam@showans{%
+    \ifnum\shellescape=1
+      \ifwindows
+      \immediate\write18{copy \jobname.pdf \jobname-Answer.pdf}
+      \else
+      \immediate\write18{cp \jobname.pdf \jobname-Answer.pdf}
+      \fi
+    \else
+      \message{^^J Warning: **********************^^J}
+      \message{^^J 请使用`xelatex -shell-escape \jobname.tex`%
+      编译来自动重命名^^J}
+      \message{^^J *******************************^^J}
+    \fi
+  }
+\fi
+%% 
+%% Copyright (C) 2009 by You <van141.abel(AT)gmail.com>
+%% 
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License (LPPL), either
+%% version 1.3c of this license or (at your option) any later
+%% version.  The latest version of this license is in the file:
+%% 
+%% http://www.latex-project.org/lppl.txt
+%% 
+%% This work is "maintained" (as per LPPL maintenance status) by
+%% You.
+%% 
+%% This work consists of the file  mathexam.dtx
+%% and the derived files           mathexam.ins,
+%%                                 mathexam-main.tex,
+%%                                 mathexam-main.pdf,
+%%                                 mathexam-main-answer.tex,
+%%                                 mathexam-main-answer.pdf,
+%%                                 mathexam.pdf and
+%%                                 mathexam.sty.
+%% 
+%%
+%% End of file `mathexam.sty'.

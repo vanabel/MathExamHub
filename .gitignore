@@ -39,3 +39,9 @@ yarn-error.log*
 *.tmp
 *.temp
 
+# Uploads
+backend/uploads/
+uploads/
+
+# Tex
+TeX/*.tex
