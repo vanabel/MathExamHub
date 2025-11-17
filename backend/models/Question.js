@@ -46,6 +46,10 @@ questionSchema.add({
     // 移除 enum 限制，允许任意科目名称
     // 常用科目：微分几何、解析几何、高等几何、线性代数II、高等代数
   },
+  originalLaTeX: {
+    type: String,
+    // 保存原始的 LaTeX 代码（未处理的，包含原始的 \includegraphics 等）
+  },
 });
 
 module.exports = mongoose.model('Question', questionSchema);

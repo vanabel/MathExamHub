@@ -187,7 +187,8 @@ export default {
         const response = await axios.get(`/questions/${questionId}/get`);
 
         // 设置基本字段
-        this.questionText = response.data.questionText || '';
+        // 如果有原始 LaTeX 代码，优先使用原始代码；否则使用处理后的文本
+        this.questionText = response.data.originalLaTeX || response.data.questionText || '';
         this.questionAnswer = response.data.questionAnswer || '';
 
         // 设置类型、分值、难度

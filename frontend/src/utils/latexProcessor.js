@@ -211,8 +211,55 @@ function processEnumerate(text) {
 export function processQuestionTextToHTML(text) {
   if (!text) return '';
 
-  // 先处理 enumerate 环境（转换为 HTML）
-  let processed = processEnumerate(text);
+  // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）
+  // 如果文本包含原始的 LaTeX 命令而不是 <image> 标签，需要先转换
+  let processed = text;
+  
+  // 处理 \begin{figure}...\end{figure} 环境
+  const figureRegex = /\\begin\{figure\}(?:\[[^\]]*\])?(.*?)\\end\{figure\}/gs;
+  processed = processed.replace(figureRegex, (match, content) => {
+    // 提取 \includegraphics{filename}
+    const includegraphicsMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+    const labelMatch = content.match(/\\label\{([^}]+)\}/);
+    
+    if (includegraphicsMatch) {
+      const filename = includegraphicsMatch[1].trim();
+      // 去掉扩展名
+      const nameWithoutExt = filename.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      const label = labelMatch ? labelMatch[1].replace(/^fig:/, '') : nameWithoutExt;
+      
+      // 生成 <image> 标签
+      // 注意：这里我们使用原始文件名，实际的文件名应该在导入时已经处理
+      // 如果文件名不包含扩展名，尝试添加 .pdf（默认）
+      const fileExt = filename.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
+      const fullFileName = filename.includes('.') ? filename : `${filename}.${fileExt}`;
+      
+      return `<image href="${fullFileName}" id="fig:${label}" />`;
+    }
+    return match;
+  });
+  
+  // 处理单独的 \includegraphics 命令（不在 figure 环境中）
+  const includegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
+  processed = processed.replace(includegraphicsRegex, (match, filename) => {
+    const nameWithoutExt = filename.trim().replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+    const fileExt = filename.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
+    const fullFileName = filename.includes('.') ? filename : `${filename}.${fileExt}`;
+    return `<image href="${fullFileName}" id="fig:${nameWithoutExt}" />`;
+  });
+  
+  // 处理 \ref{fig:xxx} 命令
+  const refRegex = /\\ref\{([^}]+)\}/g;
+  processed = processed.replace(refRegex, (match, label) => {
+    const labelPart = label.replace(/^fig:/, '');
+    // 提取数字部分作为显示文本
+    const numMatch = labelPart.match(/(\d+)/);
+    const displayText = numMatch ? numMatch[1] : labelPart;
+    return `<a href="#fig:${labelPart}">${displayText}</a>`;
+  });
+
+  // 然后处理 enumerate 环境（转换为 HTML）
+  processed = processEnumerate(processed);
   
   // 然后处理其他 LaTeX 命令，但需要避免处理 HTML 标签内的内容
   // 使用正则表达式分割 HTML 标签和文本内容

@@ -70,6 +70,7 @@ router.get('/:_id/get', async (req, res) => {
       difficulty: question.difficulty,
       options: question.options || {},
       subject: question.subject,
+      originalLaTeX: question.originalLaTeX, // 返回原始 LaTeX 代码
     });
   } catch (error) {
     console.error('获取试题信息失败:', error);
@@ -92,7 +93,68 @@ router.put('/:id/edit', async (req, res) => {
 
     // 仅在字段提供时才更新，避免把未提供的字段覆盖为 undefined
     if (typeof questionText !== 'undefined' && questionText !== null) {
-      question.questionText = questionText;
+      // 判断提交的内容是原始 LaTeX 代码还是处理后的 HTML
+      const isOriginalLaTeX = !questionText.includes('<image') && !questionText.includes('<a href="#fig:');
+      
+      if (isOriginalLaTeX) {
+        // 提交的是原始 LaTeX 代码
+        question.originalLaTeX = questionText;
+        
+        // 尝试处理原始 LaTeX 代码，将 \includegraphics 转换为 <image> 标签
+        // 需要查找实际的文件名（可能带前缀）
+        let processedText = questionText;
+        const uploadDir = path.join(__dirname, '../uploads');
+        
+        // 处理 \includegraphics{filename}
+        const includegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
+        processedText = processedText.replace(includegraphicsRegex, (match, filename) => {
+          const nameWithoutExt = filename.trim().replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+          
+          // 在 uploads 目录中查找匹配的文件（支持带前缀的文件名）
+          try {
+            const files = fs.readdirSync(uploadDir);
+            for (const file of files) {
+              const fileWithoutExt = file.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+              // 检查是否以原始名称结尾（支持前缀）
+              if (fileWithoutExt.endsWith(`-${nameWithoutExt}`) || fileWithoutExt === nameWithoutExt) {
+                // 找到匹配的文件，使用实际文件名
+                const label = nameWithoutExt;
+                return `<image href="${file}" id="fig:${label}" />`;
+              }
+            }
+          } catch (error) {
+            console.error('读取 uploads 目录失败:', error);
+          }
+          
+          // 如果找不到匹配的文件，使用原始文件名
+          const fileExt = filename.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
+          const fullFileName = filename.includes('.') ? filename : `${filename}.${fileExt}`;
+          return `<image href="${fullFileName}" id="fig:${nameWithoutExt}" />`;
+        });
+        
+        // 处理 \ref{fig:xxx}
+        const refRegex = /\\ref\{([^}]+)\}/g;
+        processedText = processedText.replace(refRegex, (match, label) => {
+          const labelPart = label.replace(/^fig:/, '');
+          const numMatch = labelPart.match(/(\d+)/);
+          const displayText = numMatch ? numMatch[1] : labelPart;
+          return `<a href="#fig:${labelPart}">${displayText}</a>`;
+        });
+        
+        // 更新 questionText 为处理后的版本
+        question.questionText = processedText;
+      } else {
+        // 提交的是处理后的 HTML（包含 <image> 标签）
+        question.questionText = questionText;
+        
+        // 将 <image> 和 <a> 标签转换回 LaTeX 代码保存到 originalLaTeX
+        const { LatexGenerator } = require('../utils/latexParser');
+        const generator = new LatexGenerator();
+        let originalLaTeX = questionText;
+        originalLaTeX = generator.convertImageTagsToLaTeX(originalLaTeX);
+        originalLaTeX = generator.convertRefTagsToLaTeX(originalLaTeX);
+        question.originalLaTeX = originalLaTeX;
+      }
     }
     if (typeof correctAnswer !== 'undefined' && correctAnswer !== null) {
       question.correctAnswer = correctAnswer;
@@ -356,6 +418,7 @@ router.post('/import/latex', upload.fields([
           subject: q.subject || '解析几何',
           createdBy: req.body.createdBy || '系统导入',
           ...(q.options && Object.keys(q.options).length > 0 ? { options: q.options } : {}),
+          ...(q.originalLaTeX ? { originalLaTeX: q.originalLaTeX } : {}), // 保存原始 LaTeX 代码
         };
 
         const newQuestion = new Question(questionData);
@@ -447,7 +510,7 @@ router.post('/export/latex', async (req, res) => {
       return res.status(404).json({ error: '未找到指定的题目' });
     }
 
-    // 转换为生成器需要的格式
+    // 转换为生成器需要的格式（包含 originalLaTeX）
     const questionsData = questions.map(q => ({
       type: q.type,
       totalScore: q.totalScore,
@@ -456,18 +519,84 @@ router.post('/export/latex', async (req, res) => {
       options: q.options,
       solution: q.correctAnswer, // 使用答案作为解答
       subject: q.subject,
+      originalLaTeX: q.originalLaTeX, // 包含原始 LaTeX 代码
     }));
 
     // 生成 LaTeX 内容
     const generator = new LatexGenerator();
     const latexContent = generator.generate(questionsData, metadata || {});
 
-    // 设置响应头，让浏览器下载文件
-    const filename = metadata?.filename || `mathexam-${Date.now()}.tex`;
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // 收集所有引用的图片文件
+    // 从生成的 LaTeX 内容中提取 \includegraphics{...}
+    const imageFiles = new Set();
+    const imageFilesMap = {}; // 原始文件名 -> 实际文件名的映射
+    
+    // 从 LaTeX 内容中提取 \includegraphics{figName}
+    const includegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
+    let imgMatch;
+    while ((imgMatch = includegraphicsRegex.exec(latexContent)) !== null) {
+      const originalName = imgMatch[1].trim();
+      // 去掉可能的扩展名
+      const nameWithoutExt = originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      
+      // 在 uploads 目录中查找对应的文件（可能带前缀）
+      const uploadDir = path.join(__dirname, '../uploads');
+      const files = fs.readdirSync(uploadDir);
+      
+      // 查找匹配的文件（支持带前缀的文件名）
+      for (const file of files) {
+        const fileWithoutExt = file.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+        // 检查是否以原始名称结尾（支持前缀）
+        if (fileWithoutExt.endsWith(`-${nameWithoutExt}`) || fileWithoutExt === nameWithoutExt) {
+          imageFiles.add(file);
+          imageFilesMap[originalName] = file;
+          break;
+        }
+      }
+    }
 
-    res.send(latexContent);
+    // 检查是否有图片文件需要打包
+    if (imageFiles.size > 0) {
+      // 使用 archiver 创建 zip 文件
+      const archiver = require('archiver');
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      // 设置响应头
+      const filename = (metadata?.filename || `mathexam-${Date.now()}`).replace(/\.tex$/, '');
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.zip"`);
+
+      // 将 zip 流连接到响应
+      archive.pipe(res);
+
+      // 添加 LaTeX 文件
+      archive.append(latexContent, { name: `${filename}.tex` });
+
+      // 添加图片文件
+      const uploadDir = path.join(__dirname, '../uploads');
+      for (const [originalName, actualFile] of Object.entries(imageFilesMap)) {
+        const imagePath = path.join(uploadDir, actualFile);
+        if (fs.existsSync(imagePath)) {
+          // 使用原始文件名（LaTeX 中使用的名称）作为 zip 中的文件名
+          // 如果原始名称没有扩展名，从实际文件中获取扩展名
+          let zipFileName = originalName;
+          if (!/\.(png|jpg|jpeg|gif|pdf)$/i.test(originalName)) {
+            const ext = actualFile.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
+            zipFileName = `${originalName}.${ext}`;
+          }
+          archive.file(imagePath, { name: zipFileName });
+        }
+      }
+
+      // 完成压缩
+      await archive.finalize();
+    } else {
+      // 没有图片，直接返回 LaTeX 文件
+      const filename = metadata?.filename || `mathexam-${Date.now()}.tex`;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(latexContent);
+    }
   } catch (error) {
     console.error('导出 LaTeX 文件失败:', error);
     res.status(500).json({ error: '导出失败: ' + error.message });

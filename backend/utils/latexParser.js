@@ -78,12 +78,19 @@ class LatexParser {
     this.imageMap = options.imageMap || {};
     this.filePrefix = options.filePrefix || '';
     this.figureLabels = {}; // 清空之前的标签映射
+    this.originalContent = null; // 保存原始内容（在处理之前）
 
     // 移除注释
     latexContent = this.removeComments(latexContent);
+    
+    // 保存原始内容（在处理 figure 之前）
+    this.originalContent = latexContent;
 
     // 先处理 figure 环境，提取图片信息和标签
     latexContent = this.processFigures(latexContent);
+
+    // 处理其他环境中的 includegraphics（如 center 环境）
+    latexContent = this.processIncludegraphics(latexContent);
 
     // 解析各个部分
     this.parseParts(latexContent);
@@ -199,6 +206,147 @@ class LatexParser {
   }
 
   /**
+   * 处理其他环境中的 includegraphics（如 center 环境）
+   * 将 \begin{center}...\includegraphics{...}...\end{center} 转换为 <image> 标签
+   */
+  processIncludegraphics(content) {
+    // 匹配 \begin{center}...\includegraphics{...}...\end{center}
+    const centerRegex = /\\begin\{center\}(.*?)\\end\{center\}/gs;
+    let match;
+    const replacements = [];
+
+    while ((match = centerRegex.exec(content)) !== null) {
+      const centerContent = match[1];
+      const fullMatch = match[0];
+      const startIndex = match.index;
+
+      // 提取 \includegraphics{figName}
+      const includegraphicsMatch = centerContent.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+      if (!includegraphicsMatch) {
+        continue; // 如果没有 includegraphics，跳过
+      }
+
+      const originalFigName = includegraphicsMatch[1].trim();
+
+      // 确定新文件名（使用与 processFigures 相同的逻辑）
+      let newFileName = originalFigName;
+      
+      if (this.imageMap[originalFigName]) {
+        newFileName = this.imageMap[originalFigName];
+      } else {
+        const nameWithoutExt = originalFigName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+        if (this.imageMap[nameWithoutExt]) {
+          newFileName = this.imageMap[nameWithoutExt];
+        } else if (this.filePrefix) {
+          const figNumMatch = nameWithoutExt.match(/fig(\d+)/i);
+          if (figNumMatch) {
+            const figNum = figNumMatch[1];
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-fig${figNum}.${ext}`;
+          } else {
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-${nameWithoutExt}.${ext}`;
+          }
+        }
+      }
+
+      // 生成 image 标签的 id
+      let imageId = originalFigName;
+      if (this.filePrefix) {
+        imageId = `${this.filePrefix}-${originalFigName}`;
+      }
+
+      // 生成替换内容：<image href="..." id="..." />
+      const replacement = `<image href="${newFileName}" id="fig:${imageId}" />`;
+
+      replacements.push({
+        start: startIndex,
+        end: startIndex + fullMatch.length,
+        replacement: replacement
+      });
+    }
+
+    // 从后往前替换
+    let processed = content;
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const r = replacements[i];
+      processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+    }
+
+    // 处理单独的 includegraphics（不在任何特殊环境中）
+    // 匹配不在 <image> 标签中且不在已处理环境中的 includegraphics
+    const standaloneIncludegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
+    const standaloneReplacements = [];
+    let standaloneMatch;
+
+    while ((standaloneMatch = standaloneIncludegraphicsRegex.exec(processed)) !== null) {
+      // 检查是否已经在 <image> 标签中（避免重复处理）
+      const beforeMatch = processed.substring(0, standaloneMatch.index);
+      const afterMatch = processed.substring(standaloneMatch.index);
+      
+      // 如果前面有 <image 标签且没有闭合，说明已经在处理过的标签中
+      const lastImageOpen = beforeMatch.lastIndexOf('<image');
+      const lastImageClose = beforeMatch.lastIndexOf('/>');
+      if (lastImageOpen > lastImageClose) {
+        continue; // 已经在 <image> 标签中，跳过
+      }
+
+      const originalFigName = standaloneMatch[1].trim();
+      const startIndex = standaloneMatch.index;
+      const fullMatch = standaloneMatch[0];
+
+      // 确定新文件名
+      let newFileName = originalFigName;
+      
+      if (this.imageMap[originalFigName]) {
+        newFileName = this.imageMap[originalFigName];
+      } else {
+        const nameWithoutExt = originalFigName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+        if (this.imageMap[nameWithoutExt]) {
+          newFileName = this.imageMap[nameWithoutExt];
+        } else if (this.filePrefix) {
+          const figNumMatch = nameWithoutExt.match(/fig(\d+)/i);
+          if (figNumMatch) {
+            const figNum = figNumMatch[1];
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-fig${figNum}.${ext}`;
+          } else {
+            const extMatch = originalFigName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+            const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+            newFileName = `${this.filePrefix}-${nameWithoutExt}.${ext}`;
+          }
+        }
+      }
+
+      // 生成 image 标签的 id
+      let imageId = originalFigName;
+      if (this.filePrefix) {
+        imageId = `${this.filePrefix}-${originalFigName}`;
+      }
+
+      // 生成替换内容
+      const replacement = `<image href="${newFileName}" id="fig:${imageId}" />`;
+
+      standaloneReplacements.push({
+        start: startIndex,
+        end: startIndex + fullMatch.length,
+        replacement: replacement
+      });
+    }
+
+    // 从后往前替换单独的 includegraphics
+    for (let i = standaloneReplacements.length - 1; i >= 0; i--) {
+      const r = standaloneReplacements[i];
+      processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+    }
+
+    return processed;
+  }
+
+  /**
    * 处理 \ref{label} 命令，转换为 <a href="#...">...</a>
    */
   processRefs(content) {
@@ -263,12 +411,32 @@ class LatexParser {
     // 3. \begin{makepart}[info]{type} - 没有 score
     const partRegex = /\\begin\{makepart\}(?:\[([^\]]*)\])?\{([^}]+)\}(?:\[([^\]]*)\])?(.*?)\\end\{makepart\}/gs;
     let match;
+    
+    // 同时从原始内容中解析，以便提取原始 problem 内容
+    const originalParts = [];
+    if (this.originalContent) {
+      // 使用新的正则表达式实例，避免状态问题
+      const originalPartRegex = /\\begin\{makepart\}(?:\[([^\]]*)\])?\{([^}]+)\}(?:\[([^\]]*)\])?(.*?)\\end\{makepart\}/gs;
+      let originalMatch;
+      originalPartRegex.lastIndex = 0; // 重置正则表达式
+      while ((originalMatch = originalPartRegex.exec(this.originalContent)) !== null) {
+        originalParts.push({
+          partContent: originalMatch[4],
+          startIndex: originalMatch.index
+        });
+      }
+    }
 
+    let partIndex = 0;
     while ((match = partRegex.exec(content)) !== null) {
       const partInfo = match[1] || '';
       const partType = match[2].trim();
       const partScore = match[3] || ''; // 部分级别的默认分数
       const partContent = match[4];
+      
+      // 获取对应的原始 part 内容
+      const originalPartContent = originalParts[partIndex] ? originalParts[partIndex].partContent : partContent;
+      partIndex++;
 
       // 解析部分级别的默认分数
       let defaultScore = 0;
@@ -285,22 +453,25 @@ class LatexParser {
         defaultScore: defaultScore, // 保存默认分数
       };
 
-      // 解析该部分中的题目，传入默认分数
-      this.parseProblems(partContent, partType, defaultScore);
+      // 解析该部分中的题目，传入默认分数和原始内容
+      this.parseProblems(partContent, partType, defaultScore, originalPartContent);
     }
   }
 
   /**
    * 解析 problem 环境
-   * @param {string} content - 题目内容
+   * @param {string} content - 题目内容（已处理的）
    * @param {string} partType - 部分类型
    * @param {number} defaultScore - 部分级别的默认分数（如果题目没有指定分数，使用此默认值）
+   * @param {string} originalPartContent - 原始部分内容（未处理的）
    */
-  parseProblems(content, partType, defaultScore = 0) {
+  parseProblems(content, partType, defaultScore = 0, originalPartContent = null) {
     // 匹配 \begin{problem}...\end{problem}
     // 使用非贪婪匹配，但要处理嵌套的 solution 环境
     const problemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
     let match;
+    let lastProblemEnd = 0; // 跟踪上一个 problem 的结束位置
+    let problemIndex = 0; // 当前 problem 的索引
 
     while ((match = problemRegex.exec(content)) !== null) {
       // 解析分数：优先使用题目自己指定的分数，如果没有则使用部分级别的默认分数
@@ -312,7 +483,101 @@ class LatexParser {
           score = parsedScore; // 题目自己指定了分数，优先使用
         }
       }
+      
       let problemContent = match[2];
+      
+      // 检查 problem 内容中是否有 \ref{fig:xxx} 引用
+      const refRegex = /\\ref\{([^}]+)\}/g;
+      const refMatches = [];
+      let refMatch;
+      
+      // 收集所有引用的 label（去重）
+      const uniqueLabels = new Set();
+      while ((refMatch = refRegex.exec(problemContent)) !== null) {
+        const label = refMatch[1].trim();
+        uniqueLabels.add(label);
+      }
+      
+      // 对每个引用的 figure，检查是否已经在题目内容中
+      const imagesToAdd = [];
+      for (const label of uniqueLabels) {
+        // 检查对应的 figure 是否存在（label 可能包含或不包含 fig: 前缀）
+        const figureInfo = this.figureLabels[label] || this.figureLabels[`fig:${label}`];
+        if (figureInfo) {
+          // 检查题目内容中是否已经包含对应的 <image> 标签
+          // 通过检查 id 属性是否匹配
+          const imageIdPattern = `id=["']fig:${figureInfo.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`;
+          const hasImage = new RegExp(imageIdPattern).test(problemContent);
+          
+          if (!hasImage) {
+            // 如果题目中没有对应的图片，生成 <image> 标签
+            const imageTag = `<image href="${figureInfo.fileName}" id="fig:${figureInfo.id}" />`;
+            imagesToAdd.push(imageTag);
+          }
+        }
+      }
+      
+      // 如果有需要添加的图片，添加到题目内容开头
+      if (imagesToAdd.length > 0) {
+        problemContent = imagesToAdd.join('\n') + '\n' + problemContent;
+      }
+      
+      lastProblemEnd = match.index + match[0].length;
+
+      // 从原始内容中提取对应的 problem 内容（未处理的）
+      let originalProblemContent = null;
+      
+      // 首先尝试从原始 part 内容中提取
+      if (originalPartContent) {
+        const originalProblemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
+        let originalMatch;
+        let originalIndex = 0;
+        originalProblemRegex.lastIndex = 0; // 重置正则表达式
+        while ((originalMatch = originalProblemRegex.exec(originalPartContent)) !== null) {
+          if (originalIndex === problemIndex) {
+            // 找到对应的 problem，使用原始内容
+            // 清理前导和尾随的空白字符，包括多个连续的空行和空格
+            let content = originalMatch[2];
+            // 移除开头的所有空白字符（包括空格、制表符、换行符）
+            content = content.replace(/^[\s\n\r]+/, '');
+            // 移除结尾的所有空白字符
+            content = content.replace(/[\s\n\r]+$/, '');
+            originalProblemContent = content;
+            break;
+          }
+          originalIndex++;
+        }
+      }
+      
+      // 如果从 part 内容中提取失败，尝试从完整原始内容中查找
+      if (!originalProblemContent && this.originalContent) {
+        const originalProblemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
+        let originalMatch;
+        let originalIndex = 0;
+        originalProblemRegex.lastIndex = 0; // 重置正则表达式
+        while ((originalMatch = originalProblemRegex.exec(this.originalContent)) !== null) {
+          if (originalIndex === problemIndex) {
+            // 清理前导和尾随的空白字符，包括多个连续的空行和空格
+            let content = originalMatch[2];
+            // 移除开头的所有空白字符（包括空格、制表符、换行符）
+            content = content.replace(/^[\s\n\r]+/, '');
+            // 移除结尾的所有空白字符
+            content = content.replace(/[\s\n\r]+$/, '');
+            originalProblemContent = content;
+            break;
+          }
+          originalIndex++;
+        }
+      }
+      
+      // 如果仍然找不到原始内容，使用处理后的 problemContent（作为最后的后备方案）
+      // 但这不是理想情况，因为 problemContent 可能包含 <image> 标签
+      if (!originalProblemContent || originalProblemContent.trim() === '') {
+        console.warn(`警告：无法从原始内容中提取 problem ${problemIndex}，使用处理后的内容`);
+        originalProblemContent = problemContent;
+      }
+      
+      problemIndex++; // 增加索引
 
       const question = {
         type: this.mapPartTypeToQuestionType(partType),
@@ -322,12 +587,13 @@ class LatexParser {
         options: {},
         solution: '',
         subject: this.extractSubject(this.fullContent || content),
+        originalLaTeX: originalProblemContent, // 保存原始的 LaTeX 代码（未处理的）
       };
 
       // 先解析解答（需要从完整内容中提取）
       this.parseSolution(problemContent, question);
 
-      // 解析题目内容
+      // 解析题目内容（会处理 <image> 标签用于显示）
       this.parseQuestionContent(problemContent, question);
 
       this.questions.push(question);
@@ -695,8 +961,23 @@ class LatexGenerator {
   generateProblem(question) {
     let latex = `  \\begin{problem}[${question.totalScore || 0}]\n`;
 
-    // 生成题目文本
-    latex += `    ${this.escapeLatex(question.questionText)}\n`;
+    // 如果有原始 LaTeX 代码，使用原始代码（应该已经是原始的 includegraphics，不需要转换）
+    // 否则使用处理后的文本，但需要将 <image> 和 <a> 标签转换回 LaTeX
+    if (question.originalLaTeX) {
+      // originalLaTeX 应该已经是原始的 LaTeX 代码，直接使用
+      latex += `    ${question.originalLaTeX}\n`;
+    } else {
+      // 如果没有原始代码，使用处理后的文本，需要转换标签
+      let text = question.questionText || '';
+      
+      // 将 <image> 标签转换回原始的 includegraphics
+      text = this.convertImageTagsToLaTeX(text);
+      
+      // 将 <a> 标签转换回 \ref
+      text = this.convertRefTagsToLaTeX(text);
+      
+      latex += `    ${this.escapeLatex(text)}\n`;
+    }
 
     // 生成选择题选项
     if (question.type === '单选题' || question.type === '多选题') {
@@ -729,6 +1010,74 @@ class LatexGenerator {
 
     latex += '  \\end{problem}\n';
     return latex;
+  }
+
+  /**
+   * 将 <image> 标签转换回原始的 LaTeX 代码
+   */
+  convertImageTagsToLaTeX(text) {
+    if (!text) return '';
+    
+    // 匹配 <image href="..." id="..." />
+    const imageRegex = /<image\s+([^>]+)\s*\/?>/gi;
+    return text.replace(imageRegex, (match, attrs) => {
+      // 解析属性
+      const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+      const idMatch = attrs.match(/id=["']([^"']+)["']/);
+      const href = hrefMatch ? hrefMatch[1] : '';
+      const id = idMatch ? idMatch[1] : '';
+      
+      if (!href) return '';
+      
+      // 从文件名中提取原始图片名（去掉前缀）
+      // 例如：解析几何-2024-midterm-fig3.pdf -> fig3
+      let originalName = href;
+      if (href.includes('-')) {
+        // 尝试提取 fig 后面的部分
+        const figMatch = href.match(/fig(\d+)/i);
+        if (figMatch) {
+          originalName = `fig${figMatch[1]}`;
+        } else {
+          // 如果没有 fig 模式，使用最后一个 - 之后的部分
+          const parts = href.split('-');
+          originalName = parts[parts.length - 1];
+        }
+      }
+      
+      // 去掉扩展名
+      originalName = originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      
+      // 检查 id 中是否有 label 信息，如果有，生成 figure 环境
+      if (id && id.includes(':')) {
+        const labelPart = id.replace(/^fig:/, '');
+        // 生成 figure 环境
+        return `\\begin{figure}[htpb]\n      \\centering\n      \\includegraphics{${originalName}}\n      \\caption{ }\n      \\label{fig:${labelPart}}\n    \\end{figure}`;
+      } else {
+        // 否则生成简单的 center 环境
+        return `\\begin{center}\n      \\includegraphics{${originalName}}\n    \\end{center}`;
+      }
+    });
+  }
+
+  /**
+   * 将 <a> 标签转换回 \ref 命令
+   */
+  convertRefTagsToLaTeX(text) {
+    if (!text) return '';
+    
+    // 匹配 <a href="#fig:...">...</a>
+    const refRegex = /<a\s+href=["']#fig:([^"']+)["']>([^<]+)<\/a>/gi;
+    return text.replace(refRegex, (match, id, text) => {
+      // 从 id 中提取 label
+      // id 格式可能是：解析几何-2024-midterm-3 或 3
+      let label = id;
+      if (id.includes('-')) {
+        // 提取最后一部分作为 label
+        const parts = id.split('-');
+        label = parts[parts.length - 1];
+      }
+      return `\\ref{fig:${label}}`;
+    });
   }
 
   /**
