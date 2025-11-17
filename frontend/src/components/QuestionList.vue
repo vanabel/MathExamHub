@@ -45,63 +45,114 @@
       </div>
 
       <!-- 题目列表 -->
-      <div v-else-if="questions.length > 0" class="row g-4">
-        <div
-          v-for="question in questions"
-          :key="question._id"
-          class="col-12 col-md-6 col-lg-4"
-        >
-          <div class="card question-card h-100">
-            <div class="card-body">
-              <!-- 题目头部信息 -->
-              <div class="question-header mb-3">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <span class="badge bg-primary">{{ question.subject }}</span>
-                  <span class="badge" :class="getDifficultyClass(question.difficulty)">
-                    {{ question.difficulty }}
-                  </span>
-                </div>
-                <span class="badge bg-secondary">{{ question.type }}</span>
-                <span class="badge bg-info ms-2">{{ question.totalScore }} 分</span>
+      <div v-else-if="questions.length > 0" class="question-list-wrapper">
+        <!-- 批量操作工具栏 -->
+        <div class="batch-actions-toolbar mb-3 p-3 bg-light rounded">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  :checked="isAllSelected"
+                  :indeterminate="isIndeterminate"
+                  @change="toggleSelectAll"
+                  id="selectAll"
+                />
+                <label class="form-check-label" for="selectAll">
+                  <strong>全选</strong>
+                </label>
+              </div>
+              <span class="text-muted">
+                已选择 <strong>{{ selectedQuestions.length }}</strong> 道题目
+              </span>
+            </div>
+            <div class="d-flex gap-2">
+              <button
+                v-if="selectedQuestions.length > 0"
+                @click="batchDelete"
+                class="btn btn-danger btn-sm"
+              >
+                <i class="bi bi-trash"></i> 批量删除 ({{ selectedQuestions.length }})
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 列表 -->
+        <div class="list-group">
+          <div
+            v-for="question in questions"
+            :key="question._id"
+            class="list-group-item question-list-item"
+            :class="{ 'selected': isSelected(question._id) }"
+          >
+            <div class="d-flex align-items-start gap-3">
+              <!-- 复选框 -->
+              <div class="form-check mt-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  :checked="isSelected(question._id)"
+                  @change="toggleSelection(question._id)"
+                  :id="`question-${question._id}`"
+                />
               </div>
 
               <!-- 题目内容 -->
-              <div class="question-content mb-3">
-                <vue-mathjax
-                  :formula="question.questionText"
-                  :options="mathjaxOptions"
-                ></vue-mathjax>
-              </div>
+              <div class="flex-grow-1">
+                <!-- 题目头部信息 -->
+                <div class="question-header mb-2">
+                  <span class="badge bg-primary me-2">{{ question.subject }}</span>
+                  <span class="badge bg-secondary me-2">{{ question.type }}</span>
+                  <span class="badge" :class="getDifficultyClass(question.difficulty)" style="margin-right: 0.5rem;">
+                    {{ question.difficulty }}
+                  </span>
+                  <span class="badge bg-info">{{ question.totalScore }} 分</span>
+                </div>
 
-              <!-- 选项（如果是选择题） -->
-              <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-3">
-                <ol class="option-list">
-                  <li v-for="(option, index) in question.options" :key="index" class="option-item">
-                    <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
-                  </li>
-                </ol>
-              </div>
+                <!-- 题目文本 -->
+                <div class="question-content mb-2">
+                  <div 
+                    v-html="processQuestionTextToHTML(question.questionText)"
+                    ref="questionContent"
+                    class="question-text-content"
+                  ></div>
+                </div>
 
-              <!-- 答案 -->
-              <div class="question-answer">
-                <strong>答案：</strong>
-                <div ref="mathContainer" v-html="renderWithScoreAndMath(question.correctAnswer)"></div>
-              </div>
+                <!-- 选项（如果是选择题） -->
+                <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-2">
+                  <ol class="option-list mb-0">
+                    <li v-for="(option, index) in question.options" :key="index" class="option-item">
+                      <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
+                    </li>
+                  </ol>
+                </div>
 
-              <!-- 操作按钮 -->
-              <div class="question-actions mt-3 pt-3 border-top">
-                <router-link
-                  :to="`/question-edit/${question._id}`"
-                  class="btn btn-sm btn-outline-primary"
-                >
-                  <i class="bi bi-pencil"></i> 编辑
-                </router-link>
-                <button
-                  @click="deleteQuestion(question._id)"
-                  class="btn btn-sm btn-outline-danger ms-2"
-                >
-                  <i class="bi bi-trash"></i> 删除
-                </button>
+                <!-- 答案 -->
+                <div class="question-answer mb-2">
+                  <strong>答案：</strong>
+                  <vue-mathjax
+                    :formula="processAnswerText(question.correctAnswer)"
+                    :options="mathjaxOptions"
+                  ></vue-mathjax>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="question-actions mt-2 pt-2 border-top">
+                  <router-link
+                    :to="`/question-edit/${question._id}`"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="bi bi-pencil"></i> 编辑
+                  </router-link>
+                  <button
+                    @click="deleteQuestion(question._id)"
+                    class="btn btn-sm btn-outline-danger ms-2"
+                  >
+                    <i class="bi bi-trash"></i> 删除
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -120,6 +171,8 @@
 <script>
 import axios from "axios";
 import VueMathjaxNext from "vue-mathjax-next";
+import { mathjaxOptions } from "../utils/mathjaxConfig";
+import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
 
 export default {
   name: "QuestionList",
@@ -129,43 +182,69 @@ export default {
       allQuestions: [], // 保存所有题目用于搜索
       loading: true,
       searchQuery: "",
-      mathjaxOptions: {
-        tex: {
-          inlineMath: [["$", "$"]],
-          displayMath: [["$$", "$$"]],
-        },
-        CommonHTML: {
-          linebreaks: { automatic: true },
-        },
-        "HTML-CSS": {
-          styles: { ".MathJax_Display": { margin: 0 } },
-          linebreaks: { automatic: true },
-        },
-        SVG: {
-          linebreaks: { automatic: true },
-        },
-      },
+      mathjaxOptions: mathjaxOptions,
+      selectedQuestionIds: [], // 选中的题目ID数组
     };
+  },
+  computed: {
+    selectedQuestions() {
+      return this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
+    },
+    isAllSelected() {
+      return this.questions.length > 0 && this.selectedQuestionIds.length === this.questions.length;
+    },
+    isIndeterminate() {
+      return this.selectedQuestionIds.length > 0 && this.selectedQuestionIds.length < this.questions.length;
+    },
   },
   mounted() {
     this.getQuestionList();
   },
+  updated() {
+    // 组件更新后重新渲染 MathJax
+    this.$nextTick(() => {
+      // 延迟一下，确保 v-html 已经更新
+      setTimeout(() => {
+        this.renderMathJax();
+      }, 100);
+    });
+  },
   methods: {
+    // 将导入的函数添加到 methods 中，以便在模板中使用
+    processQuestionText,
+    processAnswerText,
+    processQuestionTextToHTML,
+    renderMathJax() {
+      // 使用 MathJax 渲染页面中的数学公式
+      if (window.MathJax && window.MathJax.Hub) {
+        // 使用 setTimeout 确保 DOM 完全更新
+        setTimeout(() => {
+          window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub]);
+        }, 50);
+      }
+    },
     async getQuestionList() {
       this.loading = true;
       try {
         const response = await axios.get("/questions/list");
         this.allQuestions = response.data;
         this.questions = response.data;
+        // 等待 DOM 更新后再渲染 MathJax
+        await this.$nextTick();
+        this.renderMathJax();
       } catch (error) {
         console.error("Failed to retrieve question list:", error);
       } finally {
         this.loading = false;
       }
     },
-    handleSearch() {
+    async handleSearch() {
       if (!this.searchQuery.trim()) {
         this.questions = this.allQuestions;
+        // 搜索时清空选中
+        this.selectedQuestionIds = [];
+        await this.$nextTick();
+        this.renderMathJax();
         return;
       }
 
@@ -178,6 +257,11 @@ export default {
           q.difficulty?.toLowerCase().includes(query)
         );
       });
+      // 搜索时清空选中
+      this.selectedQuestionIds = [];
+      // 等待 DOM 更新后再渲染 MathJax
+      await this.$nextTick();
+      this.renderMathJax();
     },
     renderWithScoreAndMath(content) {
       const replacedContent = content.replace(
@@ -194,6 +278,26 @@ export default {
       };
       return classes[difficulty] || "bg-secondary";
     },
+    toggleSelection(questionId) {
+      const index = this.selectedQuestionIds.indexOf(questionId);
+      if (index > -1) {
+        this.selectedQuestionIds.splice(index, 1);
+      } else {
+        this.selectedQuestionIds.push(questionId);
+      }
+    },
+    isSelected(questionId) {
+      return this.selectedQuestionIds.includes(questionId);
+    },
+    toggleSelectAll() {
+      if (this.isAllSelected) {
+        // 取消全选
+        this.selectedQuestionIds = [];
+      } else {
+        // 全选
+        this.selectedQuestionIds = this.questions.map((q) => q._id);
+      }
+    },
     async deleteQuestion(id) {
       if (!confirm("确定要删除这道题目吗？")) {
         return;
@@ -204,9 +308,45 @@ export default {
         // 同时更新 allQuestions 和 questions
         this.allQuestions = this.allQuestions.filter((q) => q._id !== id);
         this.questions = this.questions.filter((q) => q._id !== id);
+        // 从选中列表中移除
+        this.selectedQuestionIds = this.selectedQuestionIds.filter((selectedId) => selectedId !== id);
       } catch (error) {
         console.error("删除失败:", error);
         alert("删除失败，请稍后重试");
+      }
+    },
+    async batchDelete() {
+      if (this.selectedQuestionIds.length === 0) {
+        alert("请至少选择一道题目");
+        return;
+      }
+
+      if (!confirm(`确定要删除选中的 ${this.selectedQuestionIds.length} 道题目吗？此操作不可恢复！`)) {
+        return;
+      }
+
+      try {
+        // 批量删除
+        const deletePromises = this.selectedQuestionIds.map((id) =>
+          axios.delete(`/questions/${id}/delete`)
+        );
+        await Promise.all(deletePromises);
+
+        // 更新列表
+        this.allQuestions = this.allQuestions.filter(
+          (q) => !this.selectedQuestionIds.includes(q._id)
+        );
+        this.questions = this.questions.filter(
+          (q) => !this.selectedQuestionIds.includes(q._id)
+        );
+
+        // 清空选中列表
+        this.selectedQuestionIds = [];
+
+        alert(`成功删除 ${deletePromises.length} 道题目`);
+      } catch (error) {
+        console.error("批量删除失败:", error);
+        alert("批量删除失败，请稍后重试");
       }
     },
   },
@@ -241,14 +381,34 @@ export default {
   font-size: 1.5rem;
 }
 
-.question-card {
-  transition: all 0.3s ease;
-  border: 1px solid #e9ecef;
+.question-list-wrapper {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
 }
 
-.question-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+.batch-actions-toolbar {
+  border: 1px solid #dee2e6;
+}
+
+.question-list-item {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 1.25rem;
+  transition: all 0.2s;
+}
+
+.question-list-item:hover {
+  background-color: #f8f9fa;
+  border-color: #667eea;
+}
+
+.question-list-item.selected {
+  background-color: #e8f0fe;
+  border-color: #667eea;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
 }
 
 .question-header {
@@ -264,9 +424,25 @@ export default {
 }
 
 .question-content {
-  min-height: 60px;
   color: #333;
   font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.question-text-content {
+  /* 确保 MathJax 能够正确渲染 HTML 中的数学公式 */
+  display: block;
+}
+
+.latex-enumerate {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: decimal;
+}
+
+.latex-enumerate li {
+  margin-bottom: 0.5rem;
   line-height: 1.6;
 }
 
