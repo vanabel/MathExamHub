@@ -99,6 +99,44 @@
                       placeholder="系统导入"
                     />
                   </div>
+                  <div class="col-md-6">
+                    <label for="duplicateThreshold" class="form-label">重复检测相似度阈值</label>
+                    <input
+                      v-model.number="duplicateThreshold"
+                      id="duplicateThreshold"
+                      type="number"
+                      class="form-control"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      placeholder="0.85"
+                    />
+                    <small class="form-text text-muted">0-1之间，值越大要求越严格</small>
+                  </div>
+                  <div class="col-md-12">
+                    <div class="form-check">
+                      <input
+                        v-model="checkDuplicates"
+                        class="form-check-input"
+                        type="checkbox"
+                        id="checkDuplicates"
+                      />
+                      <label class="form-check-label" for="checkDuplicates">
+                        检测重复题目
+                      </label>
+                    </div>
+                    <div v-if="checkDuplicates" class="form-check mt-2">
+                      <input
+                        v-model="skipDuplicates"
+                        class="form-check-input"
+                        type="checkbox"
+                        id="skipDuplicates"
+                      />
+                      <label class="form-check-label" for="skipDuplicates">
+                        自动跳过重复题目（不导入）
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -159,6 +197,58 @@
                       </ul>
                     </details>
                   </div>
+                  <!-- 重复题目警告 -->
+                  <div v-if="importResult.duplicates && importResult.duplicates.length > 0" class="mt-3">
+                    <div class="alert alert-warning mb-0">
+                      <h6 class="alert-heading">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        检测到 {{ importResult.duplicateCount || importResult.duplicates.length }} 道可能重复的题目
+                      </h6>
+                      <details class="mt-2">
+                        <summary class="cursor-pointer fw-bold">查看重复题目详情</summary>
+                        <div class="mt-3">
+                          <div
+                            v-for="(dup, index) in importResult.duplicates"
+                            :key="index"
+                            class="duplicate-item mb-3 p-3 bg-white rounded border"
+                          >
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                              <strong class="text-danger">
+                                <i class="bi bi-exclamation-circle"></i>
+                                重复题目 #{{ index + 1 }}
+                              </strong>
+                              <span class="badge bg-warning text-dark">
+                                相似度: {{ (dup.duplicates[0]?.similarity * 100).toFixed(1) }}%
+                              </span>
+                            </div>
+                            <div class="mb-2">
+                              <strong>导入的题目：</strong>
+                              <div class="question-preview p-2 bg-light rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
+                            </div>
+                            <div>
+                              <strong>数据库中相似的题目：</strong>
+                              <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 bg-light rounded">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                  <span class="badge bg-secondary">ID: {{ match.question._id }}</span>
+                                  <span class="badge" :class="match.matchType === 'exact' ? 'bg-danger' : 'bg-warning'">
+                                    {{ match.matchType === 'exact' ? '完全匹配' : '相似匹配' }}
+                                    ({{ (match.similarity * 100).toFixed(1) }}%)
+                                  </span>
+                                </div>
+                                <div class="question-preview">{{ formatQuestionText(match.question.questionText) }}</div>
+                                <div class="mt-1">
+                                  <small class="text-muted">
+                                    科目: {{ match.question.subject || '未知' }} | 
+                                    类型: {{ match.question.type || '未知' }}
+                                  </small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
                   <hr v-if="importResult.success" />
                   <div v-if="importResult.success" class="d-flex gap-2">
                     <router-link to="/question-list" class="btn btn-sm btn-primary">
@@ -195,6 +285,9 @@ export default {
       importing: false,
       createdBy: "",
       importResult: null,
+      checkDuplicates: true,
+      skipDuplicates: false,
+      duplicateThreshold: 0.85,
     };
   },
   methods: {
@@ -262,6 +355,9 @@ export default {
       if (this.createdBy) {
         formData.append("createdBy", this.createdBy);
       }
+      formData.append("checkDuplicates", this.checkDuplicates ? "true" : "false");
+      formData.append("skipDuplicates", this.skipDuplicates ? "true" : "false");
+      formData.append("duplicateThreshold", this.duplicateThreshold.toString());
 
       try {
         const response = await axios.post("/questions/import/latex", formData, {
@@ -295,12 +391,39 @@ export default {
       this.selectedImages = [];
       this.importResult = null;
       this.createdBy = "";
+      this.checkDuplicates = true;
+      this.skipDuplicates = false;
+      this.duplicateThreshold = 0.85;
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = "";
       }
       if (this.$refs.imageInput) {
         this.$refs.imageInput.value = "";
       }
+    },
+    formatQuestionText(text) {
+      if (!text) return '';
+      // 移除 HTML 标签，只显示纯文本预览
+      let plainText = text
+        .replace(/<image[^>]*>/gi, '[图片]')
+        .replace(/<\/image>/gi, '')
+        .replace(/<a[^>]*href=["']#fig:([^"']+)["'][^>]*>([^<]*)<\/a>/gi, '图$2')
+        .replace(/<[^>]+>/g, '') // 移除所有其他 HTML 标签
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // 限制预览长度
+      if (plainText.length > 200) {
+        plainText = plainText.substring(0, 200) + '...';
+      }
+      
+      return plainText;
     },
   },
 };
@@ -409,6 +532,25 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.duplicate-item {
+  border-left: 4px solid #ffc107;
+}
+
+.match-item {
+  border-left: 3px solid #6c757d;
+}
+
+.question-preview {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>
 

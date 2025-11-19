@@ -45,6 +45,7 @@
                   <option value="单选题">单选题</option>
                   <option value="多选题">多选题</option>
                   <option value="填空题">填空题</option>
+                  <option value="简答题">简答题</option>
                   <option value="解答题">解答题</option>
                   <option value="计算题">计算题</option>
                   <option value="证明题">证明题</option>

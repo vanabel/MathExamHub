@@ -229,7 +229,7 @@ router.delete('/:id/delete', async (req, res) => {
 // 获取试题列表（支持过滤）
 router.get('/list', async (req, res) => {
   try {
-    const { subject, questionType, questionText } = req.query;
+    const { subject, questionType, questionText, checkDuplicates } = req.query;
     
     // 构建查询条件
     const query = {};
@@ -251,10 +251,120 @@ router.get('/list', async (req, res) => {
     
     // 执行查询
     const questions = await Question.find(query).sort({ createdAt: -1 });
+    
+    // 如果需要检测重复，添加重复标记
+    if (checkDuplicates === 'true') {
+      const { findAllDuplicates } = require('../utils/duplicateDetector');
+      const duplicateGroups = await findAllDuplicates(0.85);
+      
+      // 创建重复 ID 映射
+      const duplicateIds = new Set();
+      duplicateGroups.forEach(group => {
+        group.forEach(q => duplicateIds.add(q._id.toString()));
+      });
+      
+      // 为每个题目添加重复标记
+      const questionsWithDuplicates = questions.map(q => {
+        const isDuplicate = duplicateIds.has(q._id.toString());
+        return {
+          ...q.toObject(),
+          isDuplicate: isDuplicate,
+          duplicateGroupId: isDuplicate ? duplicateGroups.findIndex(group => 
+            group.some(dq => dq._id.toString() === q._id.toString())
+          ) : null,
+        };
+      });
+      
+      return res.json({
+        questions: questionsWithDuplicates,
+        duplicateGroups: duplicateGroups.map((group, index) => ({
+          groupId: index,
+          questions: group.map(q => ({
+            _id: q._id,
+            questionText: q.questionText,
+            type: q.type,
+            subject: q.subject,
+          })),
+        })),
+      });
+    }
+    
     res.json(questions);
   } catch (error) {
     console.error('获取试题列表失败:', error);
     res.status(500).json({error: 'Failed to retrieve questions'});
+  }
+});
+
+// 检测重复题目
+router.get('/duplicates', async (req, res) => {
+  try {
+    const { threshold } = req.query;
+    const similarityThreshold = parseFloat(threshold) || 0.85;
+    
+    const { findAllDuplicates } = require('../utils/duplicateDetector');
+    const duplicateGroups = await findAllDuplicates(similarityThreshold);
+    
+    res.json({
+      duplicateGroups: duplicateGroups.map((group, index) => ({
+        groupId: index,
+        questions: group.map(q => ({
+          _id: q._id,
+          questionText: q.questionText,
+          type: q.type,
+          subject: q.subject,
+          createdAt: q.createdAt,
+        })),
+      })),
+      totalDuplicates: duplicateGroups.reduce((sum, group) => sum + group.length, 0),
+      totalGroups: duplicateGroups.length,
+    });
+  } catch (error) {
+    console.error('检测重复题目失败:', error);
+    res.status(500).json({ error: 'Failed to detect duplicates' });
+  }
+});
+
+// 批量删除重复题目（保留每组中最早的题目）
+router.post('/duplicates/cleanup', async (req, res) => {
+  try {
+    const { threshold, keepOldest } = req.query;
+    const similarityThreshold = parseFloat(threshold) || 0.85;
+    const keepOldestFlag = keepOldest !== 'false'; // 默认保留最早的
+    
+    const { findAllDuplicates } = require('../utils/duplicateDetector');
+    const duplicateGroups = await findAllDuplicates(similarityThreshold);
+    
+    const deletedIds = [];
+    
+    for (const group of duplicateGroups) {
+      if (group.length <= 1) continue;
+      
+      // 按创建时间排序
+      const sortedGroup = [...group].sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB;
+      });
+      
+      // 保留最早的，删除其他的
+      const toKeep = keepOldestFlag ? sortedGroup[0] : sortedGroup[sortedGroup.length - 1];
+      const toDelete = sortedGroup.filter(q => q._id.toString() !== toKeep._id.toString());
+      
+      for (const question of toDelete) {
+        await Question.findByIdAndDelete(question._id);
+        deletedIds.push(question._id);
+      }
+    }
+    
+    res.json({
+      success: true,
+      deletedCount: deletedIds.length,
+      deletedIds: deletedIds,
+    });
+  } catch (error) {
+    console.error('清理重复题目失败:', error);
+    res.status(500).json({ error: 'Failed to cleanup duplicates' });
   }
 });
 
@@ -300,33 +410,93 @@ router.get('/search', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-// 提取关键词
+// 提取关键词 - 支持多种 LLM API 提供商
+const { getLLMConfig, validateConfig } = require('../config/llm');
+
 router.post('/extractKeywords', async (req, res) => {
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  //console.log(openaiApiKey);
-
   try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/engines/gpt-3.5-turbo-instruct/completions',
-      {
-        prompt: req.body.prompt,
-        max_tokens: 100,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiApiKey}`,
+    // 验证配置
+    validateConfig();
+    
+    const config = getLLMConfig();
+    const { provider } = config;
+    let generatedText = '';
+    
+    if (provider === 'siliconflow') {
+      // SiliconFlow API
+      const response = await axios.post(
+        config.endpoint,
+        {
+          model: config.model,
+          messages: [
+            {
+              role: 'user',
+              content: req.body.prompt
+            }
+          ],
+          max_tokens: config.maxTokens,
         },
-      }
-    );
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`,
+          },
+        }
+      );
+      
+      generatedText = response.data.choices[0]?.message?.content || '';
+      
+    } else if (provider === 'ollama') {
+      // Ollama API
+      const response = await axios.post(
+        `${config.url}${config.endpoint}`,
+        {
+          model: config.model,
+          prompt: req.body.prompt,
+          stream: false, // 禁用流式响应
+          options: {
+            num_predict: config.maxTokens,
+          },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: config.timeout,
+        }
+      );
+      
+      generatedText = response.data.response || '';
+      
+    } else {
+      // OpenAI API (默认)
+      const response = await axios.post(
+        config.endpoint,
+        {
+          prompt: req.body.prompt,
+          max_tokens: config.maxTokens,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`,
+          },
+        }
+      );
+      
+      generatedText = response.data.choices[0].text;
+    }
 
-    const generatedText = response.data.choices[0].text;
-    // Implement your keyword extraction logic here based on the generatedText
     res.json({ keywords: generatedText });
-    console.log(generatedText);
+    console.log(`[${provider}] Generated keywords:`, generatedText);
   } catch (error) {
-    console.error('Error interacting with OpenAI GPT-3 API:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const config = getLLMConfig();
+    console.error(`Error interacting with ${config.provider} API:`, error.response?.data || error.message);
+    res.status(500).json({ 
+      error: error.message || 'Internal Server Error',
+      details: error.response?.data || error.message,
+      provider: config.provider
+    });
   }
 });
 
@@ -417,9 +587,20 @@ router.post('/import/latex', upload.fields([
       return res.status(400).json({ error: '未能从文件中解析出题目' });
     }
 
+    // 检测重复题目
+    const { detectDuplicatesInBatch } = require('../utils/duplicateDetector');
+    const duplicateCheck = req.body.checkDuplicates !== 'false'; // 默认检查重复
+    const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
+    
+    let duplicateResults = null;
+    if (duplicateCheck) {
+      duplicateResults = await detectDuplicatesInBatch(questions, duplicateThreshold);
+    }
+
     // 保存到数据库
     const savedQuestions = [];
     const errors = [];
+    const duplicateWarnings = [];
 
     for (const q of questions) {
       try {
@@ -427,6 +608,31 @@ router.post('/import/latex', upload.fields([
         if (!q.questionText || !q.type) {
           errors.push({ question: q, error: '缺少必填字段' });
           continue;
+        }
+
+        // 检查是否跳过重复题目
+        const skipDuplicates = req.body.skipDuplicates === 'true';
+        if (duplicateCheck && duplicateResults) {
+          // 通过题目文本匹配找到重复信息
+          const duplicateInfo = duplicateResults.duplicates.find(d => {
+            const { normalizeText } = require('../utils/duplicateDetector');
+            return normalizeText(d.question.questionText) === normalizeText(q.questionText);
+          });
+          if (duplicateInfo && duplicateInfo.duplicates.length > 0) {
+            duplicateWarnings.push({
+              question: q,
+              duplicates: duplicateInfo.duplicates.map(d => ({
+                _id: d.question._id,
+                questionText: d.question.questionText,
+                similarity: d.similarity,
+                matchType: d.matchType,
+              })),
+            });
+            
+            if (skipDuplicates) {
+              continue; // 跳过重复题目
+            }
+          }
         }
 
         // 设置默认值
@@ -459,6 +665,8 @@ router.post('/import/latex', upload.fields([
       failed: errors.length,
       questions: savedQuestions,
       errors: errors,
+      duplicates: duplicateWarnings, // 重复题目警告
+      duplicateCount: duplicateWarnings.length,
     });
   } catch (error) {
     console.error('导入 LaTeX 文件失败:', error);

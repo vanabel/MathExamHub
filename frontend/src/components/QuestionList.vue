@@ -25,6 +25,18 @@
                 @input="handleSearch"
               />
             </div>
+            <div class="form-check d-flex align-items-center">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                v-model="checkDuplicates"
+                @change="handleDuplicateCheckChange"
+                id="checkDuplicatesList"
+              />
+              <label class="form-check-label ms-2" for="checkDuplicatesList">
+                <i class="bi bi-exclamation-triangle"></i> 标记重复题目
+              </label>
+            </div>
             <router-link to="/question-add" class="btn btn-primary">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
@@ -46,6 +58,14 @@
 
       <!-- 题目列表 -->
       <div v-else-if="questions.length > 0" class="question-list-wrapper">
+        <!-- 重复题目统计 -->
+        <div v-if="checkDuplicates && duplicateGroups.length > 0" class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle"></i>
+          <strong>检测到 {{ duplicateGroups.length }} 组重复题目</strong>
+          <span class="ms-2 text-muted">
+            （共 {{ duplicateGroups.reduce((sum, group) => sum + group.questions.length, 0) }} 道题目被标记为重复）
+          </span>
+        </div>
         <!-- 批量操作工具栏 -->
         <div class="batch-actions-toolbar mb-3 p-3 bg-light rounded">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -85,7 +105,10 @@
             v-for="question in questions"
             :key="question._id"
             class="list-group-item question-list-item"
-            :class="{ 'selected': isSelected(question._id) }"
+            :class="{ 
+              'selected': isSelected(question._id),
+              'duplicate-marked': question.isDuplicate
+            }"
           >
             <div class="d-flex align-items-start gap-3">
               <!-- 复选框 -->
@@ -108,7 +131,13 @@
                   <span class="badge" :class="getDifficultyClass(question.difficulty)" style="margin-right: 0.5rem;">
                     {{ question.difficulty }}
                   </span>
-                  <span class="badge bg-info">{{ question.totalScore }} 分</span>
+                  <span class="badge bg-info me-2">{{ question.totalScore }} 分</span>
+                  <span v-if="question.isDuplicate" class="badge bg-warning text-dark" :title="`此题目可能与数据库中的其他题目重复（组 #${question.duplicateGroupId + 1}）`">
+                    <i class="bi bi-exclamation-triangle"></i> 可能重复
+                    <span v-if="question.duplicateGroupId !== null && question.duplicateGroupId !== undefined" class="ms-1">
+                      (组 #{{ question.duplicateGroupId + 1 }})
+                    </span>
+                  </span>
                 </div>
 
                 <!-- 题目文本 -->
@@ -184,6 +213,8 @@ export default {
       searchQuery: "",
       mathjaxOptions: mathjaxOptions,
       selectedQuestionIds: [], // 选中的题目ID数组
+      checkDuplicates: false, // 是否检测重复
+      duplicateGroups: [], // 重复组信息
     };
   },
   computed: {
@@ -306,9 +337,30 @@ export default {
     async getQuestionList() {
       this.loading = true;
       try {
-        const response = await axios.get("/questions/list");
-        this.allQuestions = response.data;
-        this.questions = response.data;
+        const params = {};
+        if (this.checkDuplicates) {
+          params.checkDuplicates = 'true';
+        }
+        const response = await axios.get("/questions/list", { params });
+        
+        if (this.checkDuplicates && response.data.questions) {
+          // 如果启用了重复检测，响应包含 questions 和 duplicateGroups
+          this.duplicateGroups = response.data.duplicateGroups || [];
+          
+          // 对题目进行排序：重复题目在前（按组排序），非重复题目在后
+          const sortedQuestions = this.sortQuestionsWithDuplicates(
+            response.data.questions
+          );
+          
+          this.allQuestions = sortedQuestions;
+          this.questions = sortedQuestions;
+        } else {
+          // 普通模式，直接返回题目数组
+          this.allQuestions = response.data;
+          this.questions = response.data;
+          this.duplicateGroups = [];
+        }
+        
         // 等待 DOM 更新后再渲染 MathJax 和 PDF
         await this.$nextTick();
         setTimeout(() => {
@@ -320,6 +372,37 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    sortQuestionsWithDuplicates(questions) {
+      // 分离重复题目和非重复题目
+      // 后端已经在 questions 中添加了 isDuplicate 和 duplicateGroupId 字段
+      const duplicateQuestions = [];
+      const nonDuplicateQuestions = [];
+      
+      questions.forEach(q => {
+        if (q.isDuplicate && q.duplicateGroupId !== null && q.duplicateGroupId !== undefined) {
+          duplicateQuestions.push(q);
+        } else {
+          nonDuplicateQuestions.push(q);
+        }
+      });
+      
+      // 对重复题目按组ID排序，同一组内的题目保持相对顺序
+      duplicateQuestions.sort((a, b) => {
+        // 首先按组ID排序
+        if (a.duplicateGroupId !== b.duplicateGroupId) {
+          return a.duplicateGroupId - b.duplicateGroupId;
+        }
+        // 同一组内，保持原始顺序
+        return 0;
+      });
+      
+      // 合并：重复题目在前，非重复题目在后
+      return [...duplicateQuestions, ...nonDuplicateQuestions];
+    },
+    handleDuplicateCheckChange() {
+      // 当重复检测选项改变时，重新加载列表
+      this.getQuestionList();
     },
     async handleSearch() {
       if (!this.searchQuery.trim()) {
@@ -495,6 +578,15 @@ export default {
   background-color: #e8f0fe;
   border-color: #667eea;
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.question-list-item.duplicate-marked {
+  border-left: 4px solid #ffc107;
+  background-color: #fffbf0;
+}
+
+.question-list-item.duplicate-marked:hover {
+  background-color: #fff8e1;
 }
 
 .question-header {
