@@ -226,15 +226,36 @@ router.delete('/:id/delete', async (req, res) => {
 });
 
 
-// 获取试题列表
-router.get('/list', (req, res) => {
-  Question.find()
-    .then(questions => {
-      res.json(questions);
-    })
-    .catch(error => {
-      res.status(500).json({error: 'Failed to retrieve questions'});
-    });
+// 获取试题列表（支持过滤）
+router.get('/list', async (req, res) => {
+  try {
+    const { subject, questionType, questionText } = req.query;
+    
+    // 构建查询条件
+    const query = {};
+    
+    // 科目过滤
+    if (subject) {
+      query.subject = subject;
+    }
+    
+    // 题型过滤
+    if (questionType) {
+      query.type = questionType;
+    }
+    
+    // 关键词过滤（在题目文本中搜索）
+    if (questionText) {
+      query.questionText = { $regex: questionText, $options: 'i' };
+    }
+    
+    // 执行查询
+    const questions = await Question.find(query).sort({ createdAt: -1 });
+    res.json(questions);
+  } catch (error) {
+    console.error('获取试题列表失败:', error);
+    res.status(500).json({error: 'Failed to retrieve questions'});
+  }
 });
 
 // 获取所有已使用的科目列表
