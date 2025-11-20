@@ -124,11 +124,46 @@ npm install
 npm run dev
 ```
 
-如需调用 OpenAI 关键词接口，请在运行前设置环境变量（示例）：
+如需调用关键词提取接口，请在运行前配置 LLM API。支持三种 LLM API 提供商：
 
+**配置方式：**
+
+1. **使用环境变量（推荐）**
+   - 在 `backend/config/llm.js` 中通过环境变量配置
+   - 或直接设置环境变量
+
+2. **直接修改配置文件**
+   - 编辑 `backend/config/llm.js` 文件
+
+**配置示例：**
+
+**1. OpenAI (默认)**
 ```bash
+export LLM_API_PROVIDER=openai
 export OPENAI_API_KEY=你的API密钥
 ```
+
+**2. SiliconFlow**
+```bash
+export LLM_API_PROVIDER=siliconflow
+export SILICONFLOW_API_KEY=你的API密钥
+export SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3  # 可选，默认为此值
+```
+
+**3. Ollama (本地)**
+```bash
+export LLM_API_PROVIDER=ollama
+export OLLAMA_URL=http://localhost:11434  # 可选，默认为此值
+export OLLAMA_MODEL=qwen3:8b  # 可选，默认为此值
+```
+
+**配置文件位置：**
+- 配置文件：`backend/config/llm.js`
+- 示例文件：`backend/config/llm.config.example.js`
+
+注意：
+- 使用 Ollama 前需要先启动 Ollama 服务并确保模型已下载
+- 配置文件支持环境变量覆盖，优先使用环境变量
 
 ### 2. 启动前端 (Frontend)
 

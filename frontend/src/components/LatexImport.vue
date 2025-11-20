@@ -144,22 +144,190 @@
               <div class="d-flex gap-2">
                 <button
                   type="button"
+                  class="btn btn-info"
+                  @click="previewFile"
+                  :disabled="!selectedFile || previewing || importing"
+                >
+                  <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-eye"></i>
+                  {{ previewing ? '预览中...' : '预览题目' }}
+                </button>
+                <button
+                  type="button"
                   class="btn btn-primary"
                   @click="importFile"
-                  :disabled="!selectedFile || importing"
+                  :disabled="!selectedFile || importing || previewing"
+                  v-if="!previewData"
                 >
                   <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-upload"></i>
-                  {{ importing ? '导入中...' : '开始导入' }}
+                  {{ importing ? '导入中...' : '直接导入' }}
+                </button>
+                <button
+                  v-if="previewData"
+                  type="button"
+                  class="btn btn-success"
+                  @click="confirmImport"
+                  :disabled="importing"
+                >
+                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-check-circle"></i>
+                  {{ importing ? '导入中...' : '确认导入' }}
                 </button>
                 <button
                   type="button"
                   class="btn btn-outline-secondary"
                   @click="resetForm"
-                  :disabled="importing"
+                  :disabled="importing || previewing"
                 >
                   <i class="bi bi-arrow-clockwise"></i> 重置
                 </button>
+              </div>
+
+              <!-- 预览区域 -->
+              <div v-if="previewData && !importResult" class="preview-area mt-4">
+                <div class="card">
+                  <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                      <i class="bi bi-eye"></i> 预览识别到的题目
+                    </h5>
+                    <div>
+                      <button
+                        type="button"
+                        class="btn btn-sm"
+                        :class="previewMode ? 'btn-light' : 'btn-outline-light'"
+                        @click="previewMode = !previewMode"
+                      >
+                        <i :class="previewMode ? 'bi bi-eye-fill' : 'bi bi-eye'"></i>
+                        {{ previewMode ? '预览模式' : '文本模式' }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                      <strong>共识别到 {{ previewData.questions.length }} 道题目</strong>
+                      <span v-if="previewData.duplicateCount > 0" class="ms-2">
+                        （<span class="text-warning">检测到 {{ previewData.duplicateCount }} 道可能重复的题目</span>）
+                      </span>
+                    </div>
+
+                    <!-- 题目列表 -->
+                    <div class="question-list" style="max-height: 600px; overflow-y: auto">
+                      <div
+                        v-for="(question, index) in previewData.questions"
+                        :key="index"
+                        class="question-item mb-3 p-3 border rounded"
+                        :class="{ 'border-warning': isDuplicateQuestion(question) }"
+                      >
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <span class="badge bg-primary me-2">题目 #{{ index + 1 }}</span>
+                            <span class="badge bg-secondary me-2">{{ question.type || '未知类型' }}</span>
+                            <span class="badge bg-info" v-if="question.totalScore">{{ question.totalScore }} 分</span>
+                            <span v-if="isDuplicateQuestion(question)" class="badge bg-warning text-dark ms-2">
+                              <i class="bi bi-exclamation-triangle"></i> 可能重复
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- 预览模式 -->
+                        <div v-if="previewMode" class="question-preview-content">
+                          <div 
+                            v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
+                            class="question-text-content mb-2"
+                          ></div>
+                          <!-- 选项（如果是选择题） -->
+                          <div v-if="question.options && Object.keys(question.options).length > 0" class="question-options mb-2">
+                            <ol class="option-list mb-0 small">
+                              <li v-for="(option, optIndex) in question.options" :key="optIndex" class="option-item">
+                                <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
+                              </li>
+                            </ol>
+                          </div>
+                          <!-- 答案 -->
+                          <div class="question-answer mb-0" v-if="question.correctAnswer">
+                            <strong>答案：</strong>
+                            <div v-html="processAnswerTextToHTML(question.correctAnswer)"></div>
+                          </div>
+                        </div>
+                        <!-- 文本模式 -->
+                        <div v-else class="text-mode">
+                          <div class="mb-2">
+                            <strong>题目：</strong>
+                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.originalLaTeX || question.questionText }}</pre>
+                          </div>
+                          <div v-if="question.correctAnswer" class="mb-2">
+                            <strong>答案：</strong>
+                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.correctAnswer }}</pre>
+                          </div>
+                        </div>
+
+                        <!-- 重复题目详情 -->
+                        <div v-if="isDuplicateQuestion(question)" class="mt-2 p-2 bg-warning bg-opacity-10 rounded">
+                          <small class="text-muted">
+                            <strong>相似的题目：</strong>
+                            <div v-for="(dup, dupIndex) in getDuplicateInfo(question)" :key="dupIndex" class="mt-1">
+                              ID: {{ dup._id }} | 相似度: {{ (dup.similarity * 100).toFixed(1) }}%
+                            </div>
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 重复题目警告 -->
+                    <div v-if="previewData.duplicates && previewData.duplicates.length > 0" class="mt-3">
+                      <div class="alert alert-warning mb-0">
+                        <h6 class="alert-heading">
+                          <i class="bi bi-exclamation-triangle"></i>
+                          检测到 {{ previewData.duplicateCount }} 道可能重复的题目
+                        </h6>
+                        <details class="mt-2">
+                          <summary class="cursor-pointer fw-bold">查看重复题目详情</summary>
+                          <div class="mt-3">
+                            <div
+                              v-for="(dup, index) in previewData.duplicates"
+                              :key="index"
+                              class="duplicate-item mb-3 p-3 bg-white rounded border"
+                            >
+                              <div class="d-flex justify-content-between align-items-start mb-2">
+                                <strong class="text-danger">
+                                  <i class="bi bi-exclamation-circle"></i>
+                                  重复题目 #{{ index + 1 }}
+                                </strong>
+                                <span class="badge bg-warning text-dark">
+                                  相似度: {{ (dup.duplicates[0]?.similarity * 100).toFixed(1) }}%
+                                </span>
+                              </div>
+                              <div class="mb-2">
+                                <strong>导入的题目：</strong>
+                                <div class="question-preview p-2 bg-light rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
+                              </div>
+                              <div>
+                                <strong>数据库中相似的题目：</strong>
+                                <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 bg-light rounded">
+                                  <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <span class="badge bg-secondary">ID: {{ match._id }}</span>
+                                    <span class="badge" :class="match.matchType === 'exact' ? 'bg-danger' : 'bg-warning'">
+                                      {{ match.matchType === 'exact' ? '完全匹配' : '相似匹配' }}
+                                      ({{ (match.similarity * 100).toFixed(1) }}%)
+                                    </span>
+                                  </div>
+                                  <div class="question-preview">{{ formatQuestionText(match.questionText) }}</div>
+                                  <div class="mt-1" v-if="match.subject || match.type">
+                                    <small class="text-muted">
+                                      <span v-if="match.subject">科目: {{ match.subject }} | </span>
+                                      <span v-if="match.type">类型: {{ match.type }}</span>
+                                    </small>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- 导入结果 -->
@@ -229,17 +397,17 @@
                               <strong>数据库中相似的题目：</strong>
                               <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 bg-light rounded">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
-                                  <span class="badge bg-secondary">ID: {{ match.question._id }}</span>
+                                  <span class="badge bg-secondary">ID: {{ match._id }}</span>
                                   <span class="badge" :class="match.matchType === 'exact' ? 'bg-danger' : 'bg-warning'">
                                     {{ match.matchType === 'exact' ? '完全匹配' : '相似匹配' }}
                                     ({{ (match.similarity * 100).toFixed(1) }}%)
                                   </span>
                                 </div>
-                                <div class="question-preview">{{ formatQuestionText(match.question.questionText) }}</div>
-                                <div class="mt-1">
+                                <div class="question-preview">{{ formatQuestionText(match.questionText) }}</div>
+                                <div class="mt-1" v-if="match.subject || match.type">
                                   <small class="text-muted">
-                                    科目: {{ match.question.subject || '未知' }} | 
-                                    类型: {{ match.question.type || '未知' }}
+                                    <span v-if="match.subject">科目: {{ match.subject }} | </span>
+                                    <span v-if="match.type">类型: {{ match.type }}</span>
                                   </small>
                                 </div>
                               </div>
@@ -274,20 +442,30 @@
 
 <script>
 import axios from "axios";
+import VueMathjaxNext from "vue-mathjax-next";
+import { mathjaxOptions } from "../utils/mathjaxConfig";
+import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 
 export default {
   name: "LatexImport",
+  components: {
+    "vue-mathjax": VueMathjaxNext,
+  },
   data() {
     return {
       selectedFile: null,
       selectedImages: [],
       isDragging: false,
       importing: false,
+      previewing: false,
       createdBy: "",
       importResult: null,
+      previewData: null,
+      previewMode: true, // true = 预览模式, false = 文本模式
       checkDuplicates: true,
       skipDuplicates: false,
       duplicateThreshold: 0.85,
+      mathjaxOptions: mathjaxOptions,
     };
   },
   methods: {
@@ -335,6 +513,94 @@ export default {
       );
       if (imageFiles.length > 0) {
         this.selectedImages = [...this.selectedImages, ...imageFiles];
+      }
+    },
+    async previewFile() {
+      if (!this.selectedFile) {
+        alert("请先选择文件");
+        return;
+      }
+
+      this.previewing = true;
+      this.previewData = null;
+      this.importResult = null;
+
+      const formData = new FormData();
+      formData.append("file", this.selectedFile);
+      // 添加图片文件
+      this.selectedImages.forEach((img) => {
+        formData.append("images", img);
+      });
+      formData.append("checkDuplicates", this.checkDuplicates ? "true" : "false");
+      formData.append("duplicateThreshold", this.duplicateThreshold.toString());
+
+      try {
+        const response = await axios.post("/questions/import/latex/preview", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        this.previewData = response.data;
+        if (response.data.success) {
+          console.log("预览成功:", response.data);
+        }
+      } catch (error) {
+        console.error("预览失败:", error);
+        alert(error.response?.data?.error || "预览失败，请检查文件格式");
+      } finally {
+        this.previewing = false;
+      }
+    },
+    async confirmImport() {
+      if (!this.previewData || !this.selectedFile) {
+        alert("请先预览文件");
+        return;
+      }
+
+      // 使用预览数据，直接调用导入接口
+      this.importing = true;
+      this.importResult = null;
+
+      const formData = new FormData();
+      formData.append("file", this.selectedFile);
+      // 添加图片文件
+      this.selectedImages.forEach((img) => {
+        formData.append("images", img);
+      });
+      if (this.createdBy) {
+        formData.append("createdBy", this.createdBy);
+      }
+      formData.append("checkDuplicates", this.checkDuplicates ? "true" : "false");
+      formData.append("skipDuplicates", this.skipDuplicates ? "true" : "false");
+      formData.append("duplicateThreshold", this.duplicateThreshold.toString());
+
+      try {
+        const response = await axios.post("/questions/import/latex", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        this.importResult = response.data;
+        this.previewData = null; // 清除预览数据，显示导入结果
+        if (response.data.success) {
+          console.log("导入成功:", response.data);
+        }
+      } catch (error) {
+        console.error("导入失败:", error);
+        this.importResult = {
+          success: false,
+          imported: 0,
+          failed: 1,
+          errors: [
+            {
+              error: error.response?.data?.error || "导入失败，请检查文件格式",
+            },
+          ],
+        };
+      } finally {
+        this.importing = false;
       }
     },
     async importFile() {
@@ -390,16 +656,50 @@ export default {
       this.selectedFile = null;
       this.selectedImages = [];
       this.importResult = null;
+      this.previewData = null;
       this.createdBy = "";
       this.checkDuplicates = true;
       this.skipDuplicates = false;
       this.duplicateThreshold = 0.85;
+      this.previewMode = true;
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = "";
       }
       if (this.$refs.imageInput) {
         this.$refs.imageInput.value = "";
       }
+    },
+    isDuplicateQuestion(question) {
+      if (!this.previewData || !this.previewData.duplicates) {
+        return false;
+      }
+      return this.previewData.duplicates.some(dup => {
+        // 比较题目文本判断是否为重复题目
+        const normalizeText = (text) => {
+          if (!text) return '';
+          return text.replace(/\s+/g, '').toLowerCase();
+        };
+        return normalizeText(dup.question.questionText) === normalizeText(question.questionText);
+      });
+    },
+    getDuplicateInfo(question) {
+      if (!this.previewData || !this.previewData.duplicates) {
+        return [];
+      }
+      const dup = this.previewData.duplicates.find(dup => {
+        const normalizeText = (text) => {
+          if (!text) return '';
+          return text.replace(/\s+/g, '').toLowerCase();
+        };
+        return normalizeText(dup.question.questionText) === normalizeText(question.questionText);
+      });
+      return dup ? dup.duplicates : [];
+    },
+    processQuestionTextToHTML(text, originalLaTeX) {
+      return processQuestionTextToHTML(text, originalLaTeX);
+    },
+    processAnswerTextToHTML(text) {
+      return processAnswerTextToHTML(text);
     },
     formatQuestionText(text) {
       if (!text) return '';

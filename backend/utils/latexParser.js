@@ -401,14 +401,100 @@ class LatexParser {
   }
 
   /**
-   * 解析 makepart 环境
+   * 解析 makepart 环境或命令
+   * 支持两种格式：
+   * 1. \begin{makepart}...\end{makepart} 环境格式
+   * 2. \makepart[info]{type} 命令格式（内容直到下一个 \makepart 或文档结束）
    */
   parseParts(content) {
-    // 匹配 \begin{makepart}...\end{makepart}
-    // 支持两种格式：
-    // 1. \begin{makepart}{type}[score] - type 在前，score 在后
-    // 2. \begin{makepart}[info]{type}[score] - info 在前，type 在后，score 在最后
-    // 3. \begin{makepart}[info]{type} - 没有 score
+    // 首先检查是否使用命令格式 \makepart[...]{...}
+    const commandFormatRegex = /\\makepart(?:\[([^\]]*)\])?\{([^}]+)\}/g;
+    const commandMatches = [];
+    let commandMatch;
+    
+    // 收集所有 \makepart 命令的位置
+    while ((commandMatch = commandFormatRegex.exec(content)) !== null) {
+      commandMatches.push({
+        index: commandMatch.index,
+        fullMatch: commandMatch[0],
+        info: commandMatch[1] || '',
+        type: commandMatch[2].trim(),
+      });
+    }
+    
+    // 如果找到命令格式，使用命令格式解析
+    if (commandMatches.length > 0) {
+      // 同时从原始内容中解析
+      const originalCommandMatches = [];
+      if (this.originalContent) {
+        const originalCommandRegex = /\\makepart(?:\[([^\]]*)\])?\{([^}]+)\}/g;
+        let originalMatch;
+        while ((originalMatch = originalCommandRegex.exec(this.originalContent)) !== null) {
+          originalCommandMatches.push({
+            index: originalMatch.index,
+            info: originalMatch[1] || '',
+            type: originalMatch[2].trim(),
+          });
+        }
+      }
+      
+      // 处理每个 makepart 命令
+      for (let i = 0; i < commandMatches.length; i++) {
+        const cmd = commandMatches[i];
+        const originalCmd = originalCommandMatches[i] || cmd;
+        
+        // 找到这个 makepart 命令的结束位置（下一个 makepart 或文档结束）
+        const startPos = cmd.index + cmd.fullMatch.length;
+        const endPos = i < commandMatches.length - 1 
+          ? commandMatches[i + 1].index 
+          : content.length;
+        
+        // 提取该部分的内容
+        const partContent = content.substring(startPos, endPos).trim();
+        
+        // 从原始内容中提取
+        // 需要找到原始内容中对应的 makepart 命令的完整匹配
+        const originalCmdRegex = /\\makepart(?:\[([^\]]*)\])?\{([^}]+)\}/g;
+        originalCmdRegex.lastIndex = 0;
+        let originalFullMatch = null;
+        let matchCount = 0;
+        while ((originalFullMatch = originalCmdRegex.exec(this.originalContent)) !== null) {
+          if (matchCount === i) {
+            break;
+          }
+          matchCount++;
+        }
+        
+        const originalStartPos = originalFullMatch 
+          ? originalFullMatch.index + originalFullMatch[0].length
+          : originalCmd.index + '\\makepart'.length + `{${originalCmd.type}}`.length + (originalCmd.info ? `[${originalCmd.info}]`.length : 0);
+        const originalEndPos = i < originalCommandMatches.length - 1 
+          ? originalCommandMatches[i + 1].index 
+          : (this.originalContent ? this.originalContent.length : content.length);
+        const originalPartContent = this.originalContent 
+          ? this.originalContent.substring(originalStartPos, originalEndPos).trim()
+          : partContent;
+        
+        // 解析部分级别的默认分数（从 info 中提取，如 "共25分" -> 25）
+        let defaultScore = 0;
+        const scoreMatch = cmd.info.match(/(\d+)\s*分/);
+        if (scoreMatch) {
+          defaultScore = parseInt(scoreMatch[1], 10);
+        }
+        
+        this.currentPart = {
+          type: cmd.type,
+          info: cmd.info,
+          defaultScore: defaultScore,
+        };
+        
+        // 解析该部分中的题目
+        this.parseProblems(partContent, cmd.type, defaultScore, originalPartContent);
+      }
+      return;
+    }
+    
+    // 否则使用环境格式 \begin{makepart}...\end{makepart}
     const partRegex = /\\begin\{makepart\}(?:\[([^\]]*)\])?\{([^}]+)\}(?:\[([^\]]*)\])?(.*?)\\end\{makepart\}/gs;
     let match;
     
@@ -467,28 +553,79 @@ class LatexParser {
    */
   parseProblems(content, partType, defaultScore = 0, originalPartContent = null) {
     // 匹配 \begin{problem}...\end{problem}
-    // 使用非贪婪匹配，但要处理嵌套的 solution 环境
-    // 使用 's' 标志使 . 匹配换行符，确保能正确匹配多行内容
-    const problemRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/gs;
-    let match;
-    let lastProblemEnd = 0; // 跟踪上一个 problem 的结束位置
+    // 需要处理嵌套的环境（如 enumerate），所以不能简单使用非贪婪匹配
+    // 使用手动解析来正确处理嵌套结构
     let problemIndex = 0; // 当前 problem 的索引
     
-    // 先找到所有 problem 的位置，确保索引匹配
+    // 手动解析所有 problem 环境，正确处理嵌套
     const allProblems = [];
-    problemRegex.lastIndex = 0;
-    while ((match = problemRegex.exec(content)) !== null) {
-      allProblems.push({
-        index: match.index,
-        fullMatch: match[0],
-        score: match[1],
-        content: match[2]
-      });
+    let pos = 0;
+    
+    while (pos < content.length) {
+      // 查找 \begin{problem}
+      const beginMatch = content.indexOf('\\begin{problem}', pos);
+      if (beginMatch === -1) break;
+      
+      // 查找可选的分数参数 [score]
+      let scoreStart = beginMatch + '\\begin{problem}'.length;
+      let score = null;
+      if (content[scoreStart] === '[') {
+        const scoreEnd = content.indexOf(']', scoreStart);
+        if (scoreEnd !== -1) {
+          score = content.substring(scoreStart + 1, scoreEnd);
+          scoreStart = scoreEnd + 1;
+        }
+      }
+      
+      // 从 problem 内容开始位置查找匹配的 \end{problem}
+      let contentStart = scoreStart;
+      let depth = 1;
+      let i = contentStart;
+      
+      // 跳过空白字符
+      while (i < content.length && /\s/.test(content[i])) {
+        i++;
+      }
+      contentStart = i;
+      
+      // 查找匹配的 \end{problem}，需要处理嵌套的 \begin{...} 和 \end{...}
+      while (i < content.length && depth > 0) {
+        // 检查是否是 \begin{problem}
+        if (content.substring(i, i + '\\begin{problem}'.length) === '\\begin{problem}') {
+          depth++;
+          i += '\\begin{problem}'.length;
+          continue;
+        }
+        // 检查是否是 \end{problem}
+        if (content.substring(i, i + '\\end{problem}'.length) === '\\end{problem}') {
+          depth--;
+          if (depth === 0) {
+            // 找到了匹配的结束标签
+            const problemContent = content.substring(contentStart, i).trim();
+            allProblems.push({
+              index: beginMatch,
+              fullMatch: content.substring(beginMatch, i + '\\end{problem}'.length),
+              score: score,
+              content: problemContent
+            });
+            pos = i + '\\end{problem}'.length;
+            break;
+          }
+          i += '\\end{problem}'.length;
+          continue;
+        }
+        i++;
+      }
+      
+      if (depth > 0) {
+        // 没有找到匹配的结束标签，跳过这个 problem
+        pos = beginMatch + '\\begin{problem}'.length;
+      }
     }
 
     // 遍历所有找到的 problem
     for (let i = 0; i < allProblems.length; i++) {
-      match = allProblems[i];
+      const match = allProblems[i];
       problemIndex = i; // 使用循环索引，确保一致性
       // 解析分数：优先使用题目自己指定的分数，如果没有则使用部分级别的默认分数
       let score = defaultScore; // 默认使用部分级别的分数
@@ -537,88 +674,82 @@ class LatexParser {
       if (imagesToAdd.length > 0) {
         problemContent = imagesToAdd.join('\n') + '\n' + problemContent;
       }
-      
-      lastProblemEnd = match.index + match.fullMatch.length;
 
       // 从原始内容中提取对应的 problem 内容（未处理的）
       let originalProblemContent = null;
       
-      // 首先尝试从原始 part 内容中提取
-      if (originalPartContent) {
-        // 使用更精确的匹配方法：找到所有 problem 的开始和结束位置
-        const problemStarts = [];
-        const problemEnds = [];
-        const beginRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?/g;
-        const endRegex = /\\end\{problem\}/g;
+      // 辅助函数：手动解析 problem 环境，正确处理嵌套
+      const parseProblemManually = (text, targetIndex) => {
+        let pos = 0;
+        let currentIndex = 0;
         
-        let beginMatch;
-        beginRegex.lastIndex = 0;
-        while ((beginMatch = beginRegex.exec(originalPartContent)) !== null) {
-          problemStarts.push(beginMatch.index);
-        }
-        
-        let endMatch;
-        endRegex.lastIndex = 0;
-        while ((endMatch = endRegex.exec(originalPartContent)) !== null) {
-          problemEnds.push(endMatch.index + endMatch[0].length);
-        }
-        
-        // 找到对应的 problem（通过索引匹配）
-        if (problemIndex < problemStarts.length && problemIndex < problemEnds.length) {
-          const startPos = problemStarts[problemIndex];
-          const endPos = problemEnds[problemIndex];
+        while (pos < text.length) {
+          const beginMatch = text.indexOf('\\begin{problem}', pos);
+          if (beginMatch === -1) break;
           
-          // 提取 problem 内容（不包括 \begin{problem} 和 \end{problem}）
-          const fullProblem = originalPartContent.substring(startPos, endPos);
-          const contentMatch = fullProblem.match(/\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/s);
-          if (contentMatch && contentMatch[2]) {
-            let content = contentMatch[2];
-            // 移除开头的所有空白字符（包括空格、制表符、换行符）
-            content = content.replace(/^[\s\n\r]+/, '');
-            // 移除结尾的所有空白字符
-            content = content.replace(/[\s\n\r]+$/, '');
-            originalProblemContent = content;
+          // 查找可选的分数参数
+          let scoreStart = beginMatch + '\\begin{problem}'.length;
+          if (text[scoreStart] === '[') {
+            const scoreEnd = text.indexOf(']', scoreStart);
+            if (scoreEnd !== -1) {
+              scoreStart = scoreEnd + 1;
+            }
+          }
+          
+          // 从内容开始位置查找匹配的 \end{problem}
+          let contentStart = scoreStart;
+          let depth = 1;
+          let i = scoreStart;
+          
+          // 跳过空白字符
+          while (i < text.length && /\s/.test(text[i])) {
+            i++;
+          }
+          contentStart = i;
+          
+          // 查找匹配的 \end{problem}
+          let foundEnd = false;
+          while (i < text.length && depth > 0) {
+            if (text.substring(i, i + '\\begin{problem}'.length) === '\\begin{problem}') {
+              depth++;
+              i += '\\begin{problem}'.length;
+              continue;
+            }
+            if (text.substring(i, i + '\\end{problem}'.length) === '\\end{problem}') {
+              depth--;
+              if (depth === 0) {
+                foundEnd = true;
+                if (currentIndex === targetIndex) {
+                  // 找到了目标 problem
+                  return text.substring(contentStart, i).trim();
+                }
+                pos = i + '\\end{problem}'.length;
+                currentIndex++;
+                break;
+              }
+              i += '\\end{problem}'.length;
+              continue;
+            }
+            i++;
+          }
+          
+          if (!foundEnd) {
+            // 没有找到匹配的结束标签，跳过这个 problem
+            pos = beginMatch + '\\begin{problem}'.length;
           }
         }
+        
+        return null;
+      };
+      
+      // 首先尝试从原始 part 内容中提取
+      if (originalPartContent) {
+        originalProblemContent = parseProblemManually(originalPartContent, problemIndex);
       }
       
       // 如果从 part 内容中提取失败，尝试从完整原始内容中查找
       if (!originalProblemContent && this.originalContent) {
-        // 使用更精确的匹配方法
-        const problemStarts = [];
-        const problemEnds = [];
-        const beginRegex = /\\begin\{problem\}(?:\[([^\]]*)\])?/g;
-        const endRegex = /\\end\{problem\}/g;
-        
-        let beginMatch;
-        beginRegex.lastIndex = 0;
-        while ((beginMatch = beginRegex.exec(this.originalContent)) !== null) {
-          problemStarts.push(beginMatch.index);
-        }
-        
-        let endMatch;
-        endRegex.lastIndex = 0;
-        while ((endMatch = endRegex.exec(this.originalContent)) !== null) {
-          problemEnds.push(endMatch.index + endMatch[0].length);
-        }
-        
-        // 找到对应的 problem（通过索引匹配）
-        if (problemIndex < problemStarts.length && problemIndex < problemEnds.length) {
-          const startPos = problemStarts[problemIndex];
-          const endPos = problemEnds[problemIndex];
-          
-          // 提取 problem 内容
-          const fullProblem = this.originalContent.substring(startPos, endPos);
-          const contentMatch = fullProblem.match(/\\begin\{problem\}(?:\[([^\]]*)\])?(.*?)\\end\{problem\}/s);
-          if (contentMatch && contentMatch[2]) {
-            let content = contentMatch[2];
-            // 移除开头的所有空白字符
-            content = content.replace(/^[\s\n\r]+/, '');
-            // 移除结尾的所有空白字符
-            content = content.replace(/[\s\n\r]+$/, '');
-            originalProblemContent = content;
-          }
-        }
+        originalProblemContent = parseProblemManually(this.originalContent, problemIndex);
       }
       
       // 如果仍然找不到原始内容，使用处理后的 problemContent（作为最后的后备方案）
@@ -644,6 +775,9 @@ class LatexParser {
       // 先解析解答（需要从完整内容中提取）
       this.parseSolution(problemContent, question);
 
+      // 解析 rmk 环境（备注），将其内容添加到答案中
+      this.parseRmk(problemContent, question);
+
       // 解析题目内容（会处理 <image> 标签用于显示）
       this.parseQuestionContent(problemContent, question);
 
@@ -665,6 +799,7 @@ class LatexParser {
       '解答题': '解答题',
       '证明题': '证明题',
       '作图题': '作图题',
+      '简答题': '简答题',  // 简答题类型
     };
     return typeMap[partType] || partType;
   }
@@ -732,6 +867,17 @@ class LatexParser {
         const matched = this.matchNestedBraces(text, braceStart);
         if (matched !== null) {
           // 不添加任何内容，直接跳过
+          i = braceStart + matched.length + 2;
+          continue;
+        }
+      }
+      // 检查是否是 \score{，保留它以便前端处理
+      if (text.substring(i, i + 6) === '\\score{') {
+        const braceStart = i + 6;
+        const matched = this.matchNestedBraces(text, braceStart);
+        if (matched !== null) {
+          // 保留 \score 命令
+          result += text.substring(i, braceStart + matched.length + 2);
           i = braceStart + matched.length + 2;
           continue;
         }
@@ -850,6 +996,34 @@ class LatexParser {
   }
 
   /**
+   * 解析 rmk（备注）环境，将其内容添加到答案中
+   */
+  parseRmk(content, question) {
+    const rmkRegex = /\\begin\{rmk\}(.*?)\\end\{rmk\}/s;
+    const match = content.match(rmkRegex);
+
+    if (match) {
+      let rmkText = match[1] || '';
+      // 处理备注中的 \ref 命令
+      rmkText = this.processRefs(rmkText);
+      rmkText = this.cleanText(rmkText).trim();
+      
+      if (rmkText) {
+        // 将备注内容添加到答案中
+        // 如果已有答案，追加备注；否则将备注作为答案
+        if (question.correctAnswer) {
+          question.correctAnswer = question.correctAnswer + '\n\n注：' + rmkText;
+        } else if (question.solution) {
+          question.solution = question.solution + '\n\n注：' + rmkText;
+          question.correctAnswer = question.solution;
+        } else {
+          question.correctAnswer = '注：' + rmkText;
+        }
+      }
+    }
+  }
+
+  /**
    * 提取科目信息（从文件内容中推断）
    * 注意：这个方法会在解析 parts 时被调用，需要传入完整的文件内容
    * 如果科目不在映射表中，直接使用原课程名称（自动添加新科目）
@@ -913,16 +1087,38 @@ class LatexGenerator {
    * @returns {string} LaTeX 文件内容
    */
   generate(questions, metadata = {}) {
-    // 按题型分组
-    const groupedQuestions = this.groupByType(questions);
+    // 按题型分组（保持原始类型）
+    const groupedByOriginalType = {};
+    for (const q of questions) {
+      if (!groupedByOriginalType[q.type]) {
+        groupedByOriginalType[q.type] = [];
+      }
+      groupedByOriginalType[q.type].push(q);
+    }
 
     let latex = this.generateHeader(metadata);
     latex += '\n\\begin{document}\n';
     latex += '\\makehead\n';
 
-    // 生成各个部分
-    for (const [type, qs] of Object.entries(groupedQuestions)) {
-      latex += this.generatePart(type, qs);
+    // 按照指定顺序生成各个部分
+    const typeOrder = this.getTypeOrder();
+    const processedTypes = new Set();
+
+    // 先按指定顺序处理
+    for (const type of typeOrder) {
+      if (groupedByOriginalType[type] && groupedByOriginalType[type].length > 0) {
+        const mappedType = this.mapQuestionTypeToPartType(type);
+        latex += this.generatePart(mappedType, groupedByOriginalType[type]);
+        processedTypes.add(type);
+      }
+    }
+
+    // 处理其他未在顺序中的类型（如果有）
+    for (const [type, qs] of Object.entries(groupedByOriginalType)) {
+      if (!processedTypes.has(type)) {
+        const mappedType = this.mapQuestionTypeToPartType(type);
+        latex += this.generatePart(mappedType, qs);
+      }
     }
 
     latex += '\\end{document}\n';
@@ -985,8 +1181,26 @@ class LatexGenerator {
       '解答题': '解答题',
       '证明题': '证明题',
       '作图题': '作图题',
+      '简答题': '简答题',
     };
     return typeMap[type] || type;
+  }
+
+  /**
+   * 获取题型的排序顺序（用于导出时按顺序排列）
+   */
+  getTypeOrder() {
+    return [
+      '判断题',
+      '单选题',
+      '多选题',
+      '填空题',
+      '简答题',
+      '作图题',
+      '解答题',
+      '计算题',
+      '证明题',
+    ];
   }
 
   /**

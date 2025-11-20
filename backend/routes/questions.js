@@ -624,6 +624,8 @@ router.post('/import/latex', upload.fields([
               duplicates: duplicateInfo.duplicates.map(d => ({
                 _id: d.question._id,
                 questionText: d.question.questionText,
+                subject: d.question.subject,
+                type: d.question.type,
                 similarity: d.similarity,
                 matchType: d.matchType,
               })),
@@ -685,6 +687,111 @@ router.post('/import/latex', upload.fields([
       }
     }
     res.status(500).json({ error: '导入失败: ' + error.message });
+  }
+});
+
+// 预览 LaTeX 文件（只解析，不保存到数据库）
+router.post('/import/latex/preview', upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'images', maxCount: 20 }
+]), async (req, res) => {
+  try {
+    if (!req.files || !req.files['file'] || req.files['file'].length === 0) {
+      return res.status(400).json({ error: '请上传 .tex 文件' });
+    }
+
+    const texFile = req.files['file'][0];
+    const imageFiles = req.files['images'] || [];
+
+    // 读取文件内容
+    const fileContent = fs.readFileSync(texFile.path, 'utf-8');
+
+    // 从 tex 文件名提取信息，用于生成唯一文件名
+    const texFileName = texFile.originalname.replace(/\.tex$/i, '');
+    const filePrefix = generateFilePrefix(texFileName, fileContent);
+
+    // 处理图片/PDF 文件：重命名并移动到 uploads 目录
+    const imageMap = {};
+    for (const imgFile of imageFiles) {
+      const extMatch = imgFile.originalname.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'png';
+      const originalName = imgFile.originalname.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      const newFileName = `${filePrefix}-${originalName}.${ext}`;
+      const newPath = path.join(uploadDir, newFileName);
+      
+      fs.renameSync(imgFile.path, newPath);
+      imageMap[originalName] = newFileName;
+      imageMap[imgFile.originalname] = newFileName;
+    }
+
+    // 解析 LaTeX 内容
+    const parser = new LatexParser();
+    const questions = parser.parse(fileContent, { imageMap, filePrefix });
+
+    if (questions.length === 0) {
+      // 清理临时文件
+      fs.unlinkSync(texFile.path);
+      for (const imgFile of imageFiles) {
+        if (fs.existsSync(imgFile.path)) {
+          fs.unlinkSync(imgFile.path);
+        }
+      }
+      return res.status(400).json({ error: '未能从文件中解析出题目' });
+    }
+
+    // 检测重复题目（可选）
+    const { detectDuplicatesInBatch } = require('../utils/duplicateDetector');
+    const duplicateCheck = req.body.checkDuplicates !== 'false';
+    const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
+    
+    let duplicateResults = null;
+    let duplicateWarnings = [];
+    
+    if (duplicateCheck) {
+      duplicateResults = await detectDuplicatesInBatch(questions, duplicateThreshold);
+      
+      for (const q of questions) {
+        const duplicateInfo = duplicateResults.duplicates.find(d => {
+          const { normalizeText } = require('../utils/duplicateDetector');
+          return normalizeText(d.question.questionText) === normalizeText(q.questionText);
+        });
+        if (duplicateInfo && duplicateInfo.duplicates.length > 0) {
+          duplicateWarnings.push({
+            question: q,
+            duplicates: duplicateInfo.duplicates.map(d => ({
+              _id: d.question._id,
+              questionText: d.question.questionText,
+              subject: d.question.subject,
+              type: d.question.type,
+              similarity: d.similarity,
+              matchType: d.matchType,
+            })),
+          });
+        }
+      }
+    }
+
+    // 注意：这里不删除临时文件，因为用户可能在预览后选择导入
+    // 文件会在实际导入或取消时删除
+
+    res.json({
+      success: true,
+      questions: questions,
+      duplicates: duplicateWarnings,
+      duplicateCount: duplicateWarnings.length,
+      filePrefix: filePrefix,
+      imageMap: imageMap,
+    });
+  } catch (error) {
+    console.error('预览 LaTeX 文件失败:', error);
+    // 清理临时文件
+    if (req.files && req.files['file'] && req.files['file'].length > 0) {
+      const texFile = req.files['file'][0];
+      if (fs.existsSync(texFile.path)) {
+        fs.unlinkSync(texFile.path);
+      }
+    }
+    res.status(500).json({ error: '预览失败: ' + error.message });
   }
 });
 

@@ -39,6 +39,26 @@ function isInMathEnvironment(text, index) {
   const endEq = (beforeText.match(/\\end\{equation\}/g) || []).length;
   if (beginEq > endEq) return true;
 
+  // 检查是否在 \begin{align}...\end{align} 或 \begin{align*}...\end{align*} 中
+  const beginAlign = (beforeText.match(/\\begin\{align\*?\}/g) || []).length;
+  const endAlign = (beforeText.match(/\\end\{align\*?\}/g) || []).length;
+  if (beginAlign > endAlign) return true;
+
+  // 检查是否在 \begin{alignat}...\end{alignat} 中
+  const beginAlignat = (beforeText.match(/\\begin\{alignat\*?\}/g) || []).length;
+  const endAlignat = (beforeText.match(/\\end\{alignat\*?\}/g) || []).length;
+  if (beginAlignat > endAlignat) return true;
+
+  // 检查其他常见的数学环境
+  const mathEnvs = ['gather', 'multline', 'split', 'eqnarray', 'aligned'];
+  for (const env of mathEnvs) {
+    const beginPattern = new RegExp(`\\\\begin\\{${env}\\*?\\}`, 'g');
+    const endPattern = new RegExp(`\\\\end\\{${env}\\*?\\}`, 'g');
+    const beginMatches = (beforeText.match(beginPattern) || []).length;
+    const endMatches = (beforeText.match(endPattern) || []).length;
+    if (beginMatches > endMatches) return true;
+  }
+
   return false;
 }
 
@@ -206,14 +226,119 @@ function processEnumerate(text) {
 /**
  * 处理题目文本为 HTML（包含 enumerate 列表）
  * @param {string} text - 原始文本
+ * @param {string} originalLaTeX - 原始 LaTeX 代码（可选，用于提取 \score 等命令）
  * @returns {string} 处理后的 HTML
  */
-export function processQuestionTextToHTML(text) {
+export function processQuestionTextToHTML(text, originalLaTeX = null) {
   if (!text) return '';
 
+  // 调试：记录原始输入
+  console.log('[processQuestionTextToHTML] Input text:', text);
+  console.log('[processQuestionTextToHTML] Input originalLaTeX:', originalLaTeX);
+  
   // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）
   // 如果文本包含原始的 LaTeX 命令而不是 <image> 标签，需要先转换
   let processed = text;
+  
+  // 在分割 HTML 和文本之前，先处理 \score 命令
+  // 这样可以确保 \score 命令不会被错误地分割到 HTML 标签中
+  // 如果 questionText 中没有 \score 命令，但 originalLaTeX 中有，从 originalLaTeX 中提取
+  // 注意：匹配 score{（可能没有反斜杠）或 \score{ 或 \\score{
+  const hasScoreInText = /(\\*)?score\{/.test(processed);
+  console.log('[processQuestionTextToHTML] hasScoreInText:', hasScoreInText, 'processed:', processed.substring(0, 200));
+  if (originalLaTeX && !hasScoreInText && /(\\*)?score\{/.test(originalLaTeX)) {
+    // 从 originalLaTeX 中提取所有 \score 命令（匹配 score{ 或 \score{ 或 \\score{）
+    const originalScoreRegex = /(\\*)?score\{([^}]+)\}/g;
+    let originalScoreMatch;
+    const scores = [];
+    while ((originalScoreMatch = originalScoreRegex.exec(originalLaTeX)) !== null) {
+      scores.push(originalScoreMatch[2]); // 第二个捕获组是内容
+    }
+    // 如果找到 score，在文本末尾添加（如果文本中没有）
+    if (scores.length > 0) {
+      // 添加所有找到的 score 命令（保持原始顺序）
+      // 但只在文本末尾添加，避免重复
+      const lastScore = scores[scores.length - 1];
+      processed += ` \\score{${lastScore}}`;
+    }
+  }
+  
+  // 处理文本中的所有 \score 命令（包括刚从 originalLaTeX 中添加的）
+  // 注意：需要在任何 HTML 标签处理之前完成
+  // 匹配 score{...}（可能没有反斜杠，因为后端可能移除了）
+  // 同时也匹配 \score{...} 或 \\score{...}（带反斜杠的情况）
+  // 使用更灵活的正则表达式，匹配 "score{" 或 "\score{" 或 "\\score{"
+  
+  // 调试：先检查文本中是否包含 score
+  const hasScoreKeyword = processed.includes('score');
+  if (hasScoreKeyword) {
+    console.log('[processQuestionTextToHTML] Text contains "score":', processed.substring(0, 200));
+    // 尝试不同的匹配方式
+    const testRegex1 = /\\score\{/;
+    const testRegex2 = /score\{/;
+    console.log('[processQuestionTextToHTML] Test regex1 (\\score{):', testRegex1.test(processed));
+    console.log('[processQuestionTextToHTML] Test regex2 (score{):', testRegex2.test(processed));
+  }
+  
+  // 使用更直接的方法：先匹配所有可能的形式
+  // 尝试匹配 \score{...} 或 score{...}
+  let scoreRegex = /\\score\{([^}]+)\}/g;
+  let scoreMatches = [];
+  let scoreMatch;
+  scoreRegex.lastIndex = 0;
+  
+  while ((scoreMatch = scoreRegex.exec(processed)) !== null) {
+    console.log('[processQuestionTextToHTML] Found \\score match:', scoreMatch[0], 'at index:', scoreMatch.index);
+    scoreMatches.push({
+      match: scoreMatch[0],
+      start: scoreMatch.index,
+      end: scoreMatch.index + scoreMatch[0].length,
+      content: scoreMatch[1]
+    });
+  }
+  
+  // 如果没有匹配到，尝试匹配没有反斜杠的 score{...}
+  if (scoreMatches.length === 0) {
+    scoreRegex = /score\{([^}]+)\}/g;
+    scoreRegex.lastIndex = 0;
+    while ((scoreMatch = scoreRegex.exec(processed)) !== null) {
+      // 检查前面是否有未闭合的 HTML 标签
+      const beforeMatch = processed.substring(0, scoreMatch.index);
+      const openTags = (beforeMatch.match(/<[^/][^>]*>/g) || []).length;
+      const closeTags = (beforeMatch.match(/<\/[^>]+>/g) || []).length;
+      const inHtmlTag = openTags > closeTags;
+      
+      console.log('[processQuestionTextToHTML] Found score{ match:', scoreMatch[0], 'at index:', scoreMatch.index, 'inHtmlTag:', inHtmlTag);
+      
+      // 如果不在 HTML 标签内，则处理
+      if (!inHtmlTag) {
+        // 检查前面不是反斜杠（避免重复匹配）
+        if (scoreMatch.index === 0 || processed[scoreMatch.index - 1] !== '\\') {
+          scoreMatches.push({
+            match: scoreMatch[0],
+            start: scoreMatch.index,
+            end: scoreMatch.index + scoreMatch[0].length,
+            content: scoreMatch[1]
+          });
+        }
+      }
+    }
+  }
+  
+  // 从后往前替换，避免索引变化
+  for (let i = scoreMatches.length - 1; i >= 0; i--) {
+    const m = scoreMatches[i];
+    console.log('[processQuestionTextToHTML] Replacing score:', m.match, 'with HTML');
+    const replacement = `<span class="score-fill" style="display: inline-block; width: 100%; white-space: nowrap;"><span class="score-dots" style="display: inline-block; width: calc(100% - 4em); overflow: hidden; vertical-align: bottom; border-bottom: 1px dotted #000; margin-right: 0.5em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal;">$$(${m.content}')$$</span></span>`;
+    processed = processed.substring(0, m.start) + replacement + processed.substring(m.end);
+  }
+  
+  // 调试：如果找到了 score 命令，输出日志
+  if (scoreMatches.length > 0) {
+    console.log('[processQuestionTextToHTML] Found', scoreMatches.length, 'score commands and replaced them');
+  } else if (hasScoreKeyword) {
+    console.log('[processQuestionTextToHTML] WARNING: Text contains "score" but no matches found with regex');
+  }
   
   // 处理 \begin{figure}...\end{figure} 环境
   const figureRegex = /\\begin\{figure\}(?:\[[^\]]*\])?(.*?)\\end\{figure\}/gs;
@@ -350,7 +475,13 @@ export function processQuestionTextToHTML(text) {
       return content;
     } else {
       // 处理文本中的 LaTeX 命令
-      return processQuestionText(part.content);
+      let processedPart = processQuestionText(part.content);
+      // 处理数学环境中的 score 标记
+      // 将 \text{<score-in-math>5</score-in-math>} 替换为点填充 HTML
+      processedPart = processedPart.replace(/\\text\{<score-in-math>([^<]+)<\/score-in-math>\}/g, (match, content) => {
+        return `<span class="score-fill" style="display: inline-block; width: 100%; white-space: nowrap;"><span class="score-dots" style="display: inline-block; width: calc(100% - 4em); overflow: hidden; vertical-align: bottom; border-bottom: 1px dotted #000; margin-right: 0.5em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal;">$$(${content}')$$</span></span>`;
+      });
+      return processedPart;
     }
   }).join('');
   
@@ -374,13 +505,61 @@ export function processQuestionText(text) {
 
   let processed = text;
 
+  // 0. 先处理 \score{5} 命令（必须在数学公式转换之前处理）
+  // 因为 \score 可能在数学公式环境中，需要先提取出来
+  // 匹配单反斜杠或双反斜杠（因为文本可能被转义）
+  const scoreRegex = /[\\]{1,2}score\{/g;
+  const scoreReplacements = [];
+  scoreRegex.lastIndex = 0;
+  let match;
+  
+  while ((match = scoreRegex.exec(processed)) !== null) {
+    const startIndex = match.index;
+    const matchLength = match[0].length; // 实际匹配的长度（可能是 '\\score{' 或 '\\\score{'）
+    const braceStart = startIndex + matchLength - 1; // 减去 '{' 的位置
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        // 检查是否在数学公式环境中（检查 \[, \], $$, $, \begin{align}, 等）
+        const inMath = isInMathEnvironment(processed, startIndex);
+        
+        // 生成点填充 + $(分数')$ 
+        // 如果在数学公式环境中，使用 LaTeX 的 \text 命令包装
+        if (inMath) {
+          // 在数学环境中，使用 \text 包装，但点填充效果需要在数学环境外实现
+          // 所以我们需要将 \score 移到数学环境外
+          // 但这样会很复杂，所以我们使用一个标记，稍后在 HTML 处理时替换
+          // 暂时使用 \text 包装，但标记为需要特殊处理
+          scoreReplacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 2,
+            replacement: `\\text{<score-marker>${content}</score-marker>}`
+          });
+        } else {
+          // 不在数学环境中，使用 HTML 实现点填充
+          scoreReplacements.push({
+            start: startIndex,
+            end: braceStart + content.length + 2,
+            replacement: `<span class="score-fill" style="display: inline-block; width: 100%; white-space: nowrap;"><span class="score-dots" style="display: inline-block; width: calc(100% - 4em); overflow: hidden; vertical-align: bottom; border-bottom: 1px dotted #000; margin-right: 0.5em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal;">$$(${content}')$$</span></span>`
+          });
+        }
+      }
+    }
+  }
+  
+  // 从后往前替换
+  for (let i = scoreReplacements.length - 1; i >= 0; i--) {
+    const r = scoreReplacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
+
   // 1. 处理 \pickout{A} -> $\text{(A)}$（支持嵌套花括号）
   // 使用 \text{} 明确告诉 MathJax 这是文本，不是数学公式
   const pickoutRegex = /\\pickout\{/g;
   const pickoutReplacements = [];
   pickoutRegex.lastIndex = 0; // 重置正则表达式
-  let match;
   
+  match = null; // 重置 match 变量
   while ((match = pickoutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
     const braceStart = startIndex + 8; // '\\pickout'.length = 8
@@ -559,6 +738,13 @@ export function processQuestionText(text) {
     const r = filloutReplacements[i];
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
+
+  // 注意：\score 命令已经在步骤 0 中处理过了，这里不需要再次处理
+  // 但需要处理数学环境中的 score 标记
+  processed = processed.replace(/\\text\{<score-marker>([^<]+)<\/score-marker>\}/g, (match, content) => {
+    // 将标记转换为可以在数学环境中使用的格式
+    return `\\text{<score-in-math>${content}</score-in-math>}`;
+  });
 
   return processed;
 }
@@ -841,5 +1027,266 @@ export function processAnswerText(text) {
   }
 
   return processed;
+}
+
+/**
+ * 处理答案文本为 HTML（支持换行和格式）
+ * @param {string|Array} text - 原始答案文本（可能是字符串或数组）
+ * @returns {string} 处理后的 HTML
+ */
+export function processAnswerTextToHTML(text) {
+  if (!text) return '';
+  
+  // 调试：记录原始输入
+  console.log('[processAnswerTextToHTML] Input text:', text);
+  
+  // 如果是数组，转换为字符串（用换行分隔）
+  if (Array.isArray(text)) {
+    text = text.join('\n');
+  }
+  
+  // 确保是字符串
+  if (typeof text !== 'string') {
+    text = String(text);
+  }
+
+  let processed = text;
+  console.log('[processAnswerTextToHTML] Processed text after conversion:', processed.substring(0, 200));
+
+  // 先处理 LaTeX 命令（类似 processAnswerText）
+  // 处理 \pickout{A} -> A
+  const pickoutRegex = /\\pickout\{/g;
+  const pickoutReplacements = [];
+  pickoutRegex.lastIndex = 0;
+  let match;
+  
+  while ((match = pickoutRegex.exec(processed)) !== null) {
+    const startIndex = match.index;
+    const braceStart = startIndex + 8;
+    if (braceStart < processed.length && processed[braceStart] === '{') {
+      const content = matchNestedBraces(processed, braceStart);
+      if (content !== null) {
+        pickoutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2,
+          replacement: content
+        });
+      }
+    }
+  }
+  
+  for (let i = pickoutReplacements.length - 1; i >= 0; i--) {
+    const r = pickoutReplacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
+
+  // 先处理 \begin{rmk}...\end{rmk} 环境（必须在数学公式处理之前）
+  // 这样可以确保 rmk 环境不会被 MathJax 误认为是数学公式
+  const rmkRegex = /\\begin\{rmk\}(.*?)\\end\{rmk\}/gs;
+  processed = processed.replace(rmkRegex, (match, content) => {
+    // 清理 rmk 内容中的 LaTeX 命令，转换为纯文本
+    let rmkText = content
+      .replace(/\\ref\{([^}]+)\}/g, (m, ref) => ref)
+      .replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1')  // 移除其他 LaTeX 命令但保留内容
+      .replace(/\\[a-zA-Z]+/g, '')  // 移除单个命令
+      .trim();
+    // 转换为 "**注**. ..." 格式（Markdown 风格的加粗）
+    return `<br><strong>注</strong>. ${rmkText}<br>`;
+  });
+
+  // 先处理 "注：" 转换为 "<strong>注</strong>."（必须在数学公式处理之前）
+  // 这样可以确保 "注：" 不会被 MathJax 误认为是数学公式的一部分
+  // 先转换换行符为 <br>，以便统一处理
+  processed = processed.replace(/\n/g, '<br>');
+  // 处理字符串开头的 "注："
+  processed = processed.replace(/^\s*注：/g, '<strong>注</strong>.');
+  // 处理 <br> 标签后的 "注："
+  processed = processed.replace(/(<br>\s*)注：/g, '$1<strong>注</strong>.');
+  
+  // 处理数学公式：\( ... \) 和 \[ ... \] -> $ ... $ 和 $$ ... $$
+  processed = processed.replace(/\\\(/g, '$');
+  processed = processed.replace(/\\\)/g, '$');
+  processed = processed.replace(/\\\[/g, '$$');
+  processed = processed.replace(/\\\]/g, '$$');
+
+  // 将文本分割为数学公式和普通文本部分
+  // 需要识别 $...$、$$...$$ 以及 \begin{align*}...\end{align*} 等数学环境
+  const parts = [];
+  let lastIndex = 0;
+  
+  // 收集所有数学内容的位置
+  const mathRanges = [];
+  
+  // 1. 先匹配 \begin{...}...\end{...} 环境
+  const envRegex = /\\begin\{(align|alignat|aligned|equation|eqnarray|gather|multline|split)\*?\}/g;
+  let envMatch;
+  while ((envMatch = envRegex.exec(processed)) !== null) {
+    const envName = envMatch[1];
+    const startIndex = envMatch.index;
+    // 找到对应的 \end{envName}
+    const endPattern = new RegExp(`\\\\end\\{${envName}\\*?\\}`, 'g');
+    endPattern.lastIndex = startIndex + envMatch[0].length;
+    const endMatch = endPattern.exec(processed);
+    if (endMatch) {
+      const endIndex = endMatch.index + endMatch[0].length;
+      mathRanges.push({
+        start: startIndex,
+        end: endIndex,
+        type: 'env',
+        content: processed.substring(startIndex, endIndex)
+      });
+    }
+  }
+  
+  // 2. 匹配 $$...$$ 块级数学公式
+  const doubleDollarRegex = /\$\$[^$]*\$\$/g;
+  let ddMatch;
+  while ((ddMatch = doubleDollarRegex.exec(processed)) !== null) {
+    // 检查是否已经在环境内
+    const isInEnv = mathRanges.some(range => 
+      ddMatch.index >= range.start && ddMatch.index < range.end
+    );
+    if (!isInEnv) {
+      mathRanges.push({
+        start: ddMatch.index,
+        end: ddMatch.index + ddMatch[0].length,
+        type: 'block',
+        content: ddMatch[0]
+      });
+    }
+  }
+  
+  // 3. 匹配 $...$ 行内数学公式
+  const singleDollarRegex = /\$[^$]*\$/g;
+  let sdMatch;
+  while ((sdMatch = singleDollarRegex.exec(processed)) !== null) {
+    // 检查是否已经在环境内或块级公式内
+    const isInEnvOrBlock = mathRanges.some(range => 
+      sdMatch.index >= range.start && sdMatch.index < range.end
+    );
+    // 检查是否在 $$...$$ 内
+    const beforeText = processed.substring(0, sdMatch.index);
+    const ddCount = (beforeText.match(/\$\$/g) || []).length;
+    const isInDoubleDollar = ddCount % 2 === 1;
+    
+    if (!isInEnvOrBlock && !isInDoubleDollar) {
+      mathRanges.push({
+        start: sdMatch.index,
+        end: sdMatch.index + sdMatch[0].length,
+        type: 'inline',
+        content: sdMatch[0]
+      });
+    }
+  }
+  
+  // 按开始位置排序
+  mathRanges.sort((a, b) => a.start - b.start);
+  
+  // 根据数学范围分割文本
+  for (const mathRange of mathRanges) {
+    // 添加数学公式前的文本
+    if (mathRange.start > lastIndex) {
+      const textBefore = processed.substring(lastIndex, mathRange.start);
+      parts.push({ type: 'text', content: textBefore });
+    }
+    // 添加数学公式
+    parts.push({ type: 'math', content: mathRange.content });
+    lastIndex = mathRange.end;
+  }
+  
+  // 添加剩余的文本
+  if (lastIndex < processed.length) {
+    parts.push({ type: 'text', content: processed.substring(lastIndex) });
+  }
+  
+  // 如果没有数学公式，整个都是文本
+  if (parts.length === 0) {
+    parts.push({ type: 'text', content: processed });
+  }
+  
+  // 处理文本部分和数学公式部分
+  let result = parts.map(part => {
+    if (part.type === 'math') {
+      // 在数学公式中处理 \score{...}
+      // 将 \score{5} 替换为 \cdots\cdots$(5')$ (LaTeX 格式，保持公式完整)
+      let mathContent = part.content;
+      
+      // 尝试匹配数学公式中的 \score{...} 或 score{...}
+      const scoreInMathRegex = /(\\*)?score\{([^}]+)\}/g;
+      let scoreMatch;
+      const scoreMatches = [];
+      
+      // 对于数学环境（如 align*），直接匹配所有 score，不需要检查 $...$
+      // 因为整个 part.content 已经是数学内容了
+      while ((scoreMatch = scoreInMathRegex.exec(mathContent)) !== null) {
+        scoreMatches.push({
+          match: scoreMatch[0],
+          start: scoreMatch.index,
+          end: scoreMatch.index + scoreMatch[0].length,
+          content: scoreMatch[2]
+        });
+      }
+      
+      // 从后往前替换
+      for (let i = scoreMatches.length - 1; i >= 0; i--) {
+        const m = scoreMatches[i];
+        // 在数学公式中，使用 LaTeX 的点填充 + $(分数')$
+        // 注意：在数学环境中，使用 \text{} 包装分数，避免与数学符号冲突
+        const replacement = `\\cdots\\cdots\\text{(${m.content}')}`;
+        mathContent = mathContent.substring(0, m.start) + replacement + mathContent.substring(m.end);
+      }
+      
+      // 数学公式需要用 <span> 包装，以便 MathJax 能识别
+      return `<span class="math-formula">${mathContent}</span>`;
+    } else {
+      // 文本部分：处理 \score{...} 为 HTML 点填充效果
+      let textContent = part.content;
+      
+      // 尝试匹配文本中的 \score{...} 或 score{...}
+      let textScoreRegex = /\\score\{([^}]+)\}/g;
+      let textScoreMatches = [];
+      let textScoreMatch;
+      textScoreRegex.lastIndex = 0;
+      
+      while ((textScoreMatch = textScoreRegex.exec(textContent)) !== null) {
+        textScoreMatches.push({
+          match: textScoreMatch[0],
+          start: textScoreMatch.index,
+          end: textScoreMatch.index + textScoreMatch[0].length,
+          content: textScoreMatch[1]
+        });
+      }
+      
+      // 如果没有匹配到，尝试匹配没有反斜杠的 score{...}
+      if (textScoreMatches.length === 0) {
+        textScoreRegex = /score\{([^}]+)\}/g;
+        textScoreRegex.lastIndex = 0;
+        while ((textScoreMatch = textScoreRegex.exec(textContent)) !== null) {
+          // 检查前面不是反斜杠（避免重复匹配）
+          if (textScoreMatch.index === 0 || textContent[textScoreMatch.index - 1] !== '\\') {
+            textScoreMatches.push({
+              match: textScoreMatch[0],
+              start: textScoreMatch.index,
+              end: textScoreMatch.index + textScoreMatch[0].length,
+              content: textScoreMatch[1]
+            });
+          }
+        }
+      }
+      
+      // 从后往前替换文本中的 score
+      for (let i = textScoreMatches.length - 1; i >= 0; i--) {
+        const m = textScoreMatches[i];
+        // 在文本中，使用 HTML 点填充效果（不换行，只在同一行添加点填充）
+        // 使用 inline 或 inline-block 保持在同一行
+        const replacement = `<span class="score-fill" style="display: inline-block; width: auto; white-space: nowrap; margin-left: 0.5em; vertical-align: middle;"><span class="score-dots" style="display: inline-block; width: 3em; overflow: hidden; vertical-align: middle; border-bottom: 1px dotted #000; margin-right: 0.3em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal; vertical-align: middle;">$$(${m.content}')$$</span></span>`;
+        textContent = textContent.substring(0, m.start) + replacement + textContent.substring(m.end);
+      }
+      
+      return textContent;
+    }
+  }).join('');
+  
+  return result;
 }
 

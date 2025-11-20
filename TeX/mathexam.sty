@@ -22,7 +22,6 @@
 \NeedsTeXFormat{LaTeX2e}[1996/06/01]
 \ProvidesPackage{mathexam}[2020/07/03 一个数学类考试宏包 v2.2.0]
 \RequirePackage{mathtools, amssymb, amsthm}
-\RequirePackage{ulem}
 \RequirePackage[contents={}]{background}
 \RequirePackage{ctex}
 \RequirePackage{bookmark}
@@ -77,7 +76,7 @@
 \ifnum\the\month<9\ifnum\the\month>2 {2}\fi\else {1}\fi%
 }%
 \newcommand{\mathexam@lasttwoofyear}[1]{%#1 is the offset
-    \expandafter\mathexam@getlasttwo\number\numexpr\year+(#1)\relax\relax
+  \expandafter\mathexam@getlasttwo\number\numexpr\year+(#1)\relax\relax
 }
 \def\mathexam@getlasttwo#1#2#3#4\relax{#3#4}
 \def\tobecalculate{\mbox{??}}
@@ -240,12 +239,8 @@
     \begin{tabu}to \linewidth{|*{12}{X[c]|}}
       \hline
       \multicolumn{8}{|c}{
-        \ifnum\the\month<9
-          {20\mathexam@lasttwoofyear{-1} 至 20\mathexam@lasttwoofyear{0} 学年}
-        \else
-          {20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年}
-        \fi
-        \qquad 第\mathexam@value@semester 学期
+        20\mathexam@lasttwoofyear{-1} 至 20\mathexam@lasttwoofyear{0} 学年
+\qquad 第\mathexam@value@semester 学期
       }                                                            &
       \multicolumn{4}{|c|}{\mathexam@value@finalmiddle\quad 考试} \\
       \hline
@@ -347,12 +342,8 @@
     \fi%
     部分、共有\textbf{\totalnumpages}页、\textbf{\totalproblems}道试题，%
     共计\textbf{\totalscores}分。在答题之前，请认真阅读题目，按题目要求解答。%
-    \ifmathexam@nospace
-    注意解答要写在专用答题纸上对应题号的空白处. %
-    \else
     解答写在题目之后预留的空白处，写不下时可以加纸，%
     但请务必写清题号，交卷时一起交上来。
-    \fi
   }\ignorespace}%
 
 \fancypagestyle{plain}{
@@ -692,7 +683,7 @@
     \ifmathexam@fixlast
       {\string\gdef\string\mathexam@totalpages{\number\numexpr\arabic{page}+1}}%
     \else
-      {\string\gdef\string\mathexam@totalpages{\number\numexpr\arabic{page}-1}}%
+      {\string\gdef\string\mathexam@totalpages{\arabic{page}}}%
     \fi
   \fi
   \DTLsavedb{\jobname}{\jobname.dat}

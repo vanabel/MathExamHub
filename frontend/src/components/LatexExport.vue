@@ -365,6 +365,7 @@
                   <option value="asc">难度分数从低到高</option>
                   <option value="desc">难度分数从高到低</option>
                   <option value="random">随机排序</option>
+                  <option value="type">按类型排序</option>
                 </select>
               </div>
 
@@ -480,6 +481,18 @@ export default {
         '证明题',
         '作图题',
       ],
+      // 题型排序顺序（用于导出时按顺序排列）
+      typeOrder: [
+        '判断题',
+        '单选题',
+        '多选题',
+        '填空题',
+        '简答题',
+        '作图题',
+        '解答题',
+        '计算题',
+        '证明题',
+      ],
       typeDistribution: {}, // 题型分布：{ '单选题': 5, '填空题': 3, ... }
       smartSelectParams: {
         targetCount: 10,
@@ -512,7 +525,12 @@ export default {
   },
   computed: {
     selectedQuestions() {
-      return this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
+      const questions = this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
+      // 如果需要按类型排序，对已选择的题目进行排序
+      if (this.smartSelectParams.sortOrder === 'type') {
+        return this.sortQuestionsByType(questions);
+      }
+      return questions;
     },
     // 获取当前筛选后的题目（用于智能选择）
     filteredQuestions() {
@@ -730,6 +748,25 @@ export default {
       const coefficient = difficultyCoefficient[question.difficulty] || 0.6;
       return coefficient * (question.totalScore || 0);
     },
+    // 获取题型的排序索引
+    getTypeIndex(type) {
+      const index = this.typeOrder.indexOf(type);
+      return index >= 0 ? index : 999; // 未在顺序中的类型排在最后
+    },
+    // 按类型排序题目
+    sortQuestionsByType(questions) {
+      const sorted = [...questions];
+      sorted.sort((a, b) => {
+        const indexA = this.getTypeIndex(a.type);
+        const indexB = this.getTypeIndex(b.type);
+        if (indexA !== indexB) {
+          return indexA - indexB;
+        }
+        // 同一类型内，按难度分数从低到高排序
+        return this.getDifficultyScore(a) - this.getDifficultyScore(b);
+      });
+      return sorted;
+    },
     // 获取指定题型的可用数量
     getAvailableCountByType(type) {
       return this.filteredQuestions.filter(q => q.type === type).length;
@@ -863,6 +900,9 @@ export default {
               typeQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
             } else if (this.smartSelectParams.sortOrder === 'desc') {
               typeQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
+            } else if (this.smartSelectParams.sortOrder === 'type') {
+              // 按类型排序已经在题型循环中处理，这里按难度分数从低到高
+              typeQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
             } else {
               typeQuestions.sort(() => Math.random() - 0.5);
             }
@@ -890,6 +930,16 @@ export default {
               remainingQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
             } else if (this.smartSelectParams.sortOrder === 'desc') {
               remainingQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
+            } else if (this.smartSelectParams.sortOrder === 'type') {
+              // 按类型排序
+              remainingQuestions.sort((a, b) => {
+                const indexA = this.getTypeIndex(a.type);
+                const indexB = this.getTypeIndex(b.type);
+                if (indexA !== indexB) {
+                  return indexA - indexB;
+                }
+                return a.difficultyScore - b.difficultyScore;
+              });
             } else {
               remainingQuestions.sort(() => Math.random() - 0.5);
             }
@@ -947,6 +997,17 @@ export default {
           sortedQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
         } else if (this.smartSelectParams.sortOrder === 'desc') {
           sortedQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
+        } else if (this.smartSelectParams.sortOrder === 'type') {
+          // 按类型排序
+          sortedQuestions.sort((a, b) => {
+            const indexA = this.getTypeIndex(a.type);
+            const indexB = this.getTypeIndex(b.type);
+            if (indexA !== indexB) {
+              return indexA - indexB;
+            }
+            // 同一类型内，按难度分数从低到高排序
+            return a.difficultyScore - b.difficultyScore;
+          });
         } else {
           sortedQuestions.sort(() => Math.random() - 0.5);
         }
@@ -1055,10 +1116,17 @@ export default {
       this.exporting = true;
 
       try {
+        // 如果需要按类型排序，使用排序后的题目ID
+        let questionIds = this.selectedQuestionIds;
+        if (this.smartSelectParams.sortOrder === 'type') {
+          const sortedQuestions = this.sortQuestionsByType(this.selectedQuestions);
+          questionIds = sortedQuestions.map(q => q._id);
+        }
+
         const response = await axios.post(
           "/questions/export/latex",
           {
-            questionIds: this.selectedQuestionIds,
+            questionIds: questionIds,
             metadata: this.metadata,
           },
           {

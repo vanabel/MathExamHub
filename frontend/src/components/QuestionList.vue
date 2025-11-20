@@ -143,7 +143,7 @@
                 <!-- 题目文本 -->
                 <div class="question-content mb-2">
                   <div 
-                    v-html="processQuestionTextToHTML(question.questionText)"
+                    v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
                     ref="questionContent"
                     class="question-text-content"
                   ></div>
@@ -161,10 +161,10 @@
                 <!-- 答案 -->
                 <div class="question-answer mb-2">
                   <strong>答案：</strong>
-                  <vue-mathjax
-                    :formula="processAnswerText(question.correctAnswer)"
-                    :options="mathjaxOptions"
-                  ></vue-mathjax>
+                  <div 
+                    v-html="processAnswerTextToHTML(question.correctAnswer)"
+                    class="answer-text-content"
+                  ></div>
                 </div>
 
                 <!-- 操作按钮 -->
@@ -201,7 +201,7 @@
 import axios from "axios";
 import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
-import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
+import { processQuestionText, processAnswerText, processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 
 export default {
   name: "QuestionList",
@@ -250,6 +250,7 @@ export default {
     processQuestionText,
     processAnswerText,
     processQuestionTextToHTML,
+    processAnswerTextToHTML,
     renderMathJax() {
       // 使用 MathJax 渲染页面中的数学公式
       if (window.MathJax && window.MathJax.Hub) {
