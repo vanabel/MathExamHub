@@ -76,5 +76,61 @@ router.post('/logout', (req, res, next) => {
 	});
 });
 
+// 重置密码路由（管理员功能或忘记密码）
+router.post('/reset-password', async (req, res) => {
+	const { username, newPassword } = req.body;
+
+	if (!username || !newPassword) {
+		return res.status(400).json({ error: '用户名和新密码都是必需的' });
+	}
+
+	try {
+		const user = await User.findOne({ username });
+
+		if (!user) {
+			return res.status(404).json({ error: '用户不存在' });
+		}
+
+		// 哈希新密码
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+		user.password = hashedPassword;
+		user.updatedTime = new Date();
+		await user.save();
+
+		res.json({ message: '密码重置成功' });
+	} catch (error) {
+		console.error('密码重置失败:', error);
+		res.status(500).json({ error: '密码重置失败' });
+	}
+});
+
+// 通过邮箱重置密码
+router.post('/reset-password-by-email', async (req, res) => {
+	const { email, newPassword } = req.body;
+
+	if (!email || !newPassword) {
+		return res.status(400).json({ error: '邮箱和新密码都是必需的' });
+	}
+
+	try {
+		const user = await User.findOne({ email });
+
+		if (!user) {
+			return res.status(404).json({ error: '该邮箱未注册' });
+		}
+
+		// 哈希新密码
+		const hashedPassword = await bcrypt.hash(newPassword, 10);
+		user.password = hashedPassword;
+		user.updatedTime = new Date();
+		await user.save();
+
+		res.json({ message: '密码重置成功' });
+	} catch (error) {
+		console.error('密码重置失败:', error);
+		res.status(500).json({ error: '密码重置失败' });
+	}
+});
+
 module.exports = router;
 

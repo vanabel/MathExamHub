@@ -40,7 +40,7 @@ app.use(cors({
 const authRoutes = require('./routes/auth');
 const questionRoutes = require('./routes/questions');
 // 连接数据库
-const db = require('./config/database');
+const connectDB = require('./config/database');
 // 配置body-parser中间件 
 app.use(express.json()); // 解析JSON格式的请求体
 app.use(express.urlencoded({extended: false})); // 解析表单数据
@@ -93,8 +93,22 @@ app.get('/', (req, res) => {
 });
 
 
-// 启动Express服务器
+// 启动Express服务器（等待数据库连接）
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+
+const startServer = async () => {
+  try {
+    // 等待数据库连接
+    await connectDB();
+    
+    // 数据库连接成功后再启动服务器
+    app.listen(port, () => {
+      console.log(`✓ Server is running on port ${port}`);
+    });
+  } catch (error) {
+    console.error('✗ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

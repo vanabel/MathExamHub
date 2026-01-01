@@ -38,6 +38,12 @@
           </label>
         </div>
 
+        <div class="text-end mb-3">
+          <a href="#" @click.prevent="showForgotPassword = true" class="text-decoration-none text-primary small">
+            <i class="bi bi-key"></i> 忘记密码？
+          </a>
+        </div>
+
         <div v-if="errorMessage" class="alert alert-danger" role="alert">
           <i class="bi bi-exclamation-triangle"></i> {{ errorMessage }}
         </div>
@@ -61,6 +67,101 @@
         </div>
       </form>
     </div>
+
+    <!-- 忘记密码模态框 -->
+    <div v-if="showForgotPassword" class="modal-overlay" @click.self="closeForgotPassword">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-key"></i> 重置密码
+          </h5>
+          <button type="button" class="btn-close" @click="closeForgotPassword"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">选择重置方式</label>
+            <div class="btn-group w-100" role="group">
+              <input
+                type="radio"
+                class="btn-check"
+                id="resetByUsername"
+                v-model="resetMethod"
+                value="username"
+                checked
+              />
+              <label class="btn btn-outline-primary" for="resetByUsername">用户名</label>
+              <input
+                type="radio"
+                class="btn-check"
+                id="resetByEmail"
+                v-model="resetMethod"
+                value="email"
+              />
+              <label class="btn btn-outline-primary" for="resetByEmail">邮箱</label>
+            </div>
+          </div>
+
+          <div class="form-floating mb-3" v-if="resetMethod === 'username'">
+            <input
+              type="text"
+              class="form-control"
+              id="resetUsername"
+              v-model="resetIdentifier"
+              :placeholder="resetMethod === 'username' ? '用户名' : '邮箱'"
+            />
+            <label for="resetUsername">
+              <i class="bi bi-person"></i> 用户名
+            </label>
+          </div>
+
+          <div class="form-floating mb-3" v-else>
+            <input
+              type="email"
+              class="form-control"
+              id="resetEmail"
+              v-model="resetIdentifier"
+              placeholder="邮箱地址"
+            />
+            <label for="resetEmail">
+              <i class="bi bi-envelope"></i> 邮箱地址
+            </label>
+          </div>
+
+          <div class="form-floating mb-3">
+            <input
+              type="password"
+              class="form-control"
+              id="resetPassword"
+              v-model="newPassword"
+              placeholder="新密码"
+            />
+            <label for="resetPassword">
+              <i class="bi bi-lock"></i> 新密码
+            </label>
+          </div>
+
+          <div v-if="resetErrorMessage" class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> {{ resetErrorMessage }}
+          </div>
+          <div v-if="resetSuccessMessage" class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle"></i> {{ resetSuccessMessage }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeForgotPassword">取消</button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="resetPassword"
+            :disabled="resetLoading || !resetIdentifier || !newPassword"
+          >
+            <span v-if="resetLoading" class="spinner-border spinner-border-sm me-2"></span>
+            <i v-else class="bi bi-key"></i>
+            {{ resetLoading ? '重置中...' : '重置密码' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -76,6 +177,14 @@ export default {
       errorMessage: "",
       successMessage: "",
       loading: false,
+      // 忘记密码相关
+      showForgotPassword: false,
+      resetMethod: "username",
+      resetIdentifier: "",
+      newPassword: "", // 新密码（避免与方法名冲突）
+      resetErrorMessage: "",
+      resetSuccessMessage: "",
+      resetLoading: false,
     };
   },
   methods: {
@@ -114,6 +223,58 @@ export default {
         this.successMessage = "";
       } finally {
         this.loading = false;
+      }
+    },
+    closeForgotPassword() {
+      this.showForgotPassword = false;
+      this.resetIdentifier = "";
+      this.newPassword = "";
+      this.resetErrorMessage = "";
+      this.resetSuccessMessage = "";
+      this.resetMethod = "username";
+    },
+    async resetPassword() {
+      if (!this.resetIdentifier || !this.newPassword) {
+        this.resetErrorMessage = "请填写完整信息";
+        return;
+      }
+
+      this.resetLoading = true;
+      this.resetErrorMessage = "";
+      this.resetSuccessMessage = "";
+
+      try {
+        const endpoint =
+          this.resetMethod === "username"
+            ? "/auth/reset-password"
+            : "/auth/reset-password-by-email";
+        const payload =
+          this.resetMethod === "username"
+            ? { username: this.resetIdentifier, newPassword: this.newPassword }
+            : { email: this.resetIdentifier, newPassword: this.newPassword };
+
+        const response = await axios.post(endpoint, payload);
+
+        this.resetSuccessMessage = response.data.message || "密码重置成功，请使用新密码登录";
+        this.resetErrorMessage = "";
+
+        // 3秒后关闭模态框
+        setTimeout(() => {
+          this.closeForgotPassword();
+          // 自动填充用户名
+          this.username = this.resetIdentifier;
+        }, 3000);
+      } catch (error) {
+        console.error("密码重置失败:", error);
+        const backendMsg = error.response?.data?.error;
+        if (backendMsg) {
+          this.resetErrorMessage = backendMsg;
+        } else {
+          this.resetErrorMessage = "密码重置失败，请稍后重试。";
+        }
+        this.resetSuccessMessage = "";
+      } finally {
+        this.resetLoading = false;
       }
     },
   },
@@ -204,5 +365,89 @@ export default {
   .login-card {
     padding: 2rem 1.5rem;
   }
+}
+
+/* 忘记密码模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close:hover {
+  opacity: 1;
 }
 </style>

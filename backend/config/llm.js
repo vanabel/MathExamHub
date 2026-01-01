@@ -5,7 +5,7 @@
 
 const llmConfig = {
   // API 提供商: 'openai', 'siliconflow', 'ollama'
-  provider: process.env.LLM_API_PROVIDER || 'openai',
+  provider: process.env.LLM_API_PROVIDER || 'ollama',
   
   // OpenAI 配置
   openai: {

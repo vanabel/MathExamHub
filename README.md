@@ -114,6 +114,21 @@ An application for managing and generating math exam questions, with **Node + Ex
 
 确保已经安装 MongoDB 并在本地运行（默认 `mongodb://localhost:27017`）。
 
+**如果 MongoDB 未运行，请先启动：**
+
+```bash
+# macOS (使用 Homebrew 安装的情况)
+brew services start mongodb-community
+
+# 或直接运行
+mongod --config /opt/homebrew/etc/mongod.conf
+
+# 检查 MongoDB 是否运行
+pgrep -f mongod
+```
+
+> **提示**: 如果遇到 MongoDB 连接超时错误，请先执行 `brew services start mongodb-community` 启动 MongoDB 服务。
+
 ```bash
 cd backend
 
@@ -122,6 +137,32 @@ npm install
 
 # 开发模式（依赖 nodemon）
 npm run dev
+```
+
+#### 忘记密码？重置密码
+
+**方法 1: 使用密码重置脚本（推荐）**
+
+```bash
+# 通过用户名重置
+node backend/scripts/reset-password.js <username> <newPassword>
+
+# 通过邮箱重置
+node backend/scripts/reset-password.js --email <email> <newPassword>
+```
+
+**方法 2: 使用 API 端点**
+
+```bash
+# 重置密码（需要后端服务运行）
+curl -X POST http://localhost:3000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"username": "your_username", "newPassword": "new_password"}'
+
+# 或通过邮箱重置
+curl -X POST http://localhost:3000/auth/reset-password-by-email \
+  -H "Content-Type: application/json" \
+  -d '{"email": "your_email@example.com", "newPassword": "new_password"}'
 ```
 
 如需调用关键词提取接口，请在运行前配置 LLM API。支持三种 LLM API 提供商：
