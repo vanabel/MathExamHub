@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mathexam-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: mathexam
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - mathexam-network
+    ports:
+      - "27017:27017"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: mathexam-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/mathexam
+      - SESSION_SECRET=${SESSION_SECRET:-your_session_secret_change_me}
+      - LLM_API_PROVIDER=${LLM_API_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - SILICONFLOW_MODEL=${SILICONFLOW_MODEL:-deepseek-ai/DeepSeek-V3}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:8b}
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - mongodb
+    networks:
+      - mathexam-network
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: mathexam-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - mathexam-network
+    ports:
+      - "8080:80"
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+
+networks:
+  mathexam-network:
+    driver: bridge
+
