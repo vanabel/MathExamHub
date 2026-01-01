@@ -110,9 +110,34 @@ An application for managing and generating math exam questions, with **Node + Ex
 
 ## 部署方式 (Deployment)
 
-### 🐳 Docker 部署（推荐用于生产环境）
+### 方案 A: PM2 部署（推荐用于 NAS 和个人使用）⭐
 
-**适用于**：NAS（群晖、威联通等）、云服务器、本地服务器
+**适用于**：个人 NAS、轻量级部署、资源受限环境
+
+**优势**：更简单、更轻量、性能更好、易于调试
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/vanabel/MathExamHub.git
+cd MathExamHub
+
+# 2. 配置环境变量
+cp backend/.env.example backend/.env
+vi backend/.env  # 填入你的配置
+
+# 3. 一键部署
+./deploy-pm2.sh
+```
+
+📖 详细文档：[PM2 部署指南](./DEPLOYMENT_PM2.md)
+
+---
+
+### 方案 B: Docker 部署（推荐用于生产环境）
+
+**适用于**：云服务器、多环境部署、需要完全隔离
+
+**优势**：环境隔离、可移植性好、容器化管理
 
 ```bash
 # 1. 克隆项目
@@ -127,11 +152,9 @@ vi .env  # 填入你的配置
 ./deploy.sh
 ```
 
-部署后访问 `http://你的服务器IP:8080`
-
 📖 详细文档：
-- [完整部署指南](./DEPLOYMENT.md)
-- [群晖 NAS 快速部署](./SYNOLOGY_DEPLOYMENT.md)
+- [Docker 完整部署指南](./DEPLOYMENT.md)
+- [群晖 NAS Docker 部署](./SYNOLOGY_DEPLOYMENT.md)
 
 ---
 
