@@ -108,7 +108,34 @@ An application for managing and generating math exam questions, with **Node + Ex
 
 ---
 
-## 运行方式 (How to Run)
+## 部署方式 (Deployment)
+
+### 🐳 Docker 部署（推荐用于生产环境）
+
+**适用于**：NAS（群晖、威联通等）、云服务器、本地服务器
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/vanabel/MathExamHub.git
+cd MathExamHub
+
+# 2. 配置环境变量
+cp .env.docker.example .env
+vi .env  # 填入你的配置
+
+# 3. 一键部署
+./deploy.sh
+```
+
+部署后访问 `http://你的服务器IP:8080`
+
+📖 详细文档：
+- [完整部署指南](./DEPLOYMENT.md)
+- [群晖 NAS 快速部署](./SYNOLOGY_DEPLOYMENT.md)
+
+---
+
+## 本地开发运行 (Local Development)
 
 ### 1. 启动后端 (Backend)
 
