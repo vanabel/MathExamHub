@@ -23,7 +23,7 @@ module.exports = {
     {
       name: "mathexam-frontend",
       script: "serve",
-      args: "-s dist -l 19896",
+      args: ["-s", "dist", "-l", "19896"],
       cwd: "./frontend",
       instances: 1,
       exec_mode: "fork",
