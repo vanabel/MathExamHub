@@ -9,7 +9,7 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: "production",
-        PORT: 19896
+        PORT: 19897
       },
       error_file: "./logs/backend-error.log",
       out_file: "./logs/backend-out.log",
@@ -23,7 +23,7 @@ module.exports = {
     {
       name: "mathexam-frontend",
       script: "serve",
-      args: "-s dist -l 19911",
+      args: "-s dist -l 19896",
       cwd: "./frontend",
       instances: 1,
       exec_mode: "fork",
