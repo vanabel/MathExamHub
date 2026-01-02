@@ -9,12 +9,16 @@ const options = {
 
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb://localhost:27017/mathexam', options);
+    // 优先使用环境变量 MONGODB_URI，否则使用默认的本地连接
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mathexam';
+    await mongoose.connect(mongoURI, options);
     console.log('✓ Connected to MongoDB');
+    console.log(`  URI: ${mongoURI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`); // 隐藏密码
     return mongoose.connection;
   } catch (error) {
     console.error('✗ MongoDB connection error:', error);
-    console.error('请确保 MongoDB 正在运行: mongod 或 brew services start mongodb-community');
+    console.error('请确保 MongoDB 正在运行并且连接信息正确');
+    console.error('当前使用的连接: ' + (process.env.MONGODB_URI ? '环境变量 MONGODB_URI' : 'mongodb://localhost:27017/mathexam'));
     throw error;
   }
 };

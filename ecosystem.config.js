@@ -9,7 +9,8 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: "production",
-        PORT: 19897
+        PORT: 19897,
+        MONGODB_URI: process.env.MONGODB_URI || "mongodb://localhost:27017/mathexam"
       },
       error_file: "./logs/backend-error.log",
       out_file: "./logs/backend-out.log",
