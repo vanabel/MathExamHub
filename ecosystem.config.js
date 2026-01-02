@@ -8,9 +8,9 @@ module.exports = {
       exec_mode: "fork",
       watch: false,
       env: {
-        NODE_ENV: "production",
-        PORT: 19897,
-        MONGODB_URI: process.env.MONGODB_URI || "mongodb://localhost:27017/mathexam"
+        NODE_ENV: "production"
+        // PORT 和 MONGODB_URI 等配置请在 backend/.env 文件中设置
+        // 参考 .env.example 创建 backend/.env 文件
       },
       error_file: "./logs/backend-error.log",
       out_file: "./logs/backend-out.log",
