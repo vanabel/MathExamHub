@@ -1,3 +1,6 @@
+// 加载环境变量（必须在最开始）
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
