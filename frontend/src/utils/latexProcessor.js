@@ -442,7 +442,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
         // 构建文件 URL（假设文件在 /uploads/ 目录下）
         // 对文件名进行 URL 编码，确保中文字符正确处理
         // 使用完整的后端 URL，因为 PDF.js 需要完整的 URL
-        const backendBaseURL = axios.defaults.baseURL || 'http://localhost:3000';
+        const backendBaseURL = axios.defaults.baseURL || '/api';
         const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
         
         // 检查是否是 PDF 文件

@@ -16,7 +16,9 @@ const allowedOrigins = [
   'http://localhost:3000',  // 其他常见端口
   'http://127.0.0.1:8080',
   'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  'https://exam.vanabel.cn',  // 生产环境域名
+  'http://192.168.2.38:19896'  // 本地 IP 访问
 ];
 
 app.use(cors({
@@ -68,9 +70,9 @@ require('./config/passport')(passport);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 注册路由
-app.use('/auth', authRoutes);
-app.use('/questions', questionRoutes);
+// 注册路由（添加 /api 前缀）
+app.use('/api/auth', authRoutes);
+app.use('/api/questions', questionRoutes);
 
 // 提供静态文件服务（用于访问上传的图片和PDF）
 const path = require('path');
@@ -89,7 +91,7 @@ const expressStatic = express.static(path.join(__dirname, 'uploads'), {
   maxAge: '1d',
   redirect: false
 });
-app.use('/uploads', expressStatic);
+app.use('/api/uploads', expressStatic);
 // 定义一个根路由
 app.get('/', (req, res) => {
   res.send('Welcome to the question library application.'); // 可以根据你的需求修改响应内容
