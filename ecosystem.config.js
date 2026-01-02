@@ -22,7 +22,7 @@ module.exports = {
     },
     {
       name: "mathexam-frontend",
-      script: "serve",
+      script: "/usr/local/bin/serve",
       args: ["-s", "dist", "-l", "19896"],
       cwd: "./frontend",
       instances: 1,
