@@ -10,7 +10,9 @@ import router from "./router"; // 导入路由配置
 // 使用环境变量配置 API 地址
 // 开发环境: http://localhost:3000
 // 生产环境: /api (通过 nginx 反向代理)
-axios.defaults.baseURL = process.env.VUE_APP_API_BASE_URL || "http://localhost:3000";
+// 如果在浏览器中运行，使用相对路径 /api；否则使用环境变量或默认值
+const isProduction = process.env.NODE_ENV === 'production';
+axios.defaults.baseURL = process.env.VUE_APP_API_BASE_URL || (isProduction ? '/api' : 'http://localhost:3000');
 axios.defaults.withCredentials = true; // 允许发送 cookies（用于 session）
 
 const app = createApp(App);

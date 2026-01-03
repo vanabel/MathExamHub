@@ -726,9 +726,28 @@ router.post('/import/latex/preview', upload.fields([
 
     // 解析 LaTeX 内容
     const parser = new LatexParser();
-    const questions = parser.parse(fileContent, { imageMap, filePrefix });
+    let questions;
+    try {
+      questions = parser.parse(fileContent, { imageMap, filePrefix });
+      console.log(`✓ 成功解析 LaTeX 文件，识别到 ${questions.length} 道题目`);
+    } catch (parseError) {
+      console.error('✗ LaTeX 解析失败:', parseError);
+      console.error('错误堆栈:', parseError.stack);
+      // 清理临时文件
+      fs.unlinkSync(texFile.path);
+      for (const imgFile of imageFiles) {
+        if (fs.existsSync(imgFile.path)) {
+          fs.unlinkSync(imgFile.path);
+        }
+      }
+      return res.status(400).json({ 
+        error: '解析 LaTeX 文件失败: ' + parseError.message,
+        details: parseError.stack 
+      });
+    }
 
     if (questions.length === 0) {
+      console.warn('⚠ 未能从文件中解析出题目');
       // 清理临时文件
       fs.unlinkSync(texFile.path);
       for (const imgFile of imageFiles) {
@@ -748,32 +767,40 @@ router.post('/import/latex/preview', upload.fields([
     let duplicateWarnings = [];
     
     if (duplicateCheck) {
-      duplicateResults = await detectDuplicatesInBatch(questions, duplicateThreshold);
-      
-      for (const q of questions) {
-        const duplicateInfo = duplicateResults.duplicates.find(d => {
-          const { normalizeText } = require('../utils/duplicateDetector');
-          return normalizeText(d.question.questionText) === normalizeText(q.questionText);
-        });
-        if (duplicateInfo && duplicateInfo.duplicates.length > 0) {
-          duplicateWarnings.push({
-            question: q,
-            duplicates: duplicateInfo.duplicates.map(d => ({
-              _id: d.question._id,
-              questionText: d.question.questionText,
-              subject: d.question.subject,
-              type: d.question.type,
-              similarity: d.similarity,
-              matchType: d.matchType,
-            })),
+      try {
+        duplicateResults = await detectDuplicatesInBatch(questions, duplicateThreshold);
+        console.log(`✓ 重复检测完成，发现 ${duplicateResults.duplicates.length} 组重复题目`);
+        
+        for (const q of questions) {
+          const duplicateInfo = duplicateResults.duplicates.find(d => {
+            const { normalizeText } = require('../utils/duplicateDetector');
+            return normalizeText(d.question.questionText) === normalizeText(q.questionText);
           });
+          if (duplicateInfo && duplicateInfo.duplicates.length > 0) {
+            duplicateWarnings.push({
+              question: q,
+              duplicates: duplicateInfo.duplicates.map(d => ({
+                _id: d.question._id,
+                questionText: d.question.questionText,
+                subject: d.question.subject,
+                type: d.question.type,
+                similarity: d.similarity,
+                matchType: d.matchType,
+              })),
+            });
+          }
         }
+      } catch (dupError) {
+        console.error('✗ 重复检测失败:', dupError);
+        console.error('错误堆栈:', dupError.stack);
+        // 重复检测失败不影响预览，继续执行
       }
     }
 
     // 注意：这里不删除临时文件，因为用户可能在预览后选择导入
     // 文件会在实际导入或取消时删除
 
+    console.log(`✓ 预览成功，返回 ${questions.length} 道题目，${duplicateWarnings.length} 道重复题目`);
     res.json({
       success: true,
       questions: questions,
@@ -783,7 +810,9 @@ router.post('/import/latex/preview', upload.fields([
       imageMap: imageMap,
     });
   } catch (error) {
-    console.error('预览 LaTeX 文件失败:', error);
+    console.error('✗ 预览 LaTeX 文件失败:', error);
+    console.error('错误消息:', error.message);
+    console.error('错误堆栈:', error.stack);
     // 清理临时文件
     if (req.files && req.files['file'] && req.files['file'].length > 0) {
       const texFile = req.files['file'][0];
@@ -791,7 +820,10 @@ router.post('/import/latex/preview', upload.fields([
         fs.unlinkSync(texFile.path);
       }
     }
-    res.status(500).json({ error: '预览失败: ' + error.message });
+    res.status(500).json({ 
+      error: '预览失败: ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

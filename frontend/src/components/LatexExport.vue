@@ -525,6 +525,10 @@ export default {
   },
   computed: {
     selectedQuestions() {
+      // 防御性检查：确保 questions 是数组
+      if (!Array.isArray(this.questions)) {
+        return [];
+      }
       const questions = this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
       // 如果需要按类型排序，对已选择的题目进行排序
       if (this.smartSelectParams.sortOrder === 'type') {
@@ -534,7 +538,8 @@ export default {
     },
     // 获取当前筛选后的题目（用于智能选择）
     filteredQuestions() {
-      return this.questions;
+      // 防御性检查：确保 questions 是数组
+      return Array.isArray(this.questions) ? this.questions : [];
     },
     // 计算平均难度分数
     averageDifficultyScore() {
@@ -713,10 +718,13 @@ export default {
         if (this.filters.keyword) params.questionText = this.filters.keyword;
 
         const response = await axios.get("/questions/list", { params });
-        this.questions = response.data;
+        // 确保返回的数据是数组
+        this.questions = Array.isArray(response.data) ? response.data : [];
       } catch (error) {
         console.error("加载题目失败:", error);
         alert("加载题目失败");
+        // 出错时确保 questions 是空数组
+        this.questions = [];
       } finally {
         this.loading = false;
       }
@@ -733,6 +741,10 @@ export default {
       return this.selectedQuestionIds.includes(questionId);
     },
     selectAll() {
+      if (!Array.isArray(this.questions)) {
+        this.selectedQuestionIds = [];
+        return;
+      }
       this.selectedQuestionIds = this.questions.map((q) => q._id);
     },
     deselectAll() {

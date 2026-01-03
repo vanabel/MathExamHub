@@ -219,12 +219,22 @@ export default {
   },
   computed: {
     selectedQuestions() {
+      // 防御性检查：确保 questions 是数组
+      if (!Array.isArray(this.questions)) {
+        return [];
+      }
       return this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
     },
     isAllSelected() {
+      if (!Array.isArray(this.questions)) {
+        return false;
+      }
       return this.questions.length > 0 && this.selectedQuestionIds.length === this.questions.length;
     },
     isIndeterminate() {
+      if (!Array.isArray(this.questions)) {
+        return false;
+      }
       return this.selectedQuestionIds.length > 0 && this.selectedQuestionIds.length < this.questions.length;
     },
   },
@@ -349,16 +359,16 @@ export default {
           this.duplicateGroups = response.data.duplicateGroups || [];
           
           // 对题目进行排序：重复题目在前（按组排序），非重复题目在后
-          const sortedQuestions = this.sortQuestionsWithDuplicates(
-            response.data.questions
-          );
+          const questionsArray = Array.isArray(response.data.questions) ? response.data.questions : [];
+          const sortedQuestions = this.sortQuestionsWithDuplicates(questionsArray);
           
           this.allQuestions = sortedQuestions;
           this.questions = sortedQuestions;
         } else {
           // 普通模式，直接返回题目数组
-          this.allQuestions = response.data;
-          this.questions = response.data;
+          const questionsArray = Array.isArray(response.data) ? response.data : [];
+          this.allQuestions = questionsArray;
+          this.questions = questionsArray;
           this.duplicateGroups = [];
         }
         
@@ -370,6 +380,10 @@ export default {
         }, 100);
       } catch (error) {
         console.error("Failed to retrieve question list:", error);
+        // 出错时确保 questions 是空数组
+        this.allQuestions = [];
+        this.questions = [];
+        this.duplicateGroups = [];
       } finally {
         this.loading = false;
       }
@@ -465,6 +479,10 @@ export default {
         this.selectedQuestionIds = [];
       } else {
         // 全选
+        if (!Array.isArray(this.questions)) {
+          this.selectedQuestionIds = [];
+          return;
+        }
         this.selectedQuestionIds = this.questions.map((q) => q._id);
       }
     },

@@ -356,4 +356,5 @@
 如遇到问题，请查阅：
 - [完整部署指南](./DEPLOYMENT.md)
 - [群晖快速部署](./SYNOLOGY_DEPLOYMENT.md)
+- [PM2 部署指南](./DEPLOYMENT_PM2.md)
 - [GitHub Issues](https://github.com/vanabel/MathExamHub/issues)

@@ -205,8 +205,8 @@
                   </div>
                   <div class="card-body">
                     <div class="alert alert-info mb-3">
-                      <strong>共识别到 {{ previewData.questions.length }} 道题目</strong>
-                      <span v-if="previewData.duplicateCount > 0" class="ms-2">
+                      <strong>共识别到 {{ previewQuestions.length }} 道题目</strong>
+                      <span v-if="previewData && previewData.duplicateCount > 0" class="ms-2">
                         （<span class="text-warning">检测到 {{ previewData.duplicateCount }} 道可能重复的题目</span>）
                       </span>
                     </div>
@@ -214,7 +214,7 @@
                     <!-- 题目列表 -->
                     <div class="question-list" style="max-height: 600px; overflow-y: auto">
                       <div
-                        v-for="(question, index) in previewData.questions"
+                        v-for="(question, index) in previewQuestions"
                         :key="index"
                         class="question-item mb-3 p-3 border rounded"
                         :class="{ 'border-warning': isDuplicateQuestion(question) }"
@@ -468,6 +468,15 @@ export default {
       mathjaxOptions: mathjaxOptions,
     };
   },
+  computed: {
+    previewQuestions() {
+      // 防御性检查：确保 previewData.questions 是数组
+      if (!this.previewData || !this.previewData.questions) {
+        return [];
+      }
+      return Array.isArray(this.previewData.questions) ? this.previewData.questions : [];
+    },
+  },
   methods: {
     handleFileSelect(event) {
       const file = event.target.files[0];
@@ -535,18 +544,53 @@ export default {
       formData.append("duplicateThreshold", this.duplicateThreshold.toString());
 
       try {
+        console.log("🚀 开始预览 LaTeX 文件...");
+        console.log("API Base URL:", axios.defaults.baseURL);
         const response = await axios.post("/questions/import/latex/preview", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
         });
 
-        this.previewData = response.data;
-        if (response.data.success) {
-          console.log("预览成功:", response.data);
+        // 确保 questions 始终是数组
+        let data = response.data;
+        
+        // 检查是否返回了 HTML（说明请求被前端路由处理了）
+        if (typeof data === 'string' && data.includes('<!doctype html>')) {
+          console.error("✗ API 返回了 HTML 页面，请求路径可能不正确");
+          console.error("请求 URL:", axios.defaults.baseURL + "/questions/import/latex/preview");
+          throw new Error("API 请求失败：返回了 HTML 页面，请检查 API 路径和代理配置");
+        }
+        
+        if (data && !Array.isArray(data.questions)) {
+          console.warn("⚠ API 返回的 questions 不是数组:", data);
+          // 创建新对象而不是修改只读属性
+          data = {
+            ...data,
+            questions: []
+          };
+        }
+        this.previewData = data;
+        if (data.success) {
+          console.log("✓ 预览成功:", {
+            questionsCount: data.questions?.length || 0,
+            duplicateCount: data.duplicateCount || 0,
+            filePrefix: data.filePrefix
+          });
+        } else {
+          console.warn("⚠ 预览返回 success: false", data);
         }
       } catch (error) {
-        console.error("预览失败:", error);
+        console.error("✗ 预览失败:", error);
+        console.error("错误详情:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText
+        });
+        if (error.response?.data?.details) {
+          console.error("服务器错误堆栈:", error.response.data.details);
+        }
         alert(error.response?.data?.error || "预览失败，请检查文件格式");
       } finally {
         this.previewing = false;

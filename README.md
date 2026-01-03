@@ -1,40 +1,93 @@
-## MathExam
+# MathExamHub
 
-一个用于管理和出题的数学试题库应用，包含 **后端 API (Node + Express + MongoDB)**、**前端单页应用 (Vue 3 + Bootstrap + MathJax)**，并提供一个简单的 **Electron 桌面壳**。
+一个功能完整的数学试题库管理系统，支持试题的创建、编辑、搜索、导入导出等功能。
 
 An application for managing and generating math exam questions, with **Node + Express + MongoDB backend**, **Vue 3 SPA frontend**, and a minimal **Electron shell**.
 
 ---
 
-### 功能概览 (Features)
+## 📚 文档导航
 
-- **试题管理 (Question Management)**
-  - 创建数学试题（支持判断题、单选题、多选题、填空题、计算题、解答题、证明题、作图题）。
-  - 支持题目科目（微分几何、解析几何、高等几何、线性代数 II 等）。
-  - 设置每题分值、难度、出题人等信息。
-  - 编辑试题（支持修改题干和答案，后端支持按字段更新）。
-  - 删除试题。
-  - 列出全部试题。
-  - 按 **科目 + 题目类型 + 关键词** 搜索试题。
+- [功能概览](#功能概览-features)
+- [快速开始](#快速开始)
+- [部署指南](#部署方式-deployment)
+  - [PM2 部署](./docs/DEPLOYMENT_PM2.md) - 推荐用于 NAS 和个人使用
+  - [Docker 部署](./docs/DEPLOYMENT.md) - 推荐用于生产环境
+  - [群晖 NAS 部署](./docs/SYNOLOGY_DEPLOYMENT.md) - 群晖专用快速指南
+  - [部署检查清单](./docs/DEPLOYMENT_CHECKLIST.md) - 完整的部署检查项
+- [LaTeX 导入导出](./docs/LaTeX_IMPORT_EXPORT.md) - LaTeX 文件导入导出详细说明
+- [本地开发](#本地开发运行-local-development)
+- [技术栈](#技术栈-tech-stack)
 
-- **数学公式展示 (Math Rendering)**
-  - 使用 `vue-mathjax-next` 在前端渲染题干和选项中的 LaTeX 数学公式。
-  - 对答案字符串中形如 `\score{1}` 的标记做额外处理，组合成带分值标记的展示形式。
+---
 
-- **基础用户管理 (User Management)**
-  - 用户注册（用户名 + 密码 + 邮箱），后端使用 `bcryptjs` 进行密码哈希存储。
-  - 用户角色字段（如 Basic），可为后续权限控制预留。
-  - 使用 Passport Local 策略实现用户名/密码登录（后端已配置策略和会话序列化）。
+## 功能概览 (Features)
 
-- **关键字搜索辅助（依赖 OpenAI） (Keyword Assist via OpenAI)**
-  - 前端在输入题干时：
-    - 调用后端 `/questions/extractKeywords`，由 OpenAI API 提取多个关键词。
-    - 使用提取出的关键词调用 `/questions/search`，在输入过程中实时显示相似题目列表。
-  - 便于避免重复出题，并可参考已有题目。
+### 📝 试题管理 (Question Management)
 
-- **Electron 桌面壳（初步） (Electron Shell)**
-  - 使用 Electron 创建主窗口，加载前端页面。
-  - 提供桌面应用基础结构（菜单栏、窗口生命周期等可以继续扩展）。
+- **创建试题**：支持多种题型
+  - 判断题、单选题、多选题
+  - 填空题、计算题、解答题、证明题、作图题
+- **科目管理**：支持多个数学科目
+  - 微分几何、解析几何、高等几何、线性代数 II 等
+- **试题属性**：完整的元数据管理
+  - 分值、难度、出题人、创建时间等
+- **编辑与删除**：灵活的试题管理
+  - 支持按字段更新，不会覆盖未提供的字段
+  - 批量删除功能
+- **搜索功能**：强大的试题检索
+  - 按科目、题型、关键词搜索
+  - 支持模糊匹配和组合查询
+
+### 🔍 智能搜索辅助 (AI-Powered Search)
+
+- **关键词提取**：使用 LLM API 自动提取题干关键词
+  - 支持 OpenAI、SiliconFlow、Ollama 三种提供商
+  - 实时提取，无需手动输入关键词
+- **相似题目推荐**：输入题干时自动显示相似题目
+  - 避免重复出题
+  - 参考已有题目进行改进
+
+### 📄 LaTeX 导入导出 (LaTeX Import/Export)
+
+- **导入 LaTeX 文件**：批量导入试卷
+  - 支持 `mathexam` 宏包格式
+  - 自动解析题目、选项、答案
+  - 支持图片上传和引用
+  - 预览功能，导入前可查看解析结果
+- **导出 LaTeX 文件**：生成标准 LaTeX 试卷
+  - 支持自定义试卷头部信息
+  - 自动打包相关图片文件
+  - 可直接使用 XeLaTeX 编译
+
+### 🎨 数学公式渲染 (Math Rendering)
+
+- **LaTeX 支持**：完整的数学公式渲染
+  - 使用 MathJax 渲染题干和选项中的公式
+  - 支持行内公式和块级公式
+- **分值标记**：特殊的答案格式处理
+  - 支持 `\score{分值}` 标记
+  - 自动组合成带分值标记的展示形式
+
+### 👥 用户管理 (User Management)
+
+- **用户注册**：安全的用户注册系统
+  - 用户名 + 密码 + 邮箱
+  - 使用 `bcryptjs` 进行密码哈希存储
+- **登录认证**：基于 Passport.js 的认证
+  - Passport Local 策略
+  - Session 会话管理
+  - 密码重置功能
+- **权限控制**：预留角色字段
+  - 支持用户角色管理（如 Basic）
+  - 为后续权限扩展预留接口
+
+### 🖥️ Electron 桌面应用 (Electron Shell)
+
+- **桌面壳**：提供桌面应用基础结构
+  - 使用 Electron 创建主窗口
+  - 加载前端页面
+  - 可扩展菜单栏、窗口生命周期等功能
 
 ---
 
@@ -65,14 +118,19 @@ An application for managing and generating math exam questions, with **Node + Ex
   - `POST /auth/login`：Passport Local 登录。
   - `GET /auth/logout`：登出。
 - `routes/questions.js`：
-  - `POST /questions/create-test-data`
-  - `POST /questions/create`
-  - `GET /questions/:_id/get`
-  - `PUT /questions/:id/edit`（按提供字段更新试题，未提供的字段不会被覆盖为 `undefined`）
-  - `DELETE /questions/:id/delete`
-  - `GET /questions/list`
-  - `GET /questions/search`
-  - `POST /questions/extractKeywords`（调用 OpenAI API）。
+  - `POST /questions/create` - 创建试题
+  - `GET /questions/:_id/get` - 获取单个试题
+  - `PUT /questions/:id/edit` - 编辑试题（按字段更新）
+  - `DELETE /questions/:id/delete` - 删除试题
+  - `GET /questions/list` - 获取试题列表
+  - `GET /questions/search` - 搜索试题
+  - `GET /questions/duplicates` - 查找重复试题
+  - `POST /questions/duplicates/cleanup` - 清理重复试题
+  - `GET /questions/subjects` - 获取所有科目列表
+  - `POST /questions/extractKeywords` - 提取关键词（调用 LLM API）
+  - `POST /questions/import/latex` - 导入 LaTeX 文件
+  - `POST /questions/import/latex/preview` - 预览 LaTeX 文件
+  - `POST /questions/export/latex` - 导出 LaTeX 文件
 
 > 提示：要使 `/questions/extractKeywords` 正常工作，需要在运行环境设置 `OPENAI_API_KEY` 环境变量。
 
@@ -87,10 +145,13 @@ An application for managing and generating math exam questions, with **Node + Ex
   - 简单的壳组件，包含 `<router-view>`。
 - `src/router/index.js`：
   - 路由：
+    - `/login` → 用户登录页面
     - `/register` → 用户注册页面
     - `/question-list` → 试题列表
     - `/question-add` → 新增试题
     - `/question-edit/:id` → 编辑试题
+    - `/latex-import` → LaTeX 导入页面
+    - `/latex-export` → LaTeX 导出页面
 - `src/components/QuestionList.vue`：
   - 调用 `/questions/list` 获取试题列表并展示。
   - 题干、选项使用 MathJax 渲染。
@@ -129,7 +190,7 @@ vi backend/.env  # 填入你的配置
 ./deploy-pm2.sh
 ```
 
-📖 详细文档：[PM2 部署指南](./DEPLOYMENT_PM2.md)
+📖 详细文档：[PM2 部署指南](./docs/DEPLOYMENT_PM2.md)
 
 ---
 
@@ -153,8 +214,10 @@ vi .env  # 填入你的配置
 ```
 
 📖 详细文档：
-- [Docker 完整部署指南](./DEPLOYMENT.md)
-- [群晖 NAS Docker 部署](./SYNOLOGY_DEPLOYMENT.md)
+- [Docker 完整部署指南](./docs/DEPLOYMENT.md)
+- [群晖 NAS Docker 部署](./docs/SYNOLOGY_DEPLOYMENT.md)
+- [NAS 部署快速指南](./docs/NAS_DEPLOYMENT_SUMMARY.md)
+- [部署检查清单](./docs/DEPLOYMENT_CHECKLIST.md)
 
 ---
 
@@ -287,12 +350,19 @@ npm run electron
 
 ---
 
-## 当前已知待办 / 不完整部分 (TODO)
+## 📖 更多文档
 
-- [ ] 补充前端登录页面和登录状态管理（目前只有注册接口和后端登录策略）。
-- [ ] 在 `GET /questions/:_id/get` 中返回更多字段（分值、难度、题型、选项等），并在 `QuestionEdit.vue` 中绑定这些字段进行完整编辑。
-- [ ] Electron 集成前后端自动启动流程，仅作为简单壳加载前端页面。
-- [ ] 部分 UI/导航（如顶部菜单、路由跳转入口）可以进一步美化和增强。
+- [LaTeX 导入导出详细说明](./docs/LaTeX_IMPORT_EXPORT.md) - 包含图片上传、命名规则等
+- [PM2 部署完整指南](./docs/DEPLOYMENT_PM2.md) - 适合 NAS 和个人使用
+- [Docker 部署完整指南](./docs/DEPLOYMENT.md) - 适合生产环境
+- [群晖 NAS 快速部署](./docs/SYNOLOGY_DEPLOYMENT.md) - 群晖专用指南
+- [部署检查清单](./docs/DEPLOYMENT_CHECKLIST.md) - 完整的部署检查项
+
+## 🔧 已知限制和待办事项 (Known Limitations & TODO)
+
+- [ ] Electron 集成前后端自动启动流程，目前仅作为简单壳加载前端页面
+- [ ] 部分 UI/导航可以进一步美化和增强
+- [ ] 用户权限管理功能可以进一步扩展
 
 ---
 

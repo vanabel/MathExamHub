@@ -1,5 +1,10 @@
 # NAS 部署快速指南
 
+> **注意**：本文档提供 NAS 部署的快速概览。如需详细步骤，请参考：
+> - [群晖 NAS 专用指南](./SYNOLOGY_DEPLOYMENT.md) - 群晖用户推荐
+> - [Docker 完整部署指南](./DEPLOYMENT.md) - 通用 Docker 部署
+> - [PM2 部署指南](./DEPLOYMENT_PM2.md) - 非 Docker 部署方式
+
 ## 📦 已准备好的部署文件
 
 ✅ **Docker 配置**
@@ -18,8 +23,8 @@
 - `deploy.sh` - 一键部署脚本
 
 ✅ **文档**
-- `DEPLOYMENT.md` - 完整部署指南（支持各种 NAS 和服务器）
-- `SYNOLOGY_DEPLOYMENT.md` - 群晖 NAS 专用快速指南
+- [完整部署指南](./DEPLOYMENT.md) - 支持各种 NAS 和服务器
+- [群晖 NAS 专用快速指南](./SYNOLOGY_DEPLOYMENT.md)
 
 ---
 

@@ -42,6 +42,59 @@
 \end{document}
 ```
 
+#### 在 LaTeX 中添加图片
+
+1. **在 LaTeX 文件中引用图片**：
+   - 使用 `\includegraphics{图片名}` 命令
+   - 图片名可以带扩展名（如 `fig1.pdf`）或不带扩展名（如 `fig1`）
+   - 推荐使用 `fig1`, `fig2`, `fig3` 等命名方式
+
+2. **上传图片文件**：
+   - 在上传 `.tex` 文件时，同时上传对应的图片文件
+   - 图片文件名必须与 LaTeX 中引用的名称匹配
+   - 支持的图片格式：`.png`, `.jpg`, `.jpeg`, `.gif`, `.pdf`
+
+3. **图片命名规则**：
+   - **方式一（推荐）**：使用 `fig1`, `fig2`, `fig3` 等命名
+     - LaTeX 中：`\includegraphics{fig1}`
+     - 上传文件：`fig1.pdf` 或 `fig1.png`
+   - **方式二**：使用自定义名称
+     - LaTeX 中：`\includegraphics{myimage}`
+     - 上传文件：`myimage.png` 或 `myimage.pdf`
+
+4. **图片引用示例**：
+
+```latex
+\begin{problem}
+  计算下列函数的导数：
+  \begin{center}
+    \includegraphics{fig1}
+  \end{center}
+  答案：\fillin{x^2}.
+\end{problem}
+```
+
+或者使用 `figure` 环境（支持 `\label` 和 `\ref`）：
+
+```latex
+\begin{problem}
+  如图 \ref{fig:1} 所示，计算...
+  \begin{figure}[htpb]
+    \centering
+    \includegraphics{fig1}
+    \caption{函数图像}
+    \label{fig:1}
+  \end{figure}
+  答案：\fillin{42}.
+\end{problem}
+```
+
+5. **注意事项**：
+   - 图片文件名（不含扩展名）必须与 LaTeX 中 `\includegraphics{}` 中的名称完全匹配
+   - 系统会自动为图片添加前缀（基于 `.tex` 文件名），但你在 LaTeX 中仍使用原始名称
+   - 如果上传了图片但 LaTeX 中没有引用，图片会被忽略
+   - 如果 LaTeX 中引用了图片但未上传对应文件，系统会尝试使用默认扩展名（`.pdf`）查找
+
 ### 导出 LaTeX 文件
 
 1. 在导航栏中点击 **LaTeX 导入/导出** → **导出 LaTeX**
