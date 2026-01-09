@@ -6,7 +6,8 @@ const cors = require('cors');
 const passport = require('passport');
 const session = require('express-session');
 const crypto = require('crypto');
-const secret = crypto.randomBytes(32).toString('hex');
+// 使用环境变量中的 SESSION_SECRET，如果没有则生成一个随机字符串
+const secret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 const app = express();
 // 启用 CORS 中间件 - 配置为允许前端地址并支持 credentials

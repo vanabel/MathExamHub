@@ -48,7 +48,7 @@ const resetPassword = async (identifier, newPassword, isEmail = false) => {
 
 		console.log(`✓ 密码重置成功`);
 		console.log(`  用户: ${user.username} (${user.email})`);
-		console.log(`  新密码: ${newPassword}`);
+		// 安全提示：不在日志中打印密码
 	} catch (error) {
 		console.error('✗ 密码重置失败:', error.message);
 		process.exit(1);

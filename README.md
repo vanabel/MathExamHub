@@ -227,7 +227,23 @@ vi .env  # 填入你的配置
 
 确保已经安装 MongoDB 并在本地运行（默认 `mongodb://localhost:27017`）。
 
-**如果 MongoDB 未运行，请先启动：**
+**如果 MongoDB 在 Docker 容器中运行：**
+
+```bash
+# 检查容器状态
+docker ps | grep mongodb
+
+# 如果容器未运行，启动容器
+docker start <container_id>
+
+# 进入容器并打开 MongoDB Shell
+docker exec -it <container_id> mongosh
+
+# 或在容器外执行命令
+docker exec -it <container_id> mongosh mathexam --eval "db.stats()"
+```
+
+**如果 MongoDB 直接安装在系统上：**
 
 ```bash
 # macOS (使用 Homebrew 安装的情况)
@@ -240,7 +256,7 @@ mongod --config /opt/homebrew/etc/mongod.conf
 pgrep -f mongod
 ```
 
-> **提示**: 如果遇到 MongoDB 连接超时错误，请先执行 `brew services start mongodb-community` 启动 MongoDB 服务。
+> **提示**: 如果遇到 MongoDB 连接超时错误，请先确保 MongoDB 服务或容器正在运行。
 
 ```bash
 cd backend
@@ -251,6 +267,113 @@ npm install
 # 开发模式（依赖 nodemon）
 npm run dev
 ```
+
+#### 检查 MongoDB 数据库
+
+**方法 1: 使用数据库检查脚本（推荐）**
+
+```bash
+# 检查数据库状态和统计信息
+node backend/scripts/check-database.js
+```
+
+这个脚本会显示：
+- 数据库连接状态
+- 集合列表和文档数量
+- 试题统计信息（科目、题型等）
+- 用户统计信息
+- 服务器信息
+
+**方法 2: 使用 MongoDB Shell（如果 MongoDB 在容器中）**
+
+⚠️ **如果 MongoDB 启用了身份验证，需要先获取认证信息：**
+```bash
+# 查看连接字符串中的用户名和密码
+grep MONGODB_URI backend/.env
+```
+
+**方法 A: 使用连接字符串直接认证（推荐）**
+```bash
+# 使用完整的连接字符串连接（包含认证信息）
+sudo docker exec -it 8b9453be3c65 mongosh "mongodb://用户名:密码@localhost:27017/mathexam?authSource=admin"
+
+# 示例（请替换为你的实际用户名和密码）
+# ⚠️ 请从 backend/.env 文件获取实际的连接字符串，不要硬编码密码！
+# 连接字符串格式: mongodb://用户名:密码@localhost:27017/mathexam?authSource=admin
+sudo docker exec -it 8b9453be3c65 mongosh "mongodb://用户名:密码@localhost:27017/mathexam?authSource=admin"
+```
+
+**方法 B: 先连接后认证**
+```bash
+# 进入 MongoDB 容器并打开 mongosh
+sudo docker exec -it 8b9453be3c65 mongosh
+
+# 或使用旧版本的 mongo 命令（MongoDB < 6.0）
+sudo docker exec -it 8b9453be3c65 mongo
+```
+
+进入后可以使用以下命令：
+```javascript
+// 先进行身份验证（切换到 admin 数据库）
+use admin
+db.auth("用户名", "密码")
+
+// 然后切换到 mathexam 数据库
+use mathexam
+
+// 显示所有集合
+show collections
+
+// 查看试题数量
+db.questions.countDocuments()
+
+// 查看用户数量
+db.users.countDocuments()
+
+// 查看试题示例
+db.questions.findOne()
+
+// 查看用户示例（不显示密码）
+db.users.findOne({}, {password: 0})
+
+// 退出
+exit
+```
+
+**方法 3: 在终端直接执行 MongoDB 命令**
+
+⚠️ **如果启用了身份验证，需要在连接字符串中包含认证信息**
+
+```bash
+# 设置连接字符串变量（从 .env 文件获取）
+MONGODB_URI="mongodb://用户名:密码@localhost:27017/mathexam?authSource=admin"
+
+# 查看数据库统计
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "db.stats()"
+
+# 查看所有集合
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "show collections"
+
+# 查看试题数量
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "db.questions.countDocuments()"
+
+# 查看用户数量
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "db.users.countDocuments()"
+
+# 查看所有科目
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "db.questions.distinct('subject')"
+
+# 查看所有题型
+sudo docker exec -it 8b9453be3c65 mongosh "$MONGODB_URI" --eval "db.questions.distinct('type')"
+```
+
+**快速获取连接字符串：**
+```bash
+# 从环境变量文件读取
+grep MONGODB_URI backend/.env
+```
+
+> 📖 **更多 Docker MongoDB 命令**: 查看 [MongoDB Docker 命令文档](./docs/MONGODB_DOCKER_COMMANDS.md)
 
 #### 忘记密码？重置密码
 

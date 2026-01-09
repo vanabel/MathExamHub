@@ -21,9 +21,13 @@ services:
       dockerfile: Dockerfile.backend
     container_name: mathexam-backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongodb:27017/mathexam
+      # 如果 .env 文件中没有 MONGODB_URI，使用 Docker 网络内的 MongoDB 连接
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/mathexam}
+      - PORT=${PORT:-3000}
       - SESSION_SECRET=${SESSION_SECRET:-your_session_secret_change_me}
       - LLM_API_PROVIDER=${LLM_API_PROVIDER:-openai}
       - OPENAI_API_KEY=${OPENAI_API_KEY}

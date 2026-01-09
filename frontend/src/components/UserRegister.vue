@@ -107,7 +107,10 @@ export default {
           email: this.email,
         });
 
-        console.log(response);
+        // 安全提示：不在控制台记录响应（生产环境）
+        if (process.env.NODE_ENV === 'development') {
+          console.log("注册成功");
+        }
         this.errorMessage = "";
         this.successMessage = "注册成功，请使用新账号登录。";
         
@@ -115,7 +118,10 @@ export default {
           this.$router.push("/login");
         }, 1500);
       } catch (error) {
-        console.error("注册失败:", error);
+        // 安全提示：只记录错误信息，不记录完整错误对象
+        if (process.env.NODE_ENV === 'development') {
+          console.error("注册失败:", error.response?.status, error.response?.data?.error || error.message);
+        }
         const backendMsg = error.response?.data?.error;
         if (backendMsg) {
           this.errorMessage = backendMsg;

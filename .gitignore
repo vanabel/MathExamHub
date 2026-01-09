@@ -12,6 +12,10 @@ frontend/build/
 .env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env
+*.env
+!*.env.example
 
 # IDE
 .vscode/

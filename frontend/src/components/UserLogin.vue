@@ -199,7 +199,10 @@ export default {
           password: this.password,
         });
         
-        console.log("登录成功:", response.data);
+        // 安全提示：不在控制台记录包含用户信息的响应（生产环境）
+        if (process.env.NODE_ENV === 'development') {
+          console.log("登录成功");
+        }
         
         // 保存用户信息
         if (response.data.user) {
@@ -213,7 +216,10 @@ export default {
           this.$router.push({ name: "question-list" });
         }, 500);
       } catch (error) {
-        console.error("登录失败:", error);
+        // 安全提示：只记录错误信息，不记录完整错误对象（可能包含敏感信息）
+        if (process.env.NODE_ENV === 'development') {
+          console.error("登录失败:", error.response?.status, error.response?.data?.error || error.message);
+        }
         const backendMsg = error.response?.data?.error;
         if (backendMsg) {
           this.errorMessage = backendMsg;

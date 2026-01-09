@@ -29,7 +29,12 @@ router.post('/register', async (req, res) => {
 
 		res.status(201).json({ message: '注册成功' });
 	} catch (error) {
-		console.error('注册失败:', error);
+		// 安全提示：生产环境不记录详细错误信息
+		if (process.env.NODE_ENV === 'development') {
+			console.error('注册失败:', error);
+		} else {
+			console.error('注册失败');
+		}
 		res.status(500).json({ error: '注册失败' });
 	}
 });
@@ -99,7 +104,12 @@ router.post('/reset-password', async (req, res) => {
 
 		res.json({ message: '密码重置成功' });
 	} catch (error) {
-		console.error('密码重置失败:', error);
+		// 安全提示：生产环境不记录详细错误信息
+		if (process.env.NODE_ENV === 'development') {
+			console.error('密码重置失败:', error);
+		} else {
+			console.error('密码重置失败');
+		}
 		res.status(500).json({ error: '密码重置失败' });
 	}
 });
@@ -127,7 +137,12 @@ router.post('/reset-password-by-email', async (req, res) => {
 
 		res.json({ message: '密码重置成功' });
 	} catch (error) {
-		console.error('密码重置失败:', error);
+		// 安全提示：生产环境不记录详细错误信息
+		if (process.env.NODE_ENV === 'development') {
+			console.error('密码重置失败:', error);
+		} else {
+			console.error('密码重置失败');
+		}
 		res.status(500).json({ error: '密码重置失败' });
 	}
 });
