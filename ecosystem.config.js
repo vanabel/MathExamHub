@@ -1,11 +1,14 @@
 // PM2 会自动加载 backend/.env 文件（通过 dotenv）
 // 但也可以在这里显式指定环境变量，优先级高于 .env 文件
+const path = require("path");
+const logsDir = path.join(__dirname, "logs");
+
 module.exports = {
   apps: [
     {
       name: "mathexam-backend",
       script: "server.js",
-      cwd: "./backend",
+      cwd: path.join(__dirname, "backend"),
       instances: 1,
       exec_mode: "fork",
       watch: false,
@@ -17,8 +20,8 @@ module.exports = {
         // 参考 backend/.env.example 创建 backend/.env 文件
         // PM2 启动时会自动加载 backend/.env 文件（server.js 中使用 dotenv）
       },
-      error_file: "./logs/backend-error.log",
-      out_file: "./logs/backend-out.log",
+      error_file: path.join(logsDir, "backend-error.log"),
+      out_file: path.join(logsDir, "backend-out.log"),
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       merge_logs: true,
       autorestart: true,
@@ -28,17 +31,18 @@ module.exports = {
     },
     {
       name: "mathexam-frontend",
-      script: "/usr/local/bin/serve",
-      args: ["-s", "dist", "-l", "19896"],
-      cwd: "./frontend",
+      // 使用启动脚本，避免 PM2 传参问题
+      // 需先执行: npm install -g serve
+      script: path.join(__dirname, "start-frontend.sh"),
+      cwd: __dirname,
       instances: 1,
       exec_mode: "fork",
       watch: false,
       env: {
         NODE_ENV: "production"
       },
-      error_file: "./logs/frontend-error.log",
-      out_file: "./logs/frontend-out.log",
+      error_file: path.join(logsDir, "frontend-error.log"),
+      out_file: path.join(logsDir, "frontend-out.log"),
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       merge_logs: true,
       autorestart: true,
