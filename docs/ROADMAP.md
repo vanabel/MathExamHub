@@ -203,7 +203,7 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 - 扩展 `Question`：`knowledgePointIds: ObjectId[]`（指向 `KnowledgePoint`）、`contentHash`、`status`、`source`（导入文件名/试卷 ID）、`usageCount`、`originalLaTeX`。
 - `difficulty` 固定枚举：**`易` | `中` | `难`**（迁移映射：简单/易→易，中等/中→中，较难/难→难）。
 - 新增集合 **`KnowledgePoint`**（树：`parentId`、`name`、`path`、`subject`、`order`）；提供基础 CRUD / 按科目拉树 API（完整 UI 在 M4）。
-- Mongoose 索引：`subject + type`、`knowledgePointIds`、`contentHash`（唯一 sparse）、`questionText` text index（若不用 Atlas）。
+- Mongoose 索引：`bankId + subject + type`、`knowledgePointIds`、`bankId + contentHash`（唯一 sparse）、`questionText` text index（若不用 Atlas）。**`bankId` 在 M3 与题库模型一并引入**（见 §6.1.1）。
 - 迁移脚本 `backend/scripts/migrate-m2-schema.js` + `docs/MIGRATE_M2.md`。
 
 **验收标准**：
@@ -411,14 +411,33 @@ M11 可与 M4–M6 并行
 | 5 | LLM | 可用于打标/难度等，但必须 **可配置**（开关 + 提供商，由 Owner 控制） |
 | 6 |  Git 基线 | **`main`** 为后续合并与发布基线 |
 | 7 | feature 合入 | **按里程碑增量 port**，不做一次性 merge（§4.0） |
+| 8 | 题库归属 | **个人题库 + 协作题库**：默认私有；可创建共享题库，**所有者邀请成员**（角色见 §6.1.1） |
+
+### 6.1.1 题库 / 工作区（QuestionBank）与隔离
+
+不是「全站一份共享库」，也不是「每题仅属一个用户且不可共享」，而是 **题库（工作区）维度** 的数据边界：
+
+| 概念 | 说明 |
+|------|------|
+| **QuestionBank** | 题库容器：`name`、`ownerId`（创建者）、`kind: personal \| shared`；每人有一个 **`personal` 默认库**（注册时自动创建） |
+| **BankMember** | `bankId` + `userId` + `role`：`owner` \| `editor` \| `viewer` |
+| **Question / KnowledgePoint** | 必填 **`bankId`**；题目仍可有 `createdBy`（用户名快照）便于审计 |
+| **默认上下文** | API 通过请求头 **`X-Bank-Id`**（或 query `bankId`）选定当前题库；缺省时使用当前用户的 **个人默认库** |
+| **读写的成员校验** | 查询/导入/编辑前校验 `(userId, bankId)` 成员关系；`viewer` 只读，`editor`/`owner` 可写，`owner` 可邀人与管理成员 |
+| **协作** | 用户可创建 **`shared`** 题库并邀请他人，多人共建同一套题目与知识点树 |
+| **M3/M4 范围** | 实现 `QuestionBank` / 成员表、鉴权中间件、题目与知识点 **按 bankId 隔离**；邀请 UI/API 最小可用 |
+| **M11 范围** | 前端路由守卫、401 统一处理、密码 reset 收敛、admin 平台角色（若有）等 **加固** |
+
+**索引**：`contentHash` 在 **同一 bank 内唯一**（`{ bankId, contentHash }`）；知识点 `path` 在 **同一 bank + subject** 内唯一。
 
 ### 6.2 仍待 Owner 输入
 
-1. **多租户 vs 共享库**：不同教师是否隔离题库，还是单一机构共享？
-2. **组卷放宽顺序**：难度、知识点子树、分值等，默认放宽的 **优先级** 先后（实现 M7 前需定稿）。
-3. **软删除与审计**：删除题是否进回收站；组卷/导出是否记审计日志？
-4. **生产数据**：当前 MongoDB 题目规模、主要科目、`mathcuz` 旧库迁移是否已完成？
-5. **LLM 数据出站**：使用 SiliconFlow/OpenAI 时，题干是否允许出网；默认关还是开？
+1. **组卷放宽顺序**：难度、知识点子树、分值等，默认放宽的 **优先级** 先后（实现 M7 前需定稿）。
+2. **软删除与审计**：删除题是否进回收站；组卷/导出是否记审计日志？
+3. **生产数据**：当前 MongoDB 题目规模、主要科目、`mathcuz` 旧库迁移是否已完成？
+4. **LLM 数据出站**：使用 SiliconFlow/OpenAI 时，题干是否允许出网；默认关还是开？
+5. **无 bankId 遗留数据**：迁移时归入哪个题库（如按用户个人库）或标记为不可见？
+6. **协作邀请**：仅用户名邀请是否足够，还是需要邮箱/链接邀请（M4 后可迭代）？
 
 ---
 
@@ -435,3 +454,4 @@ MathExamHub 已具备 **可用的 mathexam 题库 CRUD、LaTeX 导入导出与�
 | 2026-10-13 | 初版：代码库审计 + 里程碑路线图 |
 | 2026-10-13 | 写入 Owner 六项决策；M4/M7/M8/M12 调整；基线改为 `main` |
 | 2026-10-13 | §4.0 增量 port 策略；各里程碑标注 feature 移植范围 |
+| 2026-10-13 | §6.1.1 个人+协作 QuestionBank 模型（非纯 ownerId / 非机构共享库） |
