@@ -144,19 +144,22 @@ router.get('/list', (req, res) => {
 // 搜索 学科+题目类型+题目关键词
 router.get('/search', async (req, res) => {
   try {
-    // Extract search parameters from the query string
     const { subject, questionType, questionText } = req.query;
 
-    // Preprocess the questionText before searching
-    const keywordsArray = questionText.split(/[,、;]/);
-    console.log(keywordsArray);
-
-    // Build a MongoDB query based on the provided parameters
     const query = {};
     if (subject) query.subject = subject;
     if (questionType) query.type = questionType;
-    if (keywordsArray.length > 0) {
-      query.questionText = { $all: keywordsArray.map(keyword => new RegExp(keyword.trim(), 'i')) };
+
+    if (questionText && String(questionText).trim()) {
+      const keywordsArray = String(questionText)
+        .split(/[,、;]/)
+        .map((keyword) => keyword.trim())
+        .filter(Boolean);
+      if (keywordsArray.length > 0) {
+        query.questionText = {
+          $all: keywordsArray.map((keyword) => new RegExp(keyword, 'i')),
+        };
+      }
     }
     //console.log(query);
     // Use the query to find matching questions

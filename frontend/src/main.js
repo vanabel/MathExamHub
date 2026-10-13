@@ -5,7 +5,10 @@ import App from "./App.vue";
 import VueMathjaxNext from "vue-mathjax-next";
 import axios from "axios"; // 导入 axios
 import router from "./router"; // 导入路由配置
-axios.defaults.baseURL = "http://localhost:3000"; // 替换为你的后端服务器地址
+const isProduction = process.env.NODE_ENV === 'production';
+axios.defaults.baseURL =
+  process.env.VUE_APP_API_BASE_URL ||
+  (isProduction ? '/api' : 'http://localhost:3000/api');
 axios.defaults.withCredentials = true; // 允许发送 cookies（用于 session）
 
 const app = createApp(App);

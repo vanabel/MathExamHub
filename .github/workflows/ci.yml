@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Smoke API health
+        env:
+          MONGODB_URI: mongodb://localhost:27017/mathexam_ci
+          SESSION_SECRET: ci-test-secret
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health >/dev/null; then
+              curl -sf http://localhost:3000/api/health | grep -q '"ok":true'
+              kill $SERVER_PID
+              wait $SERVER_PID 2>/dev/null || true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to become healthy"
+          kill $SERVER_PID 2>/dev/null || true
+          exit 1
