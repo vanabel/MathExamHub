@@ -19,23 +19,39 @@ router.post('/create-test-data', (req, res) => {
 
 // 创建试题
 router.post('/create', (req, res) => {
-  const { questionText, options, correctAnswer, totalScore, type, difficulty, createdBy, subject } = req.body;
+  const {
+    questionText,
+    options,
+    correctAnswer,
+    totalScore,
+    type,
+    difficulty,
+    createdBy,
+    subject,
+    originalLaTeX,
+    knowledgePointIds,
+    status,
+    source,
+  } = req.body;
 
   let additionalProperties = {};
   if (type === '单选题' || type === '多选题') {
     additionalProperties.options = options;
-    //additionalProperties.correctAnswer = correctAnswer;
-  } 
+  }
 
   const newQuestion = new Question({
     questionText,
     ...additionalProperties,
     correctAnswer,
     totalScore,
-    type, 
+    type,
     difficulty,
     createdBy,
     subject,
+    originalLaTeX,
+    knowledgePointIds,
+    status,
+    source,
   });
 
   newQuestion.save()
@@ -62,10 +78,21 @@ router.get('/:_id/get', async (req, res) => {
       return res.status(404).json({ error: '试题不存在' });
     }
 
-    res.status(200).json({ 
-      questionText: question.questionText, 
-      questionAnswer: question.correctAnswer, 
-    /* 其他试题信息字段 */ });
+    res.status(200).json({
+      questionText: question.questionText,
+      questionAnswer: question.correctAnswer,
+      type: question.type,
+      totalScore: question.totalScore,
+      difficulty: question.difficulty,
+      options: question.options || {},
+      subject: question.subject,
+      originalLaTeX: question.originalLaTeX,
+      knowledgePointIds: question.knowledgePointIds,
+      contentHash: question.contentHash,
+      status: question.status,
+      source: question.source,
+      usageCount: question.usageCount,
+    });
   } catch (error) {
     console.error('获取试题信息失败:', error);
     res.status(500).json({ error: '获取试题信息失败' });
@@ -73,44 +100,45 @@ router.get('/:_id/get', async (req, res) => {
 });
 
 // 编辑试题
-router.put('/:id/edit', (req, res) => {
-  const { questionText, options, correctAnswer, totalScore, difficulty } = req.body;
+router.put('/:id/edit', async (req, res) => {
+  try {
+    const {
+      questionText,
+      options,
+      correctAnswer,
+      totalScore,
+      difficulty,
+      type,
+      subject,
+      originalLaTeX,
+      knowledgePointIds,
+      status,
+      source,
+    } = req.body;
 
-  Question.findById(req.params.id, (err, question) => {
-    if (err) {
-      return res.status(500).json({ error: 'Server error' });
-    }
-
+    const question = await Question.findById(req.params.id);
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
 
-    // 仅在字段提供时才更新，避免把未提供的字段覆盖为 undefined
-    if (typeof questionText !== 'undefined') {
-      question.questionText = questionText;
-    }
-    if (typeof options !== 'undefined') {
-      question.options = options;
-    }
-    if (typeof correctAnswer !== 'undefined') {
-      question.correctAnswer = correctAnswer;
-    }
-    if (typeof totalScore !== 'undefined') {
-      question.totalScore = totalScore;
-    }
-    if (typeof difficulty !== 'undefined') {
-      question.difficulty = difficulty;
-    }
+    if (typeof questionText !== 'undefined') question.questionText = questionText;
+    if (typeof options !== 'undefined') question.options = options;
+    if (typeof correctAnswer !== 'undefined') question.correctAnswer = correctAnswer;
+    if (typeof totalScore !== 'undefined') question.totalScore = totalScore;
+    if (typeof difficulty !== 'undefined') question.difficulty = difficulty;
+    if (typeof type !== 'undefined') question.type = type;
+    if (typeof subject !== 'undefined') question.subject = subject;
+    if (typeof originalLaTeX !== 'undefined') question.originalLaTeX = originalLaTeX;
+    if (typeof knowledgePointIds !== 'undefined') question.knowledgePointIds = knowledgePointIds;
+    if (typeof status !== 'undefined') question.status = status;
+    if (typeof source !== 'undefined') question.source = source;
 
-    question
-      .save()
-      .then((updatedQuestion) => {
-        res.json(updatedQuestion);
-      })
-      .catch((error) => {
-        res.status(400).json({ error: 'Failed to edit question' });
-      });
-  });
+    const updatedQuestion = await question.save();
+    res.json(updatedQuestion);
+  } catch (error) {
+    console.error('编辑试题失败:', error);
+    res.status(400).json({ error: 'Failed to edit question', details: error.message });
+  }
 });
 
 // 删除试题
@@ -131,14 +159,20 @@ router.delete('/:id/delete', async (req, res) => {
 
 
 // 获取试题列表
-router.get('/list', (req, res) => {
-  Question.find()
-    .then(questions => {
-      res.json(questions);
-    })
-    .catch(error => {
-      res.status(500).json({error: 'Failed to retrieve questions'});
-    });
+router.get('/list', async (req, res) => {
+  try {
+    const { subject, questionType, knowledgePointId, status } = req.query;
+    const query = {};
+    if (subject) query.subject = subject;
+    if (questionType) query.type = questionType;
+    if (knowledgePointId) query.knowledgePointIds = knowledgePointId;
+    if (status) query.status = status;
+
+    const questions = await Question.find(query).sort({ createdAt: -1 });
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve questions' });
+  }
 });
 
 // 搜索 学科+题目类型+题目关键词

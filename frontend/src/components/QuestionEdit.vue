@@ -74,9 +74,9 @@
                   class="form-select"
                   required
                 >
-                  <option value="简单">简单</option>
-                  <option value="中等">中等</option>
-                  <option value="较难">较难</option>
+                  <option value="易">易</option>
+                  <option value="中">中</option>
+                  <option value="难">难</option>
                 </select>
               </div>
             </div>
