@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const knowledgePointSchema = new mongoose.Schema({
+  bankId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'QuestionBank',
+    required: true,
+    index: true,
+  },
   name: {
     type: String,
     required: true,
@@ -30,7 +36,7 @@ const knowledgePointSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-knowledgePointSchema.index({ subject: 1, parentId: 1, order: 1 });
-knowledgePointSchema.index({ subject: 1, path: 1 }, { unique: true });
+knowledgePointSchema.index({ bankId: 1, subject: 1, parentId: 1, order: 1 });
+knowledgePointSchema.index({ bankId: 1, subject: 1, path: 1 }, { unique: true });
 
 module.exports = mongoose.model('KnowledgePoint', knowledgePointSchema);

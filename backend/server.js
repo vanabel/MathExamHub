@@ -34,7 +34,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bank-Id'],
 }));
 
 app.use(express.json());
@@ -59,6 +59,8 @@ app.use(passport.session());
 const authRoutes = require('./routes/auth');
 const questionRoutes = require('./routes/questions');
 const knowledgePointRoutes = require('./routes/knowledgePoints');
+const bankRoutes = require('./routes/banks');
+const path = require('path');
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -71,6 +73,9 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/knowledge-points', knowledgePointRoutes);
+app.use('/api/banks', bankRoutes);
+
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.send('MathExamHub API. Use /api/health and /api/questions/*');

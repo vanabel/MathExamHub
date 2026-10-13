@@ -4,6 +4,8 @@ import QuestionEditView from "../views/QuestionEditView.vue";
 import QuestionAddView from "../views/QuestionAddView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import LoginView from "../views/LoginView.vue";
+import LatexImportView from "../views/LatexImportView.vue";
+import KnowledgePointView from "../views/KnowledgePointView.vue";
 
 const routes = [
   {
@@ -24,22 +26,48 @@ const routes = [
     path: "/question-list",
     name: "question-list",
     component: QuestionListView,
+    meta: { requiresAuth: true },
   },
   {
     path: "/question-add",
     name: "question-add",
     component: QuestionAddView,
+    meta: { requiresAuth: true },
   },
   {
     path: "/question-edit/:id",
     name: "question-edit",
     component: QuestionEditView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/latex-import",
+    name: "latex-import",
+    component: LatexImportView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/knowledge-points",
+    name: "knowledge-points",
+    component: KnowledgePointView,
+    meta: { requiresAuth: true },
   },
 ];
 
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
+});
+
+router.beforeEach((to, from, next) => {
+  const isAuthed = !!localStorage.getItem('currentUser');
+  if (to.meta.requiresAuth && !isAuthed) {
+    return next({ name: 'login', query: { redirect: to.fullPath } });
+  }
+  if ((to.name === 'login' || to.name === 'register') && isAuthed) {
+    return next({ name: 'question-list' });
+  }
+  next();
 });
 
 export default router;
