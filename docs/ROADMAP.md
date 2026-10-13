@@ -130,9 +130,30 @@ flowchart LR
 
 优先级：**P0** 阻塞生产与后续开发 → **P1** 题库治理 → **P2** 自动组卷 → **P3** 体验与扩展。
 
+### 4.0 与 `feature/latex-import-export` 的增量移植
+
+Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。每个 PR 只携带该里程碑所需的功能切片；未列出的 feature 分支能力留待后续里程碑。
+
+| 里程碑 | 从 feature 分支移植（或对齐）的主要内容 | 不在本里程碑 |
+|--------|----------------------------------------|--------------|
+| **M0** | `/api` 路由前缀、`nginx.conf` / Docker Compose、`frontend` 环境变量与 `DEV_API` 文档 | LaTeX 业务、去重 UI |
+| **M1** | `utils/latexParser.js`、`utils/duplicateDetector.js`、测试 fixture、GitHub Actions | 导入/导出路由 |
+| **M2** | `Question.originalLaTeX`、科目自由文本、`简答题` 题型；`contentHash` 与 `duplicateDetector.normalizeText` 联动 | 完整 LaTeX 导入/导出 API 与页面 |
+| **M3** | `routes/questions` 中 LaTeX 导入/预览、`multer`、`uploads` 静态服务、入库校验逻辑 | 知识点树 UI |
+| **M4** | `LatexImport` / `LatexExport` 前端页面与导航；知识点 **树形 UI**（feature 无树，本里程碑新建） | 组卷蓝图 |
+| **M5** | 列表/导入去重标记、`duplicates` / `cleanup` API；性能优化另 PR | — |
+| **M6** | 列表高级筛选、分页（对齐 feature `QuestionList` / export 筛选） | — |
+| **M7–M9** | `LatexGenerator` 导出增强、组卷 **新代码**（feature 无自动组卷） | — |
+| **M10** | 使用次数等 **新字段**；feature 无现成 UI | — |
+| **M11** | `SECURITY_*` 文档与 auth 加固；feature 部分修复需复核 | — |
+
+依赖建议：**M0 → M1 → M2 → …**；后一里程碑 PR 可 stack 在前一里程碑 PR 分支上直至合并。
+
 ---
 
 ### M0 · API 与开发环境一致性（P0）
+
+**feature 移植**：见 §4.0 表格 M0 行（**PR #2**）。
 
 **动机**：修复部署与本地联调路径/端口不一致，避免后续功能建立在错误基线上。
 
@@ -151,6 +172,8 @@ flowchart LR
 ---
 
 ### M1 · 测试基线与 CI（P0）
+
+**feature 移植**：见 §4.0 表格 M1 行（**PR #2**）。
 
 **动机**：`latexParser.js`、`duplicateDetector.js` 是核心资产，目前无回归保护。
 
@@ -171,15 +194,17 @@ flowchart LR
 
 ### M2 · 题目 schema 扩展与迁移（P1）
 
+**feature 移植**：见 §4.0 表格 M2 行（`originalLaTeX`、自由科目、`简答题`；**不含** LaTeX 导入路由）。
+
 **动机**：组卷与检索依赖稳定元数据。
 
 **工作要点**：
 
-- 扩展 `Question`：`knowledgePointIds: ObjectId[]`（指向树节点）、`contentHash`、`status`、`source`（导入文件名/试卷 ID）、`usageCount`。
-- `difficulty` 固定枚举：**`易` | `中` | `难`**（迁移映射：简单→易，中等→中，较难→难）。
-- 新增集合 `KnowledgeNode`（树：`parentId`、`name`、`path`、`subject` 等）。
-- Mongoose 索引：`subject + type`、`knowledgePointIds`、`contentHash`（唯一稀疏）、`questionText` text index（若不用 Atlas）。
-- 一次性 migration 脚本 + `docs/MIGRATE_DATABASE.md` 补充。
+- 扩展 `Question`：`knowledgePointIds: ObjectId[]`（指向 `KnowledgePoint`）、`contentHash`、`status`、`source`（导入文件名/试卷 ID）、`usageCount`、`originalLaTeX`。
+- `difficulty` 固定枚举：**`易` | `中` | `难`**（迁移映射：简单/易→易，中等/中→中，较难/难→难）。
+- 新增集合 **`KnowledgePoint`**（树：`parentId`、`name`、`path`、`subject`、`order`）；提供基础 CRUD / 按科目拉树 API（完整 UI 在 M4）。
+- Mongoose 索引：`subject + type`、`knowledgePointIds`、`contentHash`（唯一 sparse）、`questionText` text index（若不用 Atlas）。
+- 迁移脚本 `backend/scripts/migrate-m2-schema.js` + `docs/MIGRATE_M2.md`。
 
 **验收标准**：
 
@@ -190,6 +215,8 @@ flowchart LR
 ---
 
 ### M3 · 入库校验与错误报告（P1）
+
+**feature 移植**：LaTeX 导入/预览路由、`uploads`、`multer`（§4.0 M3 行）。
 
 **动机**：导入与手工录入失败时，需要可操作的错误信息。
 
@@ -208,9 +235,11 @@ flowchart LR
 
 ### M4 · 章节 / 知识点树管理（P1）
 
+**feature 移植**：LaTeX 导入/导出 **前端页面**；树 UI 新建（§4.0 M4 行）。
+
 **工作要点**：
 
-- CRUD API：`/api/knowledge-nodes`（树形：增删改、移动节点、按科目挂载）。
+- 在 M2 API 之上完善：`/api/knowledge-points` 移动节点、子树筛选题目。
 - 题目编辑：从树中多选知识点（叶节点或任意层级，规则在 API 文档写清）。
 - 列表筛选：按节点 **子树** 匹配（选中某章节则包含其下所有题目）。
 
@@ -381,6 +410,7 @@ M11 可与 M4–M6 并行
 | 4 | 交付物 | **LaTeX** + **应用内预览**；**不需要**服务端 PDF |
 | 5 | LLM | 可用于打标/难度等，但必须 **可配置**（开关 + 提供商，由 Owner 控制） |
 | 6 |  Git 基线 | **`main`** 为后续合并与发布基线 |
+| 7 | feature 合入 | **按里程碑增量 port**，不做一次性 merge（§4.0） |
 
 ### 6.2 仍待 Owner 输入
 
@@ -388,8 +418,7 @@ M11 可与 M4–M6 并行
 2. **组卷放宽顺序**：难度、知识点子树、分值等，默认放宽的 **优先级** 先后（实现 M7 前需定稿）。
 3. **软删除与审计**：删除题是否进回收站；组卷/导出是否记审计日志？
 4. **生产数据**：当前 MongoDB 题目规模、主要科目、`mathcuz` 旧库迁移是否已完成？
-5. **`feature/latex-import-export` 合入策略**：一次性 merge 还是按里程碑 cherry-pick 到 `main`？
-6. **LLM 数据出站**：使用 SiliconFlow/OpenAI 时，题干是否允许出网；默认关还是开？
+5. **LLM 数据出站**：使用 SiliconFlow/OpenAI 时，题干是否允许出网；默认关还是开？
 
 ---
 
@@ -405,3 +434,4 @@ MathExamHub 已具备 **可用的 mathexam 题库 CRUD、LaTeX 导入导出与�
 |------|------|
 | 2026-10-13 | 初版：代码库审计 + 里程碑路线图 |
 | 2026-10-13 | 写入 Owner 六项决策；M4/M7/M8/M12 调整；基线改为 `main` |
+| 2026-10-13 | §4.0 增量 port 策略；各里程碑标注 feature 移植范围 |
