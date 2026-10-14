@@ -6,6 +6,7 @@ const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const registerLatexImportRoutes = require('./latexImport');
+const registerLatexExportRoutes = require('./latexExport');
 const registerDuplicateReviewRoutes = require('./duplicateReview');
 const { findAllDuplicatesInBank, formatGroupsForApi } = require('../utils/duplicateDetector');
 
@@ -13,6 +14,7 @@ router.use(requireAuth);
 router.use(bankContext);
 
 registerLatexImportRoutes(router);
+registerLatexExportRoutes(router);
 registerDuplicateReviewRoutes(router);
 
 router.post('/create-test-data', requireBankWrite, (req, res) => {

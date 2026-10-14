@@ -231,13 +231,13 @@
                         </div>
 
                         <!-- 预览模式 -->
-                        <div v-if="previewMode" class="question-preview-content">
+                        <div v-if="previewMode" class="question-preview-content mathexam-preview">
                           <div 
                             v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
-                            class="question-text-content mb-2"
+                            class="question-text-content mb-2 mathexam-question-body"
                           ></div>
                           <!-- 选项（如果是选择题） -->
-                          <div v-if="question.options && Object.keys(question.options).length > 0" class="question-options mb-2">
+                          <div v-if="question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)" class="question-options mb-2">
                             <ol class="option-list mb-0 small">
                               <li v-for="(option, optIndex) in question.options" :key="optIndex" class="option-item">
                                 <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
@@ -468,6 +468,13 @@ export default {
       mathjaxOptions: mathjaxOptions,
     };
   },
+  updated() {
+    if (this.previewData && this.previewMode && !this.importResult) {
+      this.$nextTick(() => {
+        setTimeout(() => this.typesetPreview(), 80);
+      });
+    }
+  },
   computed: {
     previewQuestions() {
       // 防御性检查：确保 previewData.questions 是数组
@@ -478,6 +485,14 @@ export default {
     },
   },
   methods: {
+    typesetPreview() {
+      if (window.MathJax && window.MathJax.Hub) {
+        const previewRoot = this.$el.querySelector('.preview-area');
+        if (previewRoot) {
+          window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, previewRoot]);
+        }
+      }
+    },
     handleFileSelect(event) {
       const file = event.target.files[0];
       if (file) {
@@ -571,15 +586,7 @@ export default {
           };
         }
         this.previewData = data;
-        if (data.success) {
-          console.log("✓ 预览成功:", {
-            questionsCount: data.questions?.length || 0,
-            duplicateCount: data.duplicateCount || 0,
-            filePrefix: data.filePrefix
-          });
-        } else {
-          console.warn("⚠ 预览返回 success: false", data);
-        }
+        this.$nextTick(() => this.typesetPreview());
       } catch (error) {
         console.error("✗ 预览失败:", error);
         console.error("错误详情:", {
@@ -895,6 +902,49 @@ export default {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.mathexam-preview {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.mathexam-preview :deep(.mathexam-abcd) {
+  margin: 0.75rem 0 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.35rem 1rem;
+}
+
+.mathexam-preview :deep(.mathexam-abcd-item) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.mathexam-preview :deep(.mathexam-abcd-label) {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.mathexam-preview :deep(.mathexam-judgment) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  margin-left: 0.25rem;
+  font-weight: 700;
+}
+
+.mathexam-preview :deep(.score-fill) {
+  vertical-align: baseline;
+}
+
+.preview-area .question-text-content {
+  padding: 0.75rem 1rem;
+  background: #fafbff;
+  border-radius: 8px;
+  border: 1px solid #e8ecf4;
 }
 </style>
 

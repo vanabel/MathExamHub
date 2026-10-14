@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const latexExamMetadataSchema = require('../schemas/latexExamMetadataSchema');
 
 const questionBankSchema = new mongoose.Schema({
   name: {
@@ -19,6 +20,10 @@ const questionBankSchema = new mongoose.Schema({
   isPersonalDefault: {
     type: Boolean,
     default: false,
+  },
+  latexExamMetadata: {
+    type: latexExamMetadataSchema,
+    default: () => ({}),
   },
 }, {
   timestamps: true,

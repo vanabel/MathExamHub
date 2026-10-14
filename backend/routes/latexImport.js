@@ -8,6 +8,11 @@ const { computeContentHash } = require('../utils/contentHash');
 const { validateQuestionBatch } = require('../utils/questionValidator');
 const { normalizeDifficulty } = require('../constants/difficulty');
 const { requireBankWrite } = require('../middleware/bankContext');
+const QuestionBank = require('../models/QuestionBank');
+const {
+  fillBankLatexMetadata,
+  metadataForExportForm,
+} = require('../utils/latexExamMetadata');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -77,7 +82,13 @@ async function parseTexUpload(req) {
   const parser = new LatexParser();
   const questions = parser.parse(fileContent, { imageMap, filePrefix });
   fs.unlinkSync(texFile.path);
-  return { questions, filePrefix, imageMap, sourceFileName: texFile.originalname };
+  return {
+    questions,
+    filePrefix,
+    imageMap,
+    sourceFileName: texFile.originalname,
+    documentMetadata: parser.documentMetadata,
+  };
 }
 
 /**
@@ -90,8 +101,15 @@ function registerLatexImportRoutes(router) {
     upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
-        const { questions, filePrefix, imageMap, sourceFileName } = await parseTexUpload(req);
+        const {
+          questions,
+          filePrefix,
+          imageMap,
+          sourceFileName,
+          documentMetadata,
+        } = await parseTexUpload(req);
         const validation = validateQuestionBatch(questions);
+        const bank = await QuestionBank.findById(req.bankId).lean();
         const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
         let duplicateWarnings = [];
         if (req.body.checkDuplicates !== 'false' && validation.questions.length) {
@@ -116,6 +134,9 @@ function registerLatexImportRoutes(router) {
           summary: validation.summary,
           duplicates: duplicateWarnings,
           duplicateCount: duplicateWarnings.length,
+          parsedDocumentMetadata: documentMetadata,
+          bankLatexMetadata: bank?.latexExamMetadata || {},
+          exportDefaults: metadataForExportForm(bank, documentMetadata),
         });
       } catch (error) {
         const status = error.status || 500;
@@ -130,7 +151,7 @@ function registerLatexImportRoutes(router) {
     upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
-        const { questions, sourceFileName } = await parseTexUpload(req);
+        const { questions, sourceFileName, documentMetadata } = await parseTexUpload(req);
         const validation = validateQuestionBatch(questions);
         if (validation.summary.errorCount > 0) {
           return res.status(400).json({
@@ -151,6 +172,17 @@ function registerLatexImportRoutes(router) {
           duplicateThreshold,
           req.bankId,
         );
+
+        let bankMetadataUpdated = false;
+        if (req.body.applyBankMetadata !== 'false') {
+          const bank = await QuestionBank.findById(req.bankId);
+          if (bank) {
+            bankMetadataUpdated = fillBankLatexMetadata(bank, documentMetadata);
+            if (bankMetadataUpdated) {
+              await bank.save();
+            }
+          }
+        }
 
         for (const q of validation.questions) {
           const dupEntry = dupResult.duplicates.find((d) => d.question === q);
@@ -192,6 +224,7 @@ function registerLatexImportRoutes(router) {
           }
         }
 
+        const bank = await QuestionBank.findById(req.bankId).lean();
         res.json({
           success: true,
           imported: saved.length,
@@ -201,6 +234,8 @@ function registerLatexImportRoutes(router) {
           skippedItems: skipped,
           failures: failed,
           warnings: validation.warnings,
+          bankMetadataUpdated,
+          exportDefaults: metadataForExportForm(bank, documentMetadata),
         });
       } catch (error) {
         const status = error.status || 500;

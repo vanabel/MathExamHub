@@ -3,6 +3,12 @@
  * 用于解析 mathexam 格式的 LaTeX 文件，提取题目信息
  */
 
+const MATHEXAM_HEAD_MACROS = [
+  'university', 'school', 'course', 'AorB', 'semester', 'finalmiddle',
+  'totaltime', 'openclose', 'degree', 'totalstu', 'major', 'grade',
+  'examiner', 'director', 'dean',
+];
+
 class LatexParser {
   constructor() {
     this.questions = [];
@@ -11,6 +17,7 @@ class LatexParser {
     this.imageMap = {}; // 原始图片名 -> 新文件名的映射
     this.filePrefix = ''; // 文件前缀
     this.figureLabels = {}; // label -> 图片信息的映射
+    this.documentMetadata = null;
   }
 
   /**
@@ -79,6 +86,7 @@ class LatexParser {
     this.filePrefix = options.filePrefix || '';
     this.figureLabels = {}; // 清空之前的标签映射
     this.originalContent = null; // 保存原始内容（在处理之前）
+    this.documentMetadata = this.extractDocumentMetadata(latexContent);
 
     // 移除注释
     latexContent = this.removeComments(latexContent);
@@ -103,6 +111,89 @@ class LatexParser {
    */
   removeComments(content) {
     return content.replace(/%.*$/gm, '');
+  }
+
+  /**
+   * 从导言区提取 mathexam 文档元数据（宏包选项、试卷头字段等）
+   */
+  extractDocumentMetadata(content) {
+    const metadata = {
+      packageOptions: [],
+      head: {},
+      preambleLines: [],
+    };
+
+    const bodyStart = content.indexOf('\\begin{document}');
+    const preamble = bodyStart >= 0 ? content.substring(0, bodyStart) : content;
+
+    const usepackageMatch = preamble.match(/\\usepackage(\[[^\]]*\])?\{mathexam\}/);
+    if (usepackageMatch && usepackageMatch[1]) {
+      const inner = usepackageMatch[1].replace(/^\[|\]$/g, '');
+      metadata.packageOptions = inner
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    for (const field of MATHEXAM_HEAD_MACROS) {
+      const re = new RegExp(`\\\\${field}\\{([^}]*)\\}`);
+      const m = preamble.match(re);
+      if (m) {
+        metadata.head[field] = m[1].trim();
+      }
+    }
+
+    const preambleLineRegex = /^\\(DeclareMathOperator|newcommand|renewcommand|def)\b.*$/gm;
+    let lineMatch;
+    while ((lineMatch = preambleLineRegex.exec(preamble)) !== null) {
+      metadata.preambleLines.push(lineMatch[0].trim());
+    }
+
+    return metadata;
+  }
+
+  /**
+   * 查找 \command[opt]{...} 或 \command{...}，支持嵌套花括号
+   */
+  findBraceCommands(content, commandName) {
+    const prefix = `\\${commandName}`;
+    const results = [];
+    let index = 0;
+
+    while (index < content.length) {
+      const start = content.indexOf(prefix, index);
+      if (start === -1) break;
+
+      let pos = start + prefix.length;
+      while (pos < content.length && content[pos] === ' ') pos++;
+
+      if (content[pos] === '[') {
+        const bracketEnd = content.indexOf(']', pos);
+        if (bracketEnd === -1) break;
+        pos = bracketEnd + 1;
+        while (pos < content.length && content[pos] === ' ') pos++;
+      }
+
+      if (content[pos] !== '{') {
+        index = start + 1;
+        continue;
+      }
+
+      const inner = this.matchNestedBraces(content, pos);
+      if (inner === null) {
+        index = start + 1;
+        continue;
+      }
+
+      results.push({
+        index: start,
+        end: pos + inner.length + 2,
+        content: inner.trim(),
+      });
+      index = pos + inner.length + 2;
+    }
+
+    return results;
   }
 
   /**
@@ -770,6 +861,7 @@ class LatexParser {
         solution: '',
         subject: this.extractSubject(this.fullContent || content),
         originalLaTeX: originalProblemContent, // 保存原始的 LaTeX 代码（未处理的）
+        partType,
       };
 
       // 先解析解答（需要从完整内容中提取）
@@ -829,12 +921,20 @@ class LatexParser {
       this.parsePickoutAnswer(content, question);
     }
 
+    // 判断题：\true / \false
+    if (question.type === '判断题') {
+      this.parseTrueFalseAnswer(content, question);
+    }
+
     // 移除 solution 环境（使用非贪婪匹配处理嵌套）
     text = text.replace(/\\begin\{solution\}(?:\[[^\]]*\])?(?:\[[^\]]*\])?.*?\\end\{solution\}/gs, '');
     text = text.replace(/\\begin\{rmk\}.*?\\end\{rmk\}/gs, '');
 
     // 移除选择题选项
     text = text.replace(/\\begin\{abcd\}.*?\\end\{abcd\}/gs, '');
+
+    text = text.replace(/\\true\b/g, '');
+    text = text.replace(/\\false\b/g, '');
 
     // 移除答案标记，但保留占位符（支持嵌套花括号）
     // 使用循环来替换，以正确处理嵌套花括号
@@ -926,36 +1026,9 @@ class LatexParser {
    */
   parseFillInAnswers(content, question) {
     const answers = [];
-    let index = 0;
-
-    // 匹配 \fillin{...}
-    while (index < content.length) {
-      const fillinIndex = content.indexOf('\\fillin{', index);
-      if (fillinIndex === -1) break;
-
-      const braceStart = fillinIndex + 7; // '\\fillin'.length
-      const matched = this.matchNestedBraces(content, braceStart);
-      if (matched !== null) {
-        answers.push(matched.trim());
-        index = braceStart + matched.length + 2; // 跳过匹配的内容和两个花括号
-      } else {
-        index = fillinIndex + 1;
-      }
-    }
-
-    // 重置索引，匹配 \fillout{...}
-    index = 0;
-    while (index < content.length) {
-      const filloutIndex = content.indexOf('\\fillout{', index);
-      if (filloutIndex === -1) break;
-
-      const braceStart = filloutIndex + 8; // '\\fillout'.length
-      const matched = this.matchNestedBraces(content, braceStart);
-      if (matched !== null) {
-        answers.push(matched.trim());
-        index = braceStart + matched.length + 2;
-      } else {
-        index = filloutIndex + 1;
+    for (const cmd of ['fillin', 'fillout']) {
+      for (const hit of this.findBraceCommands(content, cmd)) {
+        answers.push(hit.content);
       }
     }
 
@@ -968,11 +1041,22 @@ class LatexParser {
    * 解析选择题答案
    */
   parsePickoutAnswer(content, question) {
-    const pickoutRegex = /\\pickout\{([^}]*)\}/;
-    const match = content.match(pickoutRegex);
+    const hits = this.findBraceCommands(content, 'pickout');
+    if (hits.length > 0) {
+      question.correctAnswer = hits[0].content;
+    }
+  }
 
-    if (match) {
-      question.correctAnswer = match[1].trim();
+  /**
+   * 解析判断题答案（mathexam \true / \false）
+   */
+  parseTrueFalseAnswer(content, question) {
+    if (/\\true\b/.test(content)) {
+      question.correctAnswer = '对';
+      return;
+    }
+    if (/\\false\b/.test(content)) {
+      question.correctAnswer = '错';
     }
   }
 
@@ -1087,7 +1171,18 @@ class LatexGenerator {
    * @returns {string} LaTeX 文件内容
    */
   generate(questions, metadata = {}) {
-    // 按题型分组（保持原始类型）
+    const mode = metadata.exportMode === 'answer' ? 'answer' : 'exam';
+    return this.generateDocument(questions, metadata, mode);
+  }
+
+  generateDocuments(questions, metadata = {}) {
+    return {
+      exam: this.generateDocument(questions, metadata, 'exam'),
+      answer: this.generateDocument(questions, metadata, 'answer'),
+    };
+  }
+
+  generateDocument(questions, metadata = {}, mode = 'exam') {
     const groupedByOriginalType = {};
     for (const q of questions) {
       if (!groupedByOriginalType[q.type]) {
@@ -1096,28 +1191,25 @@ class LatexGenerator {
       groupedByOriginalType[q.type].push(q);
     }
 
-    let latex = this.generateHeader(metadata);
+    let latex = this.generateHeader(metadata, mode);
     latex += '\n\\begin{document}\n';
     latex += '\\makehead\n';
 
-    // 按照指定顺序生成各个部分
     const typeOrder = this.getTypeOrder();
     const processedTypes = new Set();
 
-    // 先按指定顺序处理
     for (const type of typeOrder) {
       if (groupedByOriginalType[type] && groupedByOriginalType[type].length > 0) {
         const mappedType = this.mapQuestionTypeToPartType(type);
-        latex += this.generatePart(mappedType, groupedByOriginalType[type]);
+        latex += this.generatePart(mappedType, groupedByOriginalType[type], mode);
         processedTypes.add(type);
       }
     }
 
-    // 处理其他未在顺序中的类型（如果有）
     for (const [type, qs] of Object.entries(groupedByOriginalType)) {
       if (!processedTypes.has(type)) {
         const mappedType = this.mapQuestionTypeToPartType(type);
-        latex += this.generatePart(mappedType, qs);
+        latex += this.generatePart(mappedType, qs, mode);
       }
     }
 
@@ -1125,31 +1217,56 @@ class LatexGenerator {
     return latex;
   }
 
-  /**
-   * 生成文件头部
-   */
-  generateHeader(metadata) {
-    return `\\documentclass[]{article}
-\\usepackage[nospace]{mathexam}
+  buildPackageOptions(metadata, mode) {
+    const base = new Set(metadata.packageOptions || ['nospace']);
+    base.delete('showans');
+    if (mode === 'answer') {
+      base.add('showans');
+    }
+    if (metadata.a3paper) base.add('a3paper');
+    if (metadata.caogaozhi) base.add('caogaozhi');
+    return [...base];
+  }
+
+  generateHeader(metadata, mode = 'exam') {
+    const pkgOpts = this.buildPackageOptions(metadata, mode).join(',');
+    const head = metadata.head || {};
+    const pick = (key, fallback) => {
+      if (metadata[key] !== undefined && metadata[key] !== null && metadata[key] !== '') {
+        return metadata[key];
+      }
+      if (head[key] !== undefined && head[key] !== '') {
+        return head[key];
+      }
+      return fallback;
+    };
+
+    const preambleExtras = (metadata.preambleLines || []).join('\n');
+    const preambleBlock = preambleExtras ? `${preambleExtras}\n` : '';
+
+    return `% !TEX program = xelatex
+% 编译：将同目录下的 mathexam.sty 与本文一并交给 XeLaTeX
+\\documentclass{article}
+\\usepackage[${pkgOpts}]{mathexam}
 \\usepackage{hyperref}
 \\usepackage[nameinlink]{cleveref}
 \\crefname{figure}{图}{图}
 \\renewcommand{\\labelenumi}{\\alph{enumi})}
-
-\\university{${metadata.university || '西南大学'}}
-\\school{${metadata.school || '数学与统计学院'}}
-\\course{${metadata.course || '高等代数'}}
-\\AorB{${metadata.AorB || 'A'}}
-\\finalmiddle{${metadata.finalmiddle || '期末'}}
-\\totaltime{${metadata.totaltime || '120'}}
-\\openclose{${metadata.openclose || '闭卷'}}
-\\degree{${metadata.degree || '本科'}}
-\\totalstu{${metadata.totalstu || ''}}
-\\major{${metadata.major || '数学与应用数学'}}
-\\grade{${metadata.grade || '2017'}}
-\\examiner{${metadata.examiner || ''}}
-\\director{${metadata.director || ''}}
-\\dean{${metadata.dean || ''}}
+${preambleBlock}
+\\university{${pick('university', '西南大学')}}
+\\school{${pick('school', '数学与统计学院')}}
+\\course{${pick('course', '高等代数')}}
+\\AorB{${pick('AorB', 'A')}}
+\\finalmiddle{${pick('finalmiddle', '期末')}}
+\\totaltime{${pick('totaltime', '120')}}
+\\openclose{${pick('openclose', '闭卷')}}
+\\degree{${pick('degree', '本科')}}
+\\totalstu{${pick('totalstu', '')}}
+\\major{${pick('major', '数学与应用数学')}}
+\\grade{${pick('grade', '2017')}}
+\\examiner{${pick('examiner', '')}}
+\\director{${pick('director', '')}}
+\\dean{${pick('dean', '')}}
 `;
   }
 
@@ -1206,70 +1323,97 @@ class LatexGenerator {
   /**
    * 生成一个题型部分
    */
-  generatePart(type, questions) {
+  generatePart(type, questions, mode = 'exam') {
     const totalScore = questions.reduce((sum, q) => sum + (q.totalScore || 0), 0);
+    const perItemScore = this.inferPartPerScore(type, questions);
     const partInfo = `共${questions.length}题，共计${totalScore}分`;
+    const scoreSuffix = perItemScore > 0 ? `[${perItemScore}]` : '';
 
-    let latex = `\\begin{makepart}[${partInfo}]{${type}}\n`;
+    let latex = `\\begin{makepart}[${partInfo}]{${type}}${scoreSuffix}\n`;
 
     for (const q of questions) {
-      latex += this.generateProblem(q);
+      latex += this.generateProblem(q, mode);
     }
 
     latex += '\\end{makepart}\n';
     return latex;
   }
 
+  inferPartPerScore(type, questions) {
+    if (type === '填空题' || type === '判断题' || type === '选择题' || type === '单项选择题') {
+      const scores = questions.map((q) => q.totalScore || 0).filter((s) => s > 0);
+      if (scores.length === questions.length && new Set(scores).size === 1) {
+        return scores[0];
+      }
+    }
+    return 0;
+  }
+
   /**
    * 生成单个题目
    */
-  generateProblem(question) {
-    let latex = `  \\begin{problem}[${question.totalScore || 0}]\n`;
+  generateProblem(question, mode = 'exam') {
+    const scoreAttr = question.totalScore ? `[${question.totalScore}]` : '';
+    let latex = `  \\begin{problem}${scoreAttr}\n`;
 
-    // 如果有原始 LaTeX 代码，使用原始代码（应该已经是原始的 includegraphics，不需要转换）
-    // 否则使用处理后的文本，但需要将 <image> 和 <a> 标签转换回 LaTeX
+    const bodySource = question.originalLaTeX || question.questionText || '';
+    const hasAbcd = /\\begin\{abcd\}/.test(bodySource);
+    const hasPickout = /\\pickout\{/.test(bodySource);
+    const hasSolution = /\\begin\{solution\}/.test(bodySource);
+    const hasFill = /\\fill(in|out)\{/.test(bodySource);
+    const hasTrueFalse = /\\true\b/.test(bodySource) || /\\false\b/.test(bodySource);
+
     if (question.originalLaTeX) {
-      // originalLaTeX 应该已经是原始的 LaTeX 代码，直接使用
       latex += `    ${question.originalLaTeX}\n`;
     } else {
-      // 如果没有原始代码，使用处理后的文本，需要转换标签
       let text = question.questionText || '';
-      
-      // 将 <image> 标签转换回原始的 includegraphics
       text = this.convertImageTagsToLaTeX(text);
-      
-      // 将 <a> 标签转换回 \ref
       text = this.convertRefTagsToLaTeX(text);
-      
-      latex += `    ${this.escapeLatex(text)}\n`;
+      latex += `    ${text}\n`;
     }
 
-    // 生成选择题选项
-    if (question.type === '单选题' || question.type === '多选题') {
+    if ((question.type === '单选题' || question.type === '多选题') && !hasAbcd) {
       if (question.options && Object.keys(question.options).length > 0) {
         latex += '    \\begin{abcd}\n';
-        for (const [key, value] of Object.entries(question.options)) {
+        for (const [, value] of Object.entries(question.options)) {
           if (value) {
-            latex += `      \\item ${this.escapeLatex(value)}\n`;
+            latex += `      \\item ${value}\n`;
           }
         }
         latex += '    \\end{abcd}\n';
-        // 添加答案标记
-        if (question.correctAnswer) {
-          latex += `    \\pickout{${question.correctAnswer}}\n`;
-        }
+      }
+      if (question.correctAnswer && !hasPickout) {
+        latex += `    \\pickout{${question.correctAnswer}}\n`;
       }
     }
 
-    // 生成填空题答案标记
-    if (question.type === '填空题') {
-      // 在题目文本中应该已经有 \fillin{}，这里只需要在解答中显示答案
+    if (question.type === '填空题' && question.correctAnswer && !hasFill) {
+      const ans = Array.isArray(question.correctAnswer)
+        ? question.correctAnswer[0]
+        : question.correctAnswer;
+      latex += `    \\fillin{${ans}}\n`;
     }
 
-    // 生成解答
-    if (question.solution || question.correctAnswer) {
+    if (question.type === '判断题' && question.correctAnswer && !hasTrueFalse) {
+      const tf = String(question.correctAnswer).trim();
+      if (tf === '对' || /^t(rue)?$/i.test(tf) || tf === '√') {
+        latex += '    \\true\n';
+      } else {
+        latex += '    \\false\n';
+      }
+    }
+
+    const solutionBody = question.solution
+      || (mode === 'answer' && question.correctAnswer && !hasSolution
+        ? (Array.isArray(question.correctAnswer)
+          ? question.correctAnswer.join('\n')
+          : question.correctAnswer)
+        : '');
+
+    if (solutionBody && !hasSolution
+      && ['计算题', '解答题', '证明题', '简答题', '作图题'].includes(question.type)) {
       latex += '    \\begin{solution}\n';
-      latex += `      ${this.escapeLatex(question.solution || question.correctAnswer || '')}\n`;
+      latex += `      ${solutionBody}\n`;
       latex += '    \\end{solution}\n';
     }
 
@@ -1410,5 +1554,9 @@ class LatexGenerator {
   }
 }
 
-module.exports = { LatexParser, LatexGenerator };
+module.exports = {
+  LatexParser,
+  LatexGenerator,
+  MATHEXAM_HEAD_MACROS,
+};
 

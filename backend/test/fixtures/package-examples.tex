@@ -1,0 +1,39 @@
+% 摘自 mathexam.dtx 文档中的题型示例（v2.3.1）
+\documentclass{article}
+\usepackage[nospace]{mathexam}
+\course{高等代数}
+\university{西南大学}
+\school{数学与统计学院}
+\begin{document}
+\makehead
+\begin{makepart}{判断题}[2]
+\begin{problem}
+  假设直角三角形的两直角边边长分别为3和4, 则斜边长度为5. \true
+\end{problem}
+\end{makepart}
+\begin{makepart}{选择题}[2]
+\begin{problem}
+  假设直角三角形的两直角边边长分别为3和4, 则斜边长度为\pickout{C}
+\begin{abcd}
+ \item 7;
+ \item 6;
+ \item 5;
+ \item 4.
+\end{abcd}
+\end{problem}
+\end{makepart}
+\begin{makepart}{填空题}
+\begin{problem}[2]
+  假设直角三角形的两直角边边长分别为3和4, 则斜边长度为\fillin{5}.
+\end{problem}
+\end{makepart}
+\begin{makepart}{计算题}
+\begin{problem}[10]
+  假设直角三角形的两直角边边长分别为3和4, 则斜边长度为?
+\begin{solution}[10em]
+  根据勾股定理.\score{5}
+  因此斜边为$\sqrt{3^2+4^2}=5$.\score{5}
+\end{solution}
+\end{problem}
+\end{makepart}
+\end{document}

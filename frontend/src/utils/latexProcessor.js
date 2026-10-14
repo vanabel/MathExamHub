@@ -224,6 +224,37 @@ function processEnumerate(text) {
 }
 
 /**
+ * mathexam 判断题 / 选择题选项环境 → HTML（MathJax 无法直接渲染的部分）
+ */
+function processMathexamEnvironments(text) {
+  if (!text) return '';
+
+  let processed = text;
+  processed = processed.replace(/\\true\b/g, '<span class="mathexam-judgment mathexam-true" aria-label="正确">✓</span>');
+  processed = processed.replace(/\\false\b/g, '<span class="mathexam-judgment mathexam-false" aria-label="错误">✗</span>');
+
+  processed = processed.replace(/\\begin\{abcd\}(.*?)\\end\{abcd\}/gs, (match, content) => {
+    const itemRegex = /\\item\s+(.*?)(?=\\item|$)/gs;
+    const items = [];
+    let itemMatch;
+    while ((itemMatch = itemRegex.exec(content)) !== null) {
+      const body = itemMatch[1].trim();
+      if (body) items.push(body);
+    }
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const htmlItems = items
+      .map((item, index) => {
+        const label = labels[index] || String.fromCharCode(65 + index);
+        return `<div class="mathexam-abcd-item"><span class="mathexam-abcd-label">(${label})</span> <span class="mathexam-abcd-body">${item}</span></div>`;
+      })
+      .join('');
+    return `<div class="mathexam-abcd">${htmlItems}</div>`;
+  });
+
+  return processed;
+}
+
+/**
  * 处理题目文本为 HTML（包含 enumerate 列表）
  * @param {string} text - 原始文本
  * @param {string} originalLaTeX - 原始 LaTeX 代码（可选，用于提取 \score 等命令）
@@ -232,10 +263,6 @@ function processEnumerate(text) {
 export function processQuestionTextToHTML(text, originalLaTeX = null) {
   if (!text) return '';
 
-  // 调试：记录原始输入
-  console.log('[processQuestionTextToHTML] Input text:', text);
-  console.log('[processQuestionTextToHTML] Input originalLaTeX:', originalLaTeX);
-  
   // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）
   // 如果文本包含原始的 LaTeX 命令而不是 <image> 标签，需要先转换
   let processed = text;
@@ -245,7 +272,6 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
   // 如果 questionText 中没有 \score 命令，但 originalLaTeX 中有，从 originalLaTeX 中提取
   // 注意：匹配 score{（可能没有反斜杠）或 \score{ 或 \\score{
   const hasScoreInText = /(\\*)?score\{/.test(processed);
-  console.log('[processQuestionTextToHTML] hasScoreInText:', hasScoreInText, 'processed:', processed.substring(0, 200));
   if (originalLaTeX && !hasScoreInText && /(\\*)?score\{/.test(originalLaTeX)) {
     // 从 originalLaTeX 中提取所有 \score 命令（匹配 score{ 或 \score{ 或 \\score{）
     const originalScoreRegex = /(\\*)?score\{([^}]+)\}/g;
@@ -269,17 +295,6 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
   // 同时也匹配 \score{...} 或 \\score{...}（带反斜杠的情况）
   // 使用更灵活的正则表达式，匹配 "score{" 或 "\score{" 或 "\\score{"
   
-  // 调试：先检查文本中是否包含 score
-  const hasScoreKeyword = processed.includes('score');
-  if (hasScoreKeyword) {
-    console.log('[processQuestionTextToHTML] Text contains "score":', processed.substring(0, 200));
-    // 尝试不同的匹配方式
-    const testRegex1 = /\\score\{/;
-    const testRegex2 = /score\{/;
-    console.log('[processQuestionTextToHTML] Test regex1 (\\score{):', testRegex1.test(processed));
-    console.log('[processQuestionTextToHTML] Test regex2 (score{):', testRegex2.test(processed));
-  }
-  
   // 使用更直接的方法：先匹配所有可能的形式
   // 尝试匹配 \score{...} 或 score{...}
   let scoreRegex = /\\score\{([^}]+)\}/g;
@@ -288,7 +303,6 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
   scoreRegex.lastIndex = 0;
   
   while ((scoreMatch = scoreRegex.exec(processed)) !== null) {
-    console.log('[processQuestionTextToHTML] Found \\score match:', scoreMatch[0], 'at index:', scoreMatch.index);
     scoreMatches.push({
       match: scoreMatch[0],
       start: scoreMatch.index,
@@ -308,8 +322,6 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
       const closeTags = (beforeMatch.match(/<\/[^>]+>/g) || []).length;
       const inHtmlTag = openTags > closeTags;
       
-      console.log('[processQuestionTextToHTML] Found score{ match:', scoreMatch[0], 'at index:', scoreMatch.index, 'inHtmlTag:', inHtmlTag);
-      
       // 如果不在 HTML 标签内，则处理
       if (!inHtmlTag) {
         // 检查前面不是反斜杠（避免重复匹配）
@@ -328,16 +340,8 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
   // 从后往前替换，避免索引变化
   for (let i = scoreMatches.length - 1; i >= 0; i--) {
     const m = scoreMatches[i];
-    console.log('[processQuestionTextToHTML] Replacing score:', m.match, 'with HTML');
     const replacement = `<span class="score-fill" style="display: inline-block; width: 100%; white-space: nowrap;"><span class="score-dots" style="display: inline-block; width: calc(100% - 4em); overflow: hidden; vertical-align: bottom; border-bottom: 1px dotted #000; margin-right: 0.5em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal;">$$(${m.content}')$$</span></span>`;
     processed = processed.substring(0, m.start) + replacement + processed.substring(m.end);
-  }
-  
-  // 调试：如果找到了 score 命令，输出日志
-  if (scoreMatches.length > 0) {
-    console.log('[processQuestionTextToHTML] Found', scoreMatches.length, 'score commands and replaced them');
-  } else if (hasScoreKeyword) {
-    console.log('[processQuestionTextToHTML] WARNING: Text contains "score" but no matches found with regex');
   }
   
   // 处理 \begin{figure}...\end{figure} 环境
@@ -382,6 +386,14 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
     const displayText = numMatch ? numMatch[1] : labelPart;
     return `<a href="#fig:${labelPart}">${displayText}</a>`;
   });
+
+  processed = processMathexamEnvironments(processed);
+  if (originalLaTeX && !processed.includes('mathexam-abcd')) {
+    const abcdMatch = originalLaTeX.match(/\\begin\{abcd\}[\s\S]*?\\end\{abcd\}/);
+    if (abcdMatch) {
+      processed = `${processed}\n${processMathexamEnvironments(abcdMatch[0])}`;
+    }
+  }
 
   // 然后处理 enumerate 环境（转换为 HTML）
   processed = processEnumerate(processed);
@@ -1036,10 +1048,7 @@ export function processAnswerText(text) {
  */
 export function processAnswerTextToHTML(text) {
   if (!text) return '';
-  
-  // 调试：记录原始输入
-  console.log('[processAnswerTextToHTML] Input text:', text);
-  
+
   // 如果是数组，转换为字符串（用换行分隔）
   if (Array.isArray(text)) {
     text = text.join('\n');
@@ -1051,7 +1060,6 @@ export function processAnswerTextToHTML(text) {
   }
 
   let processed = text;
-  console.log('[processAnswerTextToHTML] Processed text after conversion:', processed.substring(0, 200));
 
   // 先处理 LaTeX 命令（类似 processAnswerText）
   // 处理 \pickout{A} -> A

@@ -7,8 +7,12 @@ export const mathjaxOptions = {
     inlineMath: [["$", "$"], ["\\(", "\\)"]],
     displayMath: [["$$", "$$"], ["\\[", "\\]"]],
     macros: {
-      fillin: ["\\underline{#1}", 1],
+      fillin: ["\\underline{\\phantom{|}#1\\phantom{|}}", 1],
       fillout: ["\\underline{#1}", 1],
+      pickout: ["\\text{(#1)}", 1],
+      score: ["\\cdots\\cdots(#1\\,\\text{分})", 1],
+      true: "\\checkmark",
+      false: "\\text{\\sffamily x}",
       bu: "\\mathbf{u}",
       bv: "\\mathbf{v}",
       bw: "\\mathbf{w}",

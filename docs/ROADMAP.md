@@ -465,3 +465,19 @@ MathExamHub 已具备 **可用的 mathexam 题库 CRUD、LaTeX 导入导出与�
 | 2026-10-13 | §6.1.1 个人+协作 QuestionBank 模型（非纯 ownerId / 非机构共享库） |
 | 2026-10-13 | M3 实现说明：题库成员鉴权 + 按 bank 隔离的校验与 LaTeX 导入 |
 | 2026-10-14 | M7 默认放宽顺序写入 `examRelaxation.js`（可调） |
+| 2026-10-14 | mathexam v2.3.1 导入/导出对齐；试卷头元数据默认存 `QuestionBank.latexExamMetadata`（蓝图/试卷可覆盖） |
+
+## 7. mathexam v2.3.1 与试卷头元数据（PR #8）
+
+- **Vendoring**：`TeX/mathexam.*` pin v2.3.1，见 [MATHEXAM_VENDOR.md](./MATHEXAM_VENDOR.md)。
+- **解析/生成**：`LatexParser` / `LatexGenerator` 覆盖 mathexam 主流题型命令；导出 ZIP 含 `mathexam.sty` 与可选答案卷。
+- **元数据存储**：`QuestionBank.latexExamMetadata` 为默认；`ExamBlueprint.latexExamMetadata` / `ExamPaper.latexExamMetadata` 为场次级覆盖；**不在 `Question` 上重复**。
+- **导入**：解析 `documentMetadata` 后仅填充题库空缺字段；预览返回 `exportDefaults` 供导出表单。
+- **导出**：优先级 **表单 > ExamPaper > ExamBlueprint > QuestionBank**（`resolveExportMetadata`）。
+- **迁移**：`backend/scripts/migrate-bank-latex-metadata.js`（幂等补全空对象）。
+
+### 后续可选（LaTeX）
+
+- 服务端 XeLaTeX PDF 预览（仍非近期目标）。
+- 答题卡 / `a3paper` / `caogaozhi` 导出 UI。
+- `makedata`、`\answertable` 等附录结构导入。

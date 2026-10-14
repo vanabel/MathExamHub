@@ -1,8 +1,14 @@
 const express = require('express');
 const requireAuth = require('../middleware/requireAuth');
 const bankService = require('../services/bankService');
-
+const QuestionBank = require('../models/QuestionBank');
 const router = express.Router();
+
+const METADATA_KEYS = [
+  'packageOptions', 'university', 'school', 'course', 'AorB', 'semester',
+  'finalmiddle', 'totaltime', 'openclose', 'degree', 'totalstu', 'major',
+  'grade', 'examiner', 'director', 'dean', 'preambleLines', 'exportMode',
+];
 
 router.use(requireAuth);
 
@@ -27,6 +33,53 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create bank' });
+  }
+});
+
+router.get('/:bankId/latex-metadata', async (req, res) => {
+  try {
+    await bankService.assertBankAccess(req.user._id, req.params.bankId, 'viewer');
+    const bank = await QuestionBank.findById(req.params.bankId)
+      .select('name latexExamMetadata')
+      .lean();
+    if (!bank) {
+      return res.status(404).json({ error: '题库不存在' });
+    }
+    res.json({
+      bankId: bank._id,
+      name: bank.name,
+      latexExamMetadata: bank.latexExamMetadata || {},
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '读取失败' });
+  }
+});
+
+router.patch('/:bankId/latex-metadata', async (req, res) => {
+  try {
+    await bankService.assertBankAccess(req.user._id, req.params.bankId, 'editor');
+    const bank = await QuestionBank.findById(req.params.bankId);
+    if (!bank) {
+      return res.status(404).json({ error: '题库不存在' });
+    }
+    if (!bank.latexExamMetadata) {
+      bank.latexExamMetadata = {};
+    }
+    for (const key of METADATA_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        bank.latexExamMetadata[key] = req.body[key];
+      }
+    }
+    bank.markModified('latexExamMetadata');
+    await bank.save();
+    res.json({
+      bankId: bank._id,
+      latexExamMetadata: bank.latexExamMetadata,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '更新失败' });
   }
 });
 
