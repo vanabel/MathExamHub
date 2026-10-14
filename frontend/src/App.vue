@@ -29,7 +29,18 @@
                 <i class="bi bi-plus-circle"></i> 添加题目
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'knowledge-points' }" to="/knowledge-points">
+                <i class="bi bi-diagram-3"></i> 知识点
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'latex-import' }" to="/latex-import">
+                <i class="bi bi-upload"></i> LaTeX 导入
+              </router-link>
+            </li>
           </ul>
+          <bank-selector v-if="showNavbar" class="me-3" @bank-changed="onBankChanged" />
           <ul class="navbar-nav">
             <li class="nav-item dropdown" :class="{ show: showUserMenu }">
               <a
@@ -69,9 +80,11 @@
 
 <script>
 import axios from 'axios';
+import BankSelector from './components/BankSelector.vue';
 
 export default {
   name: 'App',
+  components: { BankSelector },
   data() {
     return {
       currentUser: null,
@@ -120,6 +133,11 @@ export default {
       const dropdown = event.target.closest('.dropdown');
       if (!dropdown && this.showUserMenu) {
         this.showUserMenu = false;
+      }
+    },
+    onBankChanged() {
+      if (this.$route.name === 'question-list') {
+        this.$router.go(0);
       }
     },
     async logout() {

@@ -3,6 +3,7 @@ const passport = require('passport');
 const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const bankService = require('../services/bankService');
 
 // 用户注册路由
 router.post('/register', async (req, res) => {
@@ -26,6 +27,7 @@ router.post('/register', async (req, res) => {
 		});
 
 		await user.save();
+		await bankService.createPersonalBank(user);
 
 		res.status(201).json({ message: '注册成功' });
 	} catch (error) {
@@ -47,13 +49,18 @@ router.post('/login', (req, res, next) => {
 			return res.status(400).json({ error: info?.message || '用户名或密码错误' });
 		}
 
-		req.logIn(user, (loginErr) => {
+		req.logIn(user, async (loginErr) => {
 			if (loginErr) {
 				console.error('登录失败:', loginErr);
 				return next(loginErr);
 			}
 
-			// 不把密码等敏感字段返回给前端
+			try {
+				await bankService.createPersonalBank(user);
+			} catch (e) {
+				console.error('确保个人题库失败:', e);
+			}
+
 			const safeUser = {
 				id: user._id,
 				username: user.username,
@@ -67,6 +74,20 @@ router.post('/login', (req, res, next) => {
 });
 
 // 用户登出
+router.get('/me', (req, res) => {
+	if (!req.isAuthenticated || !req.isAuthenticated()) {
+		return res.status(401).json({ error: '未登录' });
+	}
+	res.json({
+		user: {
+			id: req.user._id,
+			username: req.user.username,
+			email: req.user.email,
+			role: req.user.role,
+		},
+	});
+});
+
 router.post('/logout', (req, res, next) => {
 	req.logout((err) => {
 		if (err) {
