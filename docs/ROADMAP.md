@@ -260,9 +260,10 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 **工作要点**：
 
 - 写入时计算 `contentHash`（基于 `normalizeText(originalLaTeX || questionText)`）。
-- hash 冲突直接标记；近似重复仍用相似度但 **分批/按 subject 分桶** 降低复杂度。
-- 前端：重复组视图 + 调用已有 `duplicates/cleanup`（含确认对话框、预览将删除的 ID）。
-- 导入流程：默认 `skipDuplicates=true` 可配置。
+- **同一 bank 内** hash 精确分组（Mongo aggregate）；近似重复按 **subject + 长度桶 + 文本前缀** 分桶后并查集，避免全库 O(n²)。
+- API：`GET/POST /api/questions/duplicates`（需登录与题库成员权限）；清理默认保留最早创建。
+- 前端：`/duplicates` 重复组视图 + dry-run 确认后 cleanup。
+- 导入流程：默认 `skipDuplicates=true`（`false` 显式关闭）；优先跳过 hash 完全命中。
 
 **验收标准**：
 

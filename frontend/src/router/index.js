@@ -6,6 +6,7 @@ import RegisterView from "../views/RegisterView.vue";
 import LoginView from "../views/LoginView.vue";
 import LatexImportView from "../views/LatexImportView.vue";
 import KnowledgePointView from "../views/KnowledgePointView.vue";
+import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 
 const routes = [
   {
@@ -50,6 +51,12 @@ const routes = [
     path: "/knowledge-points",
     name: "knowledge-points",
     component: KnowledgePointView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/duplicates",
+    name: "duplicates",
+    component: DuplicateReviewView,
     meta: { requiresAuth: true },
   },
 ];
