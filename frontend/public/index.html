@@ -8,8 +8,39 @@
     <title><%= htmlWebpackPlugin.options.title %></title>
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- MathJax -->
+    <!-- MathJax：配置必须写在脚本之前，否则自定义命令和 \( \) 不会生效 -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [['$','$'], ['\\(','\\)']],
+          displayMath: [['$$','$$'], ['\\[','\\]']],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        },
+        TeX: {
+          Macros: {
+            fillin: ['\\underline{#1}', 1],
+            fillout: ['\\underline{#1}', 1],
+            bu: '\\mathbf{u}',
+            bv: '\\mathbf{v}',
+            bw: '\\mathbf{w}',
+            bo: '\\mathbf{0}',
+            be: '\\mathbf{e}',
+            br: '\\mathbf{r}',
+            bt: '\\mathbf{t}',
+            bn: '\\mathbf{n}',
+            bb: '\\mathbf{b}',
+            I: '\\mathrm{I}',
+            II: '\\mathrm{I\\!I}',
+            emph: ['\\textit{#1}', 1]
+          }
+        },
+        showProcessingMessages: false,
+        messageStyle: 'none'
+      });
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   </head>
   <body>
     <noscript>

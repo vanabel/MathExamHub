@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const { DIFFICULTY_VALUES, normalizeDifficulty } = require('../constants/difficulty');
-const { computeContentHash } = require('../utils/contentHash');
 
 const questionSchema = new mongoose.Schema({
   questionText: {
@@ -83,6 +82,7 @@ questionSchema.index({ questionText: 'text' });
 
 questionSchema.pre('validate', function normalizeFields(next) {
   this.difficulty = normalizeDifficulty(this.difficulty, '中');
+  const { computeContentHash } = require('../utils/contentHash');
   const hash = computeContentHash(this);
   if (hash) {
     this.contentHash = hash;

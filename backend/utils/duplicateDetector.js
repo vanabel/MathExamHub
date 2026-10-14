@@ -3,7 +3,6 @@
  */
 
 const Question = require('../models/Question');
-const { computeContentHash } = require('./contentHash');
 
 function normalizeText(text) {
   if (!text) return '';
@@ -206,6 +205,8 @@ async function findDuplicates(question, threshold = 0.85, bankId = null) {
   }
 
   const duplicates = [];
+  // 延迟加载，避免 Question → contentHash → duplicateDetector 的循环依赖把函数解析成 undefined
+  const { computeContentHash } = require('./contentHash');
   const hash = computeContentHash(question);
   if (hash) {
     const exactQuery = {

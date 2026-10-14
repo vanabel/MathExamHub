@@ -71,19 +71,19 @@
                 <span class="badge bg-info ms-2">{{ question.totalScore }} 分</span>
               </div>
 
-              <!-- 题目内容 -->
+              <!-- 题目内容：先转成 HTML，再由 MathJax / PDF.js 排版 -->
               <div class="question-content mb-3">
-                <vue-mathjax
-                  :formula="question.questionText"
-                  :options="mathjaxOptions"
-                ></vue-mathjax>
+                <div
+                  class="question-text-content"
+                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
+                ></div>
               </div>
 
               <!-- 选项（如果是选择题） -->
               <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-3">
                 <ol class="option-list">
                   <li v-for="(option, index) in question.options" :key="index" class="option-item">
-                    <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
+                    <div v-html="processQuestionTextToHTML(option)"></div>
                   </li>
                 </ol>
               </div>
@@ -91,7 +91,7 @@
               <!-- 答案 -->
               <div class="question-answer">
                 <strong>答案：</strong>
-                <div ref="mathContainer" v-html="renderWithScoreAndMath(question.correctAnswer)"></div>
+                <div class="answer-text-content" v-html="renderAnswer(question.correctAnswer)"></div>
               </div>
 
               <!-- 操作按钮 -->
@@ -125,7 +125,7 @@
 
 <script>
 import axios from "axios";
-import VueMathjaxNext from "vue-mathjax-next";
+import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 
 export default {
   name: "QuestionList",
@@ -137,29 +137,65 @@ export default {
       searchQuery: "",
       knowledgePoints: [],
       kpFilter: "",
-      mathjaxOptions: {
-        tex: {
-          inlineMath: [["$", "$"]],
-          displayMath: [["$$", "$$"]],
-        },
-        CommonHTML: {
-          linebreaks: { automatic: true },
-        },
-        "HTML-CSS": {
-          styles: { ".MathJax_Display": { margin: 0 } },
-          linebreaks: { automatic: true },
-        },
-        SVG: {
-          linebreaks: { automatic: true },
-        },
-      },
     };
   },
   mounted() {
     this.loadKnowledgePoints();
     this.getQuestionList();
   },
+  updated() {
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.renderMathJax();
+        const rendering = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
+        if (!rendering) this.renderPDFs();
+      }, 80);
+    });
+  },
   methods: {
+    processQuestionTextToHTML,
+    processAnswerTextToHTML,
+    renderAnswer(content) {
+      return processAnswerTextToHTML(this.answerToText(content));
+    },
+    renderMathJax() {
+      if (window.MathJax && window.MathJax.Hub) {
+        window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, this.$el]);
+      }
+    },
+    renderPDFs() {
+      if (typeof window.pdfjsLib === "undefined") return;
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      this.$el.querySelectorAll(".pdf-container[data-pdf-url]").forEach((container) => {
+        const pdfUrl = container.getAttribute("data-pdf-url");
+        const canvas = container.querySelector(".pdf-canvas");
+        if (!canvas || !pdfUrl || canvas.dataset.rendered === "true" || canvas.dataset.rendering === "true") {
+          return;
+        }
+        canvas.dataset.rendering = "true";
+        window.pdfjsLib.getDocument(pdfUrl).promise
+          .then((pdf) => pdf.getPage(1))
+          .then((page) => {
+            const viewport = page.getViewport({ scale: 1.2 });
+            const maxWidth = container.clientWidth || 640;
+            const scale = Math.min(1.2, maxWidth / viewport.width);
+            const fitted = page.getViewport({ scale });
+            canvas.height = fitted.height;
+            canvas.width = fitted.width;
+            return page.render({ canvasContext: canvas.getContext("2d"), viewport: fitted }).promise;
+          })
+          .then(() => {
+            canvas.dataset.rendered = "true";
+            canvas.dataset.rendering = "false";
+          })
+          .catch((error) => {
+            canvas.dataset.rendering = "false";
+            if (error && error.name === "RenderingCancelledException") return;
+            console.error("PDF 加载错误:", error);
+          });
+      });
+    },
     async loadKnowledgePoints() {
       try {
         const { data } = await axios.get("/knowledge-points/tree");
@@ -201,12 +237,17 @@ export default {
         );
       });
     },
-    renderWithScoreAndMath(content) {
-      const replacedContent = content.replace(
-        /\\score{(\d+)}/g,
-        '<div>\n' + "-".repeat(150) + "（" + "$1'" + "）\n</div>"
-      );
-      return replacedContent;
+    answerToText(content) {
+      if (content == null) return "";
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) return content.map((part) => this.answerToText(part)).join("；");
+      if (typeof content === "object") {
+        return Object.keys(content)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((key) => this.answerToText(content[key]))
+          .join("；");
+      }
+      return String(content);
     },
     getDifficultyClass(difficulty) {
       const classes = {
@@ -235,9 +276,6 @@ export default {
       }
     },
   },
-  components: {
-    "vue-mathjax": VueMathjaxNext,
-  },
 };
 </script>
 
@@ -264,6 +302,21 @@ export default {
 
 .page-title i {
   font-size: 1.5rem;
+}
+
+.question-text-content,
+.answer-text-content,
+.option-item {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.question-text-content :deep(img),
+.answer-text-content :deep(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem auto;
 }
 
 .question-card {
