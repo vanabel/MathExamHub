@@ -746,6 +746,9 @@ export default {
       });
       return dup ? dup.duplicates : [];
     },
+    hasAbcdInOriginal(question) {
+      return question.originalLaTeX && question.originalLaTeX.includes('\\begin{abcd}');
+    },
     processQuestionTextToHTML(text, originalLaTeX) {
       return processQuestionTextToHTML(text, originalLaTeX);
     },
