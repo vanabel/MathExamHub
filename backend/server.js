@@ -58,6 +58,7 @@ app.use(passport.session());
 
 const authRoutes = require('./routes/auth');
 const questionRoutes = require('./routes/questions');
+const knowledgePointRoutes = require('./routes/knowledgePoints');
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -69,6 +70,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/knowledge-points', knowledgePointRoutes);
 
 app.get('/', (req, res) => {
   res.send('MathExamHub API. Use /api/health and /api/questions/*');
