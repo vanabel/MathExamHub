@@ -93,9 +93,9 @@
                       class="form-select"
                       required
                     >
-                      <option value="简单">简单</option>
-                      <option value="中等">中等</option>
-                      <option value="较难">较难</option>
+                      <option value="易">易</option>
+                      <option value="中">中</option>
+                      <option value="难">难</option>
                     </select>
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export default {
       questionText: "",
       questionAnswer: "",
       questionScore: 3,
-      questionDifficulty: "简单",
+      questionDifficulty: "中",
       createdBy: "夏云伟",
       subject: "微分几何",
       searchResults: [],
@@ -296,7 +296,7 @@ export default {
       this.options = { ...this.initialOptions };
       this.questionAnswer = "";
       this.questionScore = 3;
-      this.questionDifficulty = "简单";
+      this.questionDifficulty = "中";
       this.searchResults = [];
     },
     async performSearch() {

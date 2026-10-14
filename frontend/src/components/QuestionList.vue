@@ -188,6 +188,9 @@ export default {
     },
     getDifficultyClass(difficulty) {
       const classes = {
+        易: "bg-success",
+        中: "bg-warning",
+        难: "bg-danger",
         简单: "bg-success",
         中等: "bg-warning",
         较难: "bg-danger",
