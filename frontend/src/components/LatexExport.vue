@@ -576,7 +576,7 @@ export default {
   mounted() {
     this.loadSubjects();
     this.loadQuestions();
-    // 加载 MathJax 和 PDF.js
+    this.loadBankLatexMetadata();
     this.loadMathJax();
     this.loadPDFJS();
   },
@@ -694,6 +694,47 @@ export default {
             });
         }
       });
+    },
+    applyLatexMetadataDefaults(defaults) {
+      if (!defaults || typeof defaults !== 'object') return;
+      const map = {
+        university: 'university',
+        school: 'school',
+        course: 'course',
+        AorB: 'AorB',
+        finalmiddle: 'finalmiddle',
+        totaltime: 'totaltime',
+        openclose: 'openclose',
+        degree: 'degree',
+        major: 'major',
+        grade: 'grade',
+        examiner: 'examiner',
+        director: 'director',
+        dean: 'dean',
+        exportMode: 'exportMode',
+      };
+      Object.entries(map).forEach(([from, to]) => {
+        if (defaults[from]) {
+          this.metadata[to] = defaults[from];
+        }
+      });
+      if (defaults.packageOptions?.length) {
+        this.metadata.packageOptions = defaults.packageOptions;
+      }
+    },
+    async loadBankLatexMetadata() {
+      const bankId = localStorage.getItem('currentBankId');
+      if (!bankId) return;
+      try {
+        const { data } = await axios.get(`/banks/${bankId}/latex-metadata`);
+        this.applyLatexMetadataDefaults(data.latexExamMetadata);
+        const cached = sessionStorage.getItem('latexExportDefaults');
+        if (cached) {
+          this.applyLatexMetadataDefaults(JSON.parse(cached));
+        }
+      } catch (e) {
+        console.warn('加载题库试卷头失败', e);
+      }
     },
     async loadSubjects() {
       try {

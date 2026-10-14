@@ -132,9 +132,18 @@
 - `frontend/src/components/LatexImport.vue` - 导入组件
 - `frontend/src/components/LatexExport.vue` - 导出组件
 
+## 试卷头元数据（题库级）
+
+- 默认保存在当前 **QuestionBank** 的 `latexExamMetadata`（学校、学院、课程、时长、开闭卷等 + `packageOptions`）。
+- **ExamBlueprint** / **ExamPaper** 可存同结构字段，用于某次组卷/试卷的覆盖。
+- 导入时：解析导言区后 **仅填充题库中空缺的字段**；预览响应含 `exportDefaults` 供导出页预填。
+- 导出时：合并顺序为 **表单 > ExamPaper > ExamBlueprint > QuestionBank**。
+- 导航栏题库旁 **「试卷头」** 按钮可查看/编辑当前题库默认值。
+- 已有库运行一次：`node backend/scripts/migrate-bank-latex-metadata.js`。
+
 ## 注意事项
 
-1. 导入时，系统会自动从 `\course{}` 命令中提取科目信息
+1. 导入时，系统会自动从 `\course{}` 命令中提取科目信息，并写入题库默认（若为空）
 2. 如果题目中没有指定分值，默认值为 0
 3. 导出的文件可以直接使用 XeLaTeX 编译
 4. 上传的文件大小限制为 10MB

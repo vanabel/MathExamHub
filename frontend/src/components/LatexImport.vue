@@ -206,6 +206,10 @@
                   <div class="card-body">
                     <div class="alert alert-info mb-3">
                       <strong>共识别到 {{ previewQuestions.length }} 道题目</strong>
+                      <span v-if="previewData.exportDefaults?.course" class="ms-2 text-muted small">
+                        导出默认：{{ previewData.exportDefaults.course }}
+                        <span v-if="previewData.exportDefaults.university"> · {{ previewData.exportDefaults.university }}</span>
+                      </span>
                       <span v-if="previewData && previewData.duplicateCount > 0" class="ms-2">
                         （<span class="text-warning">检测到 {{ previewData.duplicateCount }} 道可能重复的题目</span>）
                       </span>
@@ -586,6 +590,9 @@ export default {
           };
         }
         this.previewData = data;
+        if (data.exportDefaults) {
+          sessionStorage.setItem('latexExportDefaults', JSON.stringify(data.exportDefaults));
+        }
         this.$nextTick(() => this.typesetPreview());
       } catch (error) {
         console.error("✗ 预览失败:", error);
