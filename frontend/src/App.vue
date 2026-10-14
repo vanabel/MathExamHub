@@ -44,6 +44,11 @@
                 <i class="bi bi-files"></i> 重复审查
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'recycle-bin' }" to="/recycle-bin">
+                <i class="bi bi-trash"></i> 回收站
+              </router-link>
+            </li>
           </ul>
           <bank-selector v-if="showNavbar" class="me-3" @bank-changed="onBankChanged" />
           <ul class="navbar-nav">

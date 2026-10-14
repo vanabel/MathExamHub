@@ -144,6 +144,7 @@ function registerLatexImportRoutes(router) {
         const saved = [];
         const skipped = [];
         const failed = [];
+        // 默认跳过重复；含回收站内软删除题（仍占 contentHash / 相似匹配）
         const skipDuplicates = req.body.skipDuplicates !== 'false';
         const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
         const dupResult = await detectDuplicatesInBatch(

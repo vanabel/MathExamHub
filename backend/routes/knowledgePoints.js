@@ -1,6 +1,7 @@
 const express = require('express');
 const KnowledgePoint = require('../models/KnowledgePoint');
 const Question = require('../models/Question');
+const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const { buildKnowledgePointPath } = require('../utils/knowledgePointPath');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const requireAuth = require('../middleware/requireAuth');
@@ -103,7 +104,10 @@ router.delete('/:id', requireBankWrite, async (req, res) => {
     if (childCount > 0) {
       return res.status(409).json({ error: '存在子节点，无法删除' });
     }
-    const used = await Question.countDocuments({ knowledgePointIds: id, bankId: req.bankId });
+    const used = await Question.countDocuments(activeQuestionFilter({
+      knowledgePointIds: id,
+      bankId: req.bankId,
+    }));
     if (used > 0) {
       return res.status(409).json({ error: '仍有题目引用该知识点' });
     }

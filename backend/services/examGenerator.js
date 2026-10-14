@@ -119,7 +119,7 @@ function tryGenerateOnce(workBlueprint, pool, kpExpansionMap, random) {
 
   let candidatePool = pool.filter((q) => {
     if (workBlueprint.subject && q.subject && q.subject !== workBlueprint.subject) return false;
-    if (q.status === 'archived') return false;
+    if (q.status === 'archived' || q.status === 'deleted') return false;
     return true;
   });
 
