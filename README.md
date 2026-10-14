@@ -51,9 +51,10 @@ An application for managing and generating math exam questions, with **Node + Ex
 
 - `server.js`：Express 入口
   - 配置 CORS、Session、Passport、中间件等。
-  - 挂载路由：
-    - `/auth` → `routes/auth.js`
-    - `/questions` → `routes/questions.js`
+  - 挂载路由（**统一 `/api` 前缀**）：
+    - `/api/auth` → `routes/auth.js`
+    - `/api/questions` → `routes/questions.js`
+    - `GET /api/health` → 健康检查
 - `config/database.js`：
   - 使用 `mongoose` 连接本地 MongoDB：`mongodb://localhost/mathexam`
 - `config/passport.js`：
@@ -61,27 +62,29 @@ An application for managing and generating math exam questions, with **Node + Ex
 - `models/User.js`：用户模型
 - `models/Question.js`：通用试题模型，包含题型、科目、题干、选项、答案、分值、难度等字段。
 - `routes/auth.js`：
-  - `POST /auth/register`：用户注册（包含密码哈希）。
-  - `POST /auth/login`：Passport Local 登录。
-  - `GET /auth/logout`：登出。
-- `routes/questions.js`：
-  - `POST /questions/create-test-data`
-  - `POST /questions/create`
-  - `GET /questions/:_id/get`
-  - `PUT /questions/:id/edit`（按提供字段更新试题，未提供的字段不会被覆盖为 `undefined`）
-  - `DELETE /questions/:id/delete`
-  - `GET /questions/list`
-  - `GET /questions/search`
-  - `POST /questions/extractKeywords`（调用 OpenAI API）。
+  - `POST /api/auth/register`：用户注册（包含密码哈希）。
+  - `POST /api/auth/login`：Passport Local 登录。
+  - `POST /api/auth/logout`：登出。
+- `routes/questions.js`（挂载在 `/api/questions`）：
+  - `POST /create-test-data`
+  - `POST /create`
+  - `GET /:_id/get`
+  - `PUT /:id/edit`（按提供字段更新试题，未提供的字段不会被覆盖为 `undefined`）
+  - `DELETE /:id/delete`
+  - `GET /list`
+  - `GET /search`
+  - `POST /extractKeywords`（调用 OpenAI API）。
 
-> 提示：要使 `/questions/extractKeywords` 正常工作，需要在运行环境设置 `OPENAI_API_KEY` 环境变量。
+> 提示：要使 `extractKeywords` 正常工作，需要在运行环境设置 `OPENAI_API_KEY`。联调细节见 [docs/DEV_API.md](./docs/DEV_API.md)。
+
+> **路线图**：产品演进见 [docs/ROADMAP.md](./docs/ROADMAP.md)（若该文件尚未合并到 `main`，见对应 PR）。
 
 ### 前端结构 (`frontend/`)
 
 - `src/main.js`：
   - 引入 `bootstrap` 样式。
   - 创建 Vue 应用，挂载 `router`。
-  - 使用 `axios` 配置 `baseURL = http://localhost:3000` 与后端通信。
+  - 使用 `axios`，基址为 `VUE_APP_API_BASE_URL`（开发默认 `http://localhost:3000/api`）。
   - 使用 `app.use(VueMathjaxNext)` 注册 `vue-mathjax-next`。
 - `src/App.vue`：
   - 简单的壳组件，包含 `<router-view>`。

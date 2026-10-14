@@ -8,7 +8,7 @@
     "start:frontend": "cd frontend && npm run serve",
     "start:electron": "nodemon electron/main.js",
     "start:dev": "npm-run-all --parallel start:backend start:frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm --prefix backend test"
   },
   "keywords": [],
   "author": "",
