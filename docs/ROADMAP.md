@@ -298,7 +298,7 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
   "subject": "解析几何",
   "totalScore": 100,
   "sections": [
-    { "type": "填空题", "count": 5, "scoreEach": 4, "difficulty": { "简单": 2, "中等": 2, "较难": 1 } },
+    { "type": "填空题", "count": 5, "scoreEach": 4, "difficultyMix": { "易": 2, "中": 2, "难": 1 } },
     { "type": "解答题", "count": 3, "scoreTotal": 40, "knowledgePointIds": ["..."], "excludeQuestionIds": [] }
   ],
   "randomSeed": 42,
@@ -306,11 +306,16 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 }
 ```
 
-- 实现 **约束满足抽题器**（先贪心 + 回溯）。
-- **约束冲突时允许自动放宽**（Owner 已确认）：按 documented 顺序逐步放宽（如难度分布 → 知识点范围 → 单题分值），并在响应中返回 `relaxations[]`（放宽了哪条约束、原值/实际值）。
-- 仍不足题时返回明确 shortfall 报告。
-- `POST /api/exams/generate` → `{ paperId, questionIds, stats, warnings }`。
-- 持久化 `ExamPaper`；同一 `randomSeed` 可复现（验收必测）。
+- 实现 **约束满足抽题器**（贪心 + 可复现 `randomSeed`）。
+- **约束冲突时允许自动放宽**（Owner 已确认），默认顺序（见 `backend/constants/examRelaxation.js`，**可调整**）：
+  1. **难度分布**（section 的 `difficultyMix` → 该 section 不限制单槽难度）
+  2. **知识点范围**（指定节点 → 含子树 → 取消知识点限制）
+  3. **单题分值**（`scoreEach` 容差 15% → 35%）
+  4. **section 题量**（每次减 1 题）
+  5. **总分目标**（标记未达成，不阻断出卷）
+- 响应含 `relaxations[]`（step、sectionIndex、before/after）；仍不足题时 `shortfalls[]` + `warnings`。
+- `POST /api/exams/generate` → `{ paperId, questionIds, questions[], stats, relaxations, warnings }`；持久化 `ExamPaper`。
+- 组卷成功时 **`usageCount`** 对入选题目 +1。
 
 **验收标准**：
 
@@ -458,3 +463,4 @@ MathExamHub 已具备 **可用的 mathexam 题库 CRUD、LaTeX 导入导出与�
 | 2026-10-13 | §4.0 增量 port 策略；各里程碑标注 feature 移植范围 |
 | 2026-10-13 | §6.1.1 个人+协作 QuestionBank 模型（非纯 ownerId / 非机构共享库） |
 | 2026-10-13 | M3 实现说明：题库成员鉴权 + 按 bank 隔离的校验与 LaTeX 导入 |
+| 2026-10-14 | M7 默认放宽顺序写入 `examRelaxation.js`（可调） |

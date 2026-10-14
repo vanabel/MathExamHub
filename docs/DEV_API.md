@@ -6,6 +6,8 @@
 - 认证：`/api/auth/*`
 - 题目：`/api/questions/*`
 - 知识点树：`/api/knowledge-points/*`（M2）
+- 组卷蓝图：`/api/exam-blueprints/*`（M7，需登录 + `X-Bank-Id`）
+- 组卷生成：`POST /api/exams/generate`（body：`blueprintId` 或内联 `blueprint`）
 - 健康检查：`GET /api/health`
 
 前端通过 `VUE_APP_API_BASE_URL` 配置基址：
