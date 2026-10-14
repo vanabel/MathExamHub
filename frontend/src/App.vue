@@ -39,6 +39,11 @@
                 <i class="bi bi-upload"></i> LaTeX 导入
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'duplicates' }" to="/duplicates">
+                <i class="bi bi-files"></i> 重复审查
+              </router-link>
+            </li>
           </ul>
           <bank-selector v-if="showNavbar" class="me-3" @bank-changed="onBankChanged" />
           <ul class="navbar-nav">

@@ -6,11 +6,14 @@ const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const registerLatexImportRoutes = require('./latexImport');
+const registerDuplicateReviewRoutes = require('./duplicateReview');
+const { findAllDuplicatesInBank, formatGroupsForApi } = require('../utils/duplicateDetector');
 
 router.use(requireAuth);
 router.use(bankContext);
 
 registerLatexImportRoutes(router);
+registerDuplicateReviewRoutes(router);
 
 router.post('/create-test-data', requireBankWrite, (req, res) => {
   const testData = req.body.map((row) => ({ ...row, bankId: req.bankId }));
@@ -119,7 +122,7 @@ router.delete('/:id/delete', requireBankWrite, async (req, res) => {
 
 router.get('/list', async (req, res) => {
   try {
-    const { subject, questionType, knowledgePointId, status, subtree } = req.query;
+    const { subject, questionType, knowledgePointId, status, subtree, checkDuplicates } = req.query;
     const query = { bankId: req.bankId };
     if (subject) query.subject = subject;
     if (questionType) query.type = questionType;
@@ -135,6 +138,33 @@ router.get('/list', async (req, res) => {
     }
 
     const questions = await Question.find(query).sort({ createdAt: -1 });
+
+    if (checkDuplicates === 'true') {
+      const threshold = parseFloat(req.query.duplicateThreshold) || 0.85;
+      const { duplicateGroups } = await findAllDuplicatesInBank(req.bankId, threshold);
+      const idToGroup = new Map();
+      duplicateGroups.forEach((group, index) => {
+        group.questions.forEach((q) => {
+          idToGroup.set(String(q._id), { groupId: index, matchKind: group.matchKind });
+        });
+      });
+
+      const questionsWithDuplicates = questions.map((q) => {
+        const meta = idToGroup.get(String(q._id));
+        return {
+          ...q.toObject(),
+          isDuplicate: !!meta,
+          duplicateGroupId: meta?.groupId ?? null,
+          duplicateMatchKind: meta?.matchKind ?? null,
+        };
+      });
+
+      return res.json({
+        questions: questionsWithDuplicates,
+        duplicateGroups: formatGroupsForApi(duplicateGroups),
+      });
+    }
+
     res.json(questions);
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve questions' });

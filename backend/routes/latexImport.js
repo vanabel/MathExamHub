@@ -4,6 +4,7 @@ const path = require('path');
 const { LatexParser } = require('../utils/latexParser');
 const Question = require('../models/Question');
 const { detectDuplicatesInBatch } = require('../utils/duplicateDetector');
+const { computeContentHash } = require('../utils/contentHash');
 const { validateQuestionBatch } = require('../utils/questionValidator');
 const { normalizeDifficulty } = require('../constants/difficulty');
 const { requireBankWrite } = require('../middleware/bankContext');
@@ -143,7 +144,7 @@ function registerLatexImportRoutes(router) {
         const saved = [];
         const skipped = [];
         const failed = [];
-        const skipDuplicates = req.body.skipDuplicates === 'true';
+        const skipDuplicates = req.body.skipDuplicates !== 'false';
         const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
         const dupResult = await detectDuplicatesInBatch(
           validation.questions,
@@ -153,8 +154,21 @@ function registerLatexImportRoutes(router) {
 
         for (const q of validation.questions) {
           const dupEntry = dupResult.duplicates.find((d) => d.question === q);
-          if (skipDuplicates && dupEntry?.duplicates?.length) {
-            skipped.push({ question: q, reason: 'duplicate' });
+          const hash = computeContentHash(q);
+          let skipReason = null;
+          if (skipDuplicates && hash) {
+            const existing = await Question.findOne({ bankId: req.bankId, contentHash: hash })
+              .select('_id')
+              .lean();
+            if (existing) skipReason = 'exact_hash';
+          }
+          if (!skipReason && skipDuplicates && dupEntry?.duplicates?.length) {
+            skipReason = dupEntry.duplicates[0].matchType === 'exact_hash'
+              ? 'exact_hash'
+              : 'similar';
+          }
+          if (skipReason) {
+            skipped.push({ question: q, reason: skipReason });
             continue;
           }
           try {
