@@ -7,6 +7,7 @@ import LoginView from "../views/LoginView.vue";
 import LatexImportView from "../views/LatexImportView.vue";
 import KnowledgePointView from "../views/KnowledgePointView.vue";
 import DuplicateReviewView from "../views/DuplicateReviewView.vue";
+import RecycleBinView from "../views/RecycleBinView.vue";
 
 const routes = [
   {
@@ -57,6 +58,12 @@ const routes = [
     path: "/duplicates",
     name: "duplicates",
     component: DuplicateReviewView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/recycle-bin",
+    name: "recycle-bin",
+    component: RecycleBinView,
     meta: { requiresAuth: true },
   },
 ];

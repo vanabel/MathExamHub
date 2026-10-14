@@ -1,6 +1,6 @@
 const express = require('express');
-const Question = require('../models/Question');
 const { requireBankWrite } = require('../middleware/bankContext');
+const { softDeleteQuestion } = require('../services/questionLifecycle');
 const {
   findAllDuplicatesInBank,
   formatGroupsForApi,
@@ -39,7 +39,7 @@ function registerDuplicateReviewRoutes(router) {
       const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
 
       const { duplicateGroups } = await findAllDuplicatesInBank(req.bankId, threshold);
-      const deletedIds = [];
+      const recycledIds = [];
       const kept = [];
 
       for (const group of duplicateGroups) {
@@ -57,13 +57,14 @@ function registerDuplicateReviewRoutes(router) {
 
         for (const question of toDelete) {
           if (dryRun) {
-            deletedIds.push(question._id);
+            recycledIds.push(question._id);
           } else {
-            const removed = await Question.findOneAndDelete({
-              _id: question._id,
-              bankId: req.bankId,
-            });
-            if (removed) deletedIds.push(removed._id);
+            const removed = await softDeleteQuestion(
+              question._id,
+              req.bankId,
+              req.user.username,
+            );
+            if (removed) recycledIds.push(removed._id);
           }
         }
       }
@@ -71,8 +72,11 @@ function registerDuplicateReviewRoutes(router) {
       res.json({
         success: true,
         dryRun,
-        deletedCount: deletedIds.length,
-        deletedIds,
+        softDeleted: true,
+        recycledCount: recycledIds.length,
+        recycledIds,
+        deletedCount: recycledIds.length,
+        deletedIds: recycledIds,
         keptIds: kept,
       });
     } catch (error) {

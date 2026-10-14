@@ -7,13 +7,17 @@ const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const registerLatexImportRoutes = require('./latexImport');
 const registerDuplicateReviewRoutes = require('./duplicateReview');
+const registerRecycleBinRoutes = require('./recycleBin');
 const { findAllDuplicatesInBank, formatGroupsForApi } = require('../utils/duplicateDetector');
+const { activeQuestionFilter, QUESTION_STATUS } = require('../constants/questionLifecycle');
+const { softDeleteQuestion } = require('../services/questionLifecycle');
 
 router.use(requireAuth);
 router.use(bankContext);
 
 registerLatexImportRoutes(router);
 registerDuplicateReviewRoutes(router);
+registerRecycleBinRoutes(router);
 
 router.post('/create-test-data', requireBankWrite, (req, res) => {
   const testData = req.body.map((row) => ({ ...row, bankId: req.bankId }));
@@ -56,7 +60,10 @@ router.post('/create', requireBankWrite, (req, res) => {
 
 router.get('/:_id/get', async (req, res) => {
   try {
-    const question = await Question.findOne({ _id: req.params._id, bankId: req.bankId });
+    const question = await Question.findOne(activeQuestionFilter({
+      _id: req.params._id,
+      bankId: req.bankId,
+    }));
     if (!question) {
       return res.status(404).json({ error: '试题不存在' });
     }
@@ -84,7 +91,10 @@ router.get('/:_id/get', async (req, res) => {
 
 router.put('/:id/edit', requireBankWrite, async (req, res) => {
   try {
-    const question = await Question.findOne({ _id: req.params.id, bankId: req.bankId });
+    const question = await Question.findOne(activeQuestionFilter({
+      _id: req.params.id,
+      bankId: req.bankId,
+    }));
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
@@ -109,11 +119,11 @@ router.put('/:id/edit', requireBankWrite, async (req, res) => {
 
 router.delete('/:id/delete', requireBankWrite, async (req, res) => {
   try {
-    const question = await Question.findOneAndDelete({ _id: req.params.id, bankId: req.bankId });
+    const question = await softDeleteQuestion(req.params.id, req.bankId, req.user.username);
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
-    res.json({ message: 'Question deleted successfully' });
+    res.json({ message: 'Question moved to recycle bin', questionId: question._id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -123,10 +133,15 @@ router.delete('/:id/delete', requireBankWrite, async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     const { subject, questionType, knowledgePointId, status, subtree, checkDuplicates } = req.query;
-    const query = { bankId: req.bankId };
+    const query = activeQuestionFilter({ bankId: req.bankId });
     if (subject) query.subject = subject;
     if (questionType) query.type = questionType;
-    if (status) query.status = status;
+    if (status) {
+      if (status === QUESTION_STATUS.DELETED) {
+        return res.status(400).json({ error: '请使用 GET /questions/recycle-bin 查看回收站' });
+      }
+      query.status = status;
+    }
 
     if (knowledgePointId) {
       if (subtree === 'true') {
@@ -174,7 +189,7 @@ router.get('/list', async (req, res) => {
 router.get('/search', async (req, res) => {
   try {
     const { subject, questionType, questionText } = req.query;
-    const query = { bankId: req.bankId };
+    const query = activeQuestionFilter({ bankId: req.bankId });
     if (subject) query.subject = subject;
     if (questionType) query.type = questionType;
 

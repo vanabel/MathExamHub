@@ -7,6 +7,7 @@ const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 const { generateExamPaper } = require('../services/examGenerator');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
+const { examPoolFilter } = require('../constants/questionLifecycle');
 
 const router = express.Router();
 
@@ -44,10 +45,7 @@ router.post('/generate', requireBankWrite, async (req, res) => {
       return res.status(400).json({ error: '需要提供 blueprint 或 blueprintId' });
     }
 
-    const pool = await Question.find({
-      bankId: req.bankId,
-      status: { $ne: 'archived' },
-    }).lean();
+    const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
 
     const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
     const result = generateExamPaper(blueprint, pool, kpExpansionMap);

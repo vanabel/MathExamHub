@@ -57,9 +57,11 @@ const questionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'published', 'archived'],
+    enum: ['draft', 'published', 'archived', 'deleted'],
     default: 'published',
   },
+  deletedAt: { type: Date },
+  deletedBy: { type: String },
   source: {
     kind: { type: String },
     fileName: { type: String },
@@ -75,6 +77,7 @@ const questionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+questionSchema.index({ bankId: 1, status: 1, deletedAt: -1 });
 questionSchema.index({ bankId: 1, subject: 1, type: 1 });
 questionSchema.index({ bankId: 1, knowledgePointIds: 1 });
 questionSchema.index({ bankId: 1, contentHash: 1 }, { unique: true, sparse: true });

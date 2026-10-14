@@ -3,6 +3,7 @@
  */
 
 const Question = require('../models/Question');
+const { activeQuestionFilter } = require('../constants/questionLifecycle');
 
 function normalizeText(text) {
   if (!text) return '';
@@ -89,7 +90,13 @@ function unionFind(size) {
  */
 async function findExactDuplicateGroups(bankId) {
   const rows = await Question.aggregate([
-    { $match: { bankId, contentHash: { $nin: [null, ''] } } },
+    {
+      $match: {
+        bankId,
+        contentHash: { $nin: [null, ''] },
+        status: { $ne: 'deleted' },
+      },
+    },
     {
       $group: {
         _id: '$contentHash',
@@ -121,7 +128,7 @@ async function findExactDuplicateGroups(bankId) {
  * @param {Set<string>} excludeIds 已归入 exact 组的题目 id
  */
 async function findNearDuplicateGroups(bankId, threshold = 0.85, excludeIds = new Set()) {
-  const allQuestions = await Question.find({ bankId })
+  const allQuestions = await Question.find(activeQuestionFilter({ bankId }))
     .select('_id questionText type subject originalLaTeX createdAt contentHash')
     .lean();
 

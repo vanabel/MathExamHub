@@ -21,7 +21,7 @@
           :disabled="loading || totalGroups === 0"
           @click="confirmCleanup"
         >
-          清理重复（保留最早）
+          移入回收站（保留最早）
         </button>
       </div>
     </div>
@@ -113,14 +113,16 @@ export default {
         alert('没有可清理的重复题');
         return;
       }
-      const ok = window.confirm(`将删除 ${n} 道重复题（每组保留最早创建的一条）。此操作不可自动恢复，是否继续？`);
+      const ok = window.confirm(
+        `将把 ${n} 道重复题移入回收站（每组保留最早创建的一条）。可在回收站恢复或永久删除。是否继续？`,
+      );
       if (!ok) return;
       await axios.post('/questions/duplicates/cleanup', {
         threshold: this.threshold,
         dryRun: false,
       });
       await this.loadDuplicates();
-      alert(`已删除 ${n} 道重复题`);
+      alert(`已将 ${n} 道重复题移入回收站`);
     },
     truncate(text) {
       const s = text || '';
