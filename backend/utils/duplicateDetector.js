@@ -83,13 +83,17 @@ function calculateSimilarity(text1, text2) {
  * @param {number} threshold - 相似度阈值（0-1），默认 0.85
  * @returns {Promise<Array>} 返回重复的题目数组
  */
-async function findDuplicates(question, threshold = 0.85) {
+async function findDuplicates(question, threshold = 0.85, bankId = null) {
   if (!question.questionText) {
     return [];
   }
-  
-  // 获取所有题目
-  const allQuestions = await Question.find({}).select('_id questionText type subject originalLaTeX');
+
+  const query = {};
+  if (bankId) {
+    query.bankId = bankId;
+  }
+
+  const allQuestions = await Question.find(query).select('_id questionText type subject originalLaTeX bankId');
   
   const duplicates = [];
   const normalizedQuestionText = normalizeText(question.questionText);
@@ -127,14 +131,14 @@ async function findDuplicates(question, threshold = 0.85) {
  * @param {number} threshold - 相似度阈值
  * @returns {Promise<Object>} 返回重复检测结果
  */
-async function detectDuplicatesInBatch(questions, threshold = 0.85) {
+async function detectDuplicatesInBatch(questions, threshold = 0.85, bankId = null) {
   const results = {
     duplicates: [], // [{ question, duplicates: [...] }]
     unique: [], // 没有重复的题目
   };
   
   for (const question of questions) {
-    const duplicates = await findDuplicates(question, threshold);
+    const duplicates = await findDuplicates(question, threshold, bankId);
     
     if (duplicates.length > 0) {
       results.duplicates.push({

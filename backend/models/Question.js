@@ -35,6 +35,12 @@ const questionSchema = new mongoose.Schema({
       '简答题',
     ],
   },
+  bankId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'QuestionBank',
+    required: true,
+    index: true,
+  },
   subject: {
     type: String,
     trim: true,
@@ -70,9 +76,9 @@ const questionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-questionSchema.index({ subject: 1, type: 1 });
-questionSchema.index({ knowledgePointIds: 1 });
-questionSchema.index({ contentHash: 1 }, { unique: true, sparse: true });
+questionSchema.index({ bankId: 1, subject: 1, type: 1 });
+questionSchema.index({ bankId: 1, knowledgePointIds: 1 });
+questionSchema.index({ bankId: 1, contentHash: 1 }, { unique: true, sparse: true });
 questionSchema.index({ questionText: 'text' });
 
 questionSchema.pre('validate', function normalizeFields(next) {

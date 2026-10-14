@@ -25,6 +25,12 @@
                 @input="handleSearch"
               />
             </div>
+            <select v-model="kpFilter" class="form-select" style="max-width: 220px" @change="getQuestionList">
+              <option value="">全部知识点</option>
+              <option v-for="kp in knowledgePoints" :key="kp._id" :value="kp._id">
+                {{ kp.path }}
+              </option>
+            </select>
             <router-link to="/question-add" class="btn btn-primary">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
@@ -129,6 +135,8 @@ export default {
       allQuestions: [], // 保存所有题目用于搜索
       loading: true,
       searchQuery: "",
+      knowledgePoints: [],
+      kpFilter: "",
       mathjaxOptions: {
         tex: {
           inlineMath: [["$", "$"]],
@@ -148,13 +156,27 @@ export default {
     };
   },
   mounted() {
+    this.loadKnowledgePoints();
     this.getQuestionList();
   },
   methods: {
+    async loadKnowledgePoints() {
+      try {
+        const { data } = await axios.get("/knowledge-points/tree");
+        this.knowledgePoints = data.nodes || [];
+      } catch (e) {
+        console.error("加载知识点失败", e);
+      }
+    },
     async getQuestionList() {
       this.loading = true;
       try {
-        const response = await axios.get("/questions/list");
+        const params = {};
+        if (this.kpFilter) {
+          params.knowledgePointId = this.kpFilter;
+          params.subtree = "true";
+        }
+        const response = await axios.get("/questions/list", { params });
         this.allQuestions = response.data;
         this.questions = response.data;
       } catch (error) {

@@ -222,9 +222,11 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 
 **工作要点**：
 
-- 引入轻量 schema 校验（如 Zod）：必填、题型与选项/答案一致性、分值 > 0。
+- **题库上下文**（§6.1.1）：`QuestionBank` / `BankMember`、`bankContext` 中间件、`X-Bank-Id`；题目/知识点/导入去重均限定 **当前 bank**。
+- 引入轻量 schema 校验：必填、题型与选项/答案一致性、分值 > 0（`questionValidator`）。
 - LaTeX 导入：逐题校验报告（行号/题型/part），预览 UI 展示 warnings。
 - 拒绝明显空题干或解析失败的 `\begin{problem}`。
+- 迁移：`migrate-m3-banks.js`（个人默认库 + 遗留题目绑库），见 `docs/MIGRATE_M3.md`。
 
 **验收标准**：
 
@@ -455,3 +457,4 @@ MathExamHub 已具备 **可用的 mathexam 题库 CRUD、LaTeX 导入导出与�
 | 2026-10-13 | 写入 Owner 六项决策；M4/M7/M8/M12 调整；基线改为 `main` |
 | 2026-10-13 | §4.0 增量 port 策略；各里程碑标注 feature 移植范围 |
 | 2026-10-13 | §6.1.1 个人+协作 QuestionBank 模型（非纯 ownerId / 非机构共享库） |
+| 2026-10-13 | M3 实现说明：题库成员鉴权 + 按 bank 隔离的校验与 LaTeX 导入 |

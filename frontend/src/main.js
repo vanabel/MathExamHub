@@ -11,6 +11,28 @@ axios.defaults.baseURL =
   (isProduction ? '/api' : 'http://localhost:3000/api');
 axios.defaults.withCredentials = true; // 允许发送 cookies（用于 session）
 
+axios.interceptors.request.use((config) => {
+  const bankId = localStorage.getItem('currentBankId');
+  if (bankId) {
+    config.headers['X-Bank-Id'] = bankId;
+  }
+  return config;
+});
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('currentBankId');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 const app = createApp(App);
 app.use(router); // 使用路由配置
 app.config.globalProperties.$axios = axios; // 将Axios添加到Vue实例中
