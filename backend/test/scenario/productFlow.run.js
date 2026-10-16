@@ -27,7 +27,7 @@ function buildFourSectionBlueprint(rows) {
   const sections = [];
   for (const group of TYPE_PLAN) {
     const type = group.find((t) => byType[t]);
-    assert.ok(type, `missing types ${group.join(' / ')}`);
+    assert.ok(type, `missing types ${group.join(' / ')}; have ${Object.keys(byType).join(', ')}`);
     sections.push({
       type,
       count: 1,
