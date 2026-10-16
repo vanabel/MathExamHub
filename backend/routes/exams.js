@@ -20,7 +20,7 @@ const {
   paginateEntries,
   enrichPapers,
 } = require('../utils/examPaperListEntries');
-const { analyzeBlueprintCoverage } = require('../utils/blueprintCoverage');
+const { analyzeBlueprintCoverageMultiSeed } = require('../utils/blueprintCoverage');
 
 const router = express.Router();
 
@@ -67,9 +67,10 @@ router.post('/coverage-analysis', requireBankWrite, async (req, res) => {
     const { blueprint } = loaded;
     const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
     const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
-    const analysis = analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, {
+    const analysis = analyzeBlueprintCoverageMultiSeed(blueprint, pool, kpExpansionMap, {
       randomSeed: req.body.randomSeed ?? blueprint.randomSeed,
       allowRelaxation: req.body.allowRelaxation === true,
+      seedTrials: req.body.seedTrials,
     });
     res.json(analysis);
   } catch (error) {

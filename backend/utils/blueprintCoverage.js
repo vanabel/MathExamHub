@@ -67,7 +67,62 @@ function analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, opts = {}) {
   };
 }
 
+function pickBestWorstAttempts(attempts) {
+  if (!attempts.length) {
+    return { best: null, worst: null };
+  }
+  const byGapThenSeed = (a, b) => {
+    if (a.gapCount !== b.gapCount) return a.gapCount - b.gapCount;
+    if (a.ok !== b.ok) return a.ok ? -1 : 1;
+    return a.seed - b.seed;
+  };
+  const sorted = [...attempts].sort(byGapThenSeed);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  return { best, worst };
+}
+
+/**
+ * Run coverage across consecutive seeds (baseSeed, baseSeed+1, …) for wizard hints.
+ * @param {number} [opts.seedTrials] default 1 (single seed only)
+ */
+function analyzeBlueprintCoverageMultiSeed(blueprint, pool, kpExpansionMap, opts = {}) {
+  const baseSeed = Number(opts.randomSeed ?? blueprint.randomSeed) || 1;
+  const seedTrials = Math.min(Math.max(Number(opts.seedTrials) || 1, 1), 32);
+  const attempts = [];
+  for (let i = 0; i < seedTrials; i += 1) {
+    const seed = baseSeed + i;
+    const analysis = analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, {
+      ...opts,
+      randomSeed: seed,
+    });
+    attempts.push({
+      seed,
+      ok: analysis.ok,
+      gapCount: analysis.gaps.length,
+      gaps: analysis.gaps,
+      sectionSummaries: analysis.sectionSummaries,
+    });
+  }
+  const { best, worst } = pickBestWorstAttempts(attempts);
+  const primary = worst || attempts[0];
+  return {
+    ok: primary.ok,
+    gaps: primary.gaps,
+    sectionSummaries: primary.sectionSummaries,
+    randomSeedUsed: primary.seed,
+    multiSeed: {
+      baseSeed,
+      seedTrials,
+      attempts: attempts.map(({ seed, ok, gapCount }) => ({ seed, ok, gapCount })),
+      best,
+      worst,
+    },
+  };
+}
+
 module.exports = {
   analyzeBlueprintCoverage,
+  analyzeBlueprintCoverageMultiSeed,
   buildGapListQuery,
 };
