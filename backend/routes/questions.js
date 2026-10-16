@@ -19,6 +19,7 @@ const {
 } = require('../utils/questionListQuery');
 const { assessQuestionQuality } = require('../utils/questionQuality');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
+const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -83,20 +84,7 @@ router.get('/stats/dashboard', requireBankWrite, async (req, res) => {
 router.get('/stats/dashboard.csv', requireBankWrite, async (req, res) => {
   try {
     const dashboard = await buildBankQuestionDashboard(req.bankId);
-    const lines = ['section,key,value'];
-    lines.push(`summary,totalQuestions,${dashboard.totalQuestions}`);
-    for (const row of dashboard.byType) {
-      lines.push(`byType,${escapeCsvCell(row.type)},${row.count}`);
-    }
-    for (const [diff, count] of Object.entries(dashboard.byDifficulty || {})) {
-      lines.push(`byDifficulty,${escapeCsvCell(diff)},${count}`);
-    }
-    for (const row of dashboard.byKnowledgePoint || []) {
-      lines.push(`byKnowledgePoint,${escapeCsvCell(row.path)},${row.count}`);
-    }
-    for (const g of dashboard.blueprintCoverageGaps || []) {
-      lines.push(`blueprintGap,${escapeCsvCell(g.blueprintTitle)},${escapeCsvCell(g.type || '')}`);
-    }
+    const lines = buildBankStatsCsvLines(dashboard);
     const body = `\uFEFF${lines.join('\n')}\n`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="bank-stats.csv"');
