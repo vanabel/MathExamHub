@@ -93,12 +93,15 @@ class ScenarioClient {
     return res;
   }
 
-  async importLatexFile(filePath) {
+  async importLatexFile(filePath, { skipDuplicates = true } = {}) {
     const form = new FormData();
     form.append('file', fs.createReadStream(filePath), {
       filename: path.basename(filePath),
       contentType: 'text/plain',
     });
+    if (skipDuplicates === false) {
+      form.append('skipDuplicates', 'false');
+    }
     const url = `${this.baseUrl}/api/questions/import/latex`;
     const headers = {
       ...form.getHeaders(),

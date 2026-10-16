@@ -42,7 +42,7 @@ async function run() {
     await client.loadDefaultBank();
 
     console.log('· import multi-part fixture');
-    const imp1 = await client.importLatexFile(fixturePath);
+    const imp1 = await client.importLatexFile(fixturePath, { skipDuplicates: false });
     assert.equal(imp1.status, 200, JSON.stringify(imp1.data));
     assert.ok(
       imp1.data.imported >= 4,
