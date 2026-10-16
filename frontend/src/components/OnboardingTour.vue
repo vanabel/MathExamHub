@@ -1,6 +1,6 @@
 <template>
   <div class="onboarding-backdrop" @click.self="skipTour">
-    <div class="onboarding-panel card shadow-lg" role="dialog" aria-labelledby="onboardingTitle">
+    <div class="onboarding-panel card shadow-lg" role="dialog" aria-labelledby="onboardingTitle" data-testid="onboarding-panel">
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <span id="onboardingTitle"><i class="bi bi-stars"></i> 快速上手 MathExamHub</span>
         <button type="button" class="btn-close btn-close-white" aria-label="关闭" @click="skipTour" />
@@ -14,6 +14,7 @@
           <button
             type="button"
             class="btn btn-success w-100 mb-2"
+            data-testid="onboarding-import-sample"
             :disabled="importing || onboarding.sampleImported"
             @click="importSample"
           >
@@ -54,7 +55,7 @@
         </div>
       </div>
       <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-link btn-sm" @click="skipTour">跳过</button>
+        <button type="button" class="btn btn-link btn-sm" data-testid="onboarding-skip" @click="skipTour">跳过</button>
         <div class="d-flex gap-2">
           <button v-if="step > 0" type="button" class="btn btn-outline-secondary btn-sm" @click="prevStep">
             上一步
