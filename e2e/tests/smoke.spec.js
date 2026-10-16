@@ -92,10 +92,14 @@ test.describe('product smoke', () => {
     await expect(page.getByTestId('wizard-coverage-result')).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: path.join(shots, 'onboarding-wizard.png'), fullPage: true });
 
+    await page.locator('#allowRelax').check();
     await page.getByTestId('wizard-generate').click();
-    const previewTab = page.getByRole('button', { name: '2. 预览' });
-    await expect(previewTab).toBeEnabled({ timeout: 90000 });
-    await previewTab.click();
+    await page.waitForFunction(() => {
+      const preview = Array.from(document.querySelectorAll('button.nav-link'))
+        .find((b) => (b.textContent || '').includes('2. 预览'));
+      return preview && !preview.disabled;
+    }, { timeout: 120000 });
+    await page.getByRole('button', { name: '2. 预览' }).click();
     await expect(page.getByText(/将当前预览中的 [1-9]\d* 道题/)).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();

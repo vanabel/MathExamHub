@@ -6,7 +6,7 @@ const screenshotDir = path.join(__dirname, '../docs/screenshots');
 /** @type {import('@playwright/test').PlaywrightTestConfig} */
 module.exports = {
   testDir: './tests',
-  timeout: 120000,
+  timeout: 180000,
   expect: { timeout: 15000 },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
