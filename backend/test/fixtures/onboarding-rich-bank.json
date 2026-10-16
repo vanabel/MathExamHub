@@ -1,0 +1,635 @@
+{
+  "subject": "高等代数",
+  "sourceFileName": "onboarding-rich-bank.json",
+  "knowledgePoints": [
+    {
+      "key": "root",
+      "name": "高等代数",
+      "parent": null
+    },
+    {
+      "key": "linear",
+      "name": "线性方程组",
+      "parent": "root"
+    },
+    {
+      "key": "matrix",
+      "name": "矩阵运算",
+      "parent": "root"
+    },
+    {
+      "key": "det",
+      "name": "行列式",
+      "parent": "root"
+    },
+    {
+      "key": "vector",
+      "name": "向量空间",
+      "parent": "root"
+    }
+  ],
+  "questions": [
+    {
+      "type": "判断题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 判断题 #1（中）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 判断题 #2（难）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 判断题 #3（易）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 判断题 #4（中）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 判断题 #5（难）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 判断题 #6（易）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 判断题 #7（中）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 判断题 #8（难）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 判断题 #9（易）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 判断题 #10（中）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "判断题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 2,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 判断题 #11（难）",
+      "correctAnswer": "对"
+    },
+    {
+      "type": "单选题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 单选题 #12（易）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 单选题 #13（中）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 单选题 #14（难）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 单选题 #15（易）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 单选题 #16（中）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 单选题 #17（难）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 单选题 #18（易）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 单选题 #19（中）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 单选题 #20（难）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 单选题 #21（易）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "单选题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 3,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 单选题 #22（中）",
+      "correctAnswer": "C",
+      "options": {
+        "A": "1",
+        "B": "2",
+        "C": "3",
+        "D": "4"
+      }
+    },
+    {
+      "type": "填空题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 填空题 #23（难）",
+      "correctAnswer": "答案23"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 填空题 #24（易）",
+      "correctAnswer": "答案24"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 填空题 #25（中）",
+      "correctAnswer": "答案25"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 填空题 #26（难）",
+      "correctAnswer": "答案26"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 填空题 #27（易）",
+      "correctAnswer": "答案27"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 填空题 #28（中）",
+      "correctAnswer": "答案28"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 填空题 #29（难）",
+      "correctAnswer": "答案29"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 填空题 #30（易）",
+      "correctAnswer": "答案30"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 填空题 #31（中）",
+      "correctAnswer": "答案31"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 填空题 #32（难）",
+      "correctAnswer": "答案32"
+    },
+    {
+      "type": "填空题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 4,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 填空题 #33（易）",
+      "correctAnswer": "答案33"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 解答题 #34（中）",
+      "correctAnswer": "答案34"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 解答题 #35（难）",
+      "correctAnswer": "答案35"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 解答题 #36（易）",
+      "correctAnswer": "答案36"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 解答题 #37（中）",
+      "correctAnswer": "答案37"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 解答题 #38（难）",
+      "correctAnswer": "答案38"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 解答题 #39（易）",
+      "correctAnswer": "答案39"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 解答题 #40（中）",
+      "correctAnswer": "答案40"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "matrix"
+      ],
+      "questionText": "高等代数示例 解答题 #41（难）",
+      "correctAnswer": "答案41"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "易",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "det"
+      ],
+      "questionText": "高等代数示例 解答题 #42（易）",
+      "correctAnswer": "答案42"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "中",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "vector"
+      ],
+      "questionText": "高等代数示例 解答题 #43（中）",
+      "correctAnswer": "答案43"
+    },
+    {
+      "type": "解答题",
+      "difficulty": "难",
+      "subject": "高等代数",
+      "totalScore": 10,
+      "knowledgePointKeys": [
+        "linear"
+      ],
+      "questionText": "高等代数示例 解答题 #44（难）",
+      "correctAnswer": "答案44"
+    }
+  ],
+  "starterBlueprint": {
+    "title": "入门示例（开箱即用）",
+    "subject": "高等代数",
+    "totalScore": 100,
+    "randomSeed": 20260101,
+    "allowRelaxation": true,
+    "maxVariantOverlapPct": 0.2,
+    "isTemplate": true,
+    "sharedWithBank": true,
+    "sections": [
+      {
+        "type": "判断题",
+        "count": 6,
+        "scoreEach": 2,
+        "difficultyMix": {
+          "易": 2,
+          "中": 2,
+          "难": 2
+        }
+      },
+      {
+        "type": "单选题",
+        "count": 8,
+        "scoreEach": 3,
+        "difficultyMix": {
+          "易": 0,
+          "中": 0,
+          "难": 0
+        }
+      },
+      {
+        "type": "填空题",
+        "count": 10,
+        "scoreEach": 4,
+        "difficultyMix": {
+          "易": 0,
+          "中": 0,
+          "难": 0
+        }
+      },
+      {
+        "type": "解答题",
+        "count": 4,
+        "scoreEach": 10,
+        "difficultyMix": {
+          "易": 0,
+          "中": 0,
+          "难": 0
+        }
+      }
+    ]
+  }
+}

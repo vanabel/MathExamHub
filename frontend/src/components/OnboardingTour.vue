@@ -8,7 +8,7 @@
       <div class="card-body">
         <div v-if="step === 0" class="step-body">
           <p class="mb-3">
-            首次使用建议导入官方示例 <code>package-examples.tex</code>，内含多种题型，便于体验
+            首次使用建议<strong>一键导入示例题库</strong>（44 题，4 种题型、3 档难度、知识点树 + 开箱即用蓝图模板），便于体验
             <strong>导入 → 组卷向导 → 导出</strong> 全流程。
           </p>
           <button
