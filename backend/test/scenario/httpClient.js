@@ -47,12 +47,20 @@ class ScenarioClient {
       payload = JSON.stringify(body);
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: reqHeaders,
-      body: payload,
-      redirect: 'manual',
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: reqHeaders,
+        body: payload,
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     this.cookieJar = mergeCookieJar(this.cookieJar, extractSetCookies(res.headers));
 
@@ -104,7 +112,6 @@ async function startServer(mongoUri, port) {
         PORT: String(port),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
     });
 
     let stderr = '';

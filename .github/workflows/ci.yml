@@ -32,11 +32,7 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci_scenario
           SCENARIO_PORT: 3099
-        run: |
-          npm run test:scenario
-          EXIT=$?
-          pkill -f "node server.js" 2>/dev/null || true
-          exit $EXIT
+        run: npm run test:scenario
       - name: Smoke API health
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci

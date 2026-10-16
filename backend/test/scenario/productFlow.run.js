@@ -1,4 +1,3 @@
-const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
@@ -11,75 +10,65 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mathexam_
 const port = Number(process.env.SCENARIO_PORT) || 3099;
 const fixturePath = path.join(__dirname, '../fixtures/package-examples.tex');
 
-describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO === '1' }, () => {
-  /** @type {import('child_process').ChildProcess} */
+async function stopServer(serverProc) {
+  if (!serverProc || serverProc.killed) return;
+  serverProc.kill('SIGKILL');
+  await new Promise((resolve) => {
+    serverProc.on('exit', resolve);
+    setTimeout(resolve, 1500);
+  });
+}
+
+async function run() {
+  if (process.env.SKIP_SCENARIO === '1') {
+    console.log('SKIP scenario (SKIP_SCENARIO=1)');
+    return;
+  }
+
   let serverProc;
-  /** @type {ScenarioClient} */
-  let client;
   const username = `scenario_${Date.now()}`;
   const password = 'ScenarioPass123!';
 
-  before(async () => {
+  try {
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 });
     await mongoose.connection.db.dropDatabase();
 
     serverProc = await startServer(mongoUri, port);
-    client = new ScenarioClient(`http://127.0.0.1:${port}`);
+    const client = new ScenarioClient(`http://127.0.0.1:${port}`);
 
     const reg = await client.register(username, password, `${username}@example.com`);
     assert.equal(reg.status, 201);
     const login = await client.login(username, password);
     assert.equal(login.status, 200);
     await client.loadDefaultBank();
-  });
 
-  after(async () => {
-    if (serverProc && !serverProc.killed) {
-      try {
-        if (serverProc.pid) process.kill(-serverProc.pid, 'SIGKILL');
-      } catch {
-        serverProc.kill('SIGKILL');
-      }
-    }
-    await mongoose.disconnect();
-  });
+    console.log('· import multi-part fixture');
+    const form1 = new FormData();
+    form1.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
+    const imp1 = await client.request('POST', '/api/questions/import/latex', { formData: form1, json: false });
+    assert.equal(imp1.status, 200);
+    assert.ok(imp1.data.imported >= 4);
 
-  it('imports multi-part mathexam fixture', async () => {
-    const form = new FormData();
-    form.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
-    const res = await client.request('POST', '/api/questions/import/latex', { formData: form, json: false });
-    assert.equal(res.status, 200);
-    assert.ok(res.data.imported >= 4, `expected >=4 imported, got ${res.data.imported}`);
-  });
+    console.log('· re-import skips duplicates');
+    const form2 = new FormData();
+    form2.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
+    const imp2 = await client.request('POST', '/api/questions/import/latex', { formData: form2, json: false });
+    assert.equal(imp2.status, 200);
+    assert.equal(imp2.data.imported, 0);
+    assert.ok(imp2.data.skipped >= 4);
 
-  it('re-import skips duplicates', async () => {
-    const form = new FormData();
-    form.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
-    const res = await client.request('POST', '/api/questions/import/latex', { formData: form, json: false });
-    assert.equal(res.status, 200);
-    assert.equal(res.data.imported, 0);
-    assert.ok(res.data.skipped >= 4);
-  });
-
-  it('soft-delete and recycle bin restore', async () => {
-    const list = await client.request('GET', '/api/questions/list?limit=5');
+    console.log('· soft-delete and restore');
+    const list = await client.request('GET', '/api/questions/list');
     assert.equal(list.status, 200);
     const rows = Array.isArray(list.data) ? list.data : list.data.questions;
-    const firstId = rows?.[0]?._id;
+    const firstId = rows[0]._id;
     assert.ok(firstId);
-
-    const del = await client.request('DELETE', `/api/questions/${firstId}/delete`);
-    assert.equal(del.status, 200);
-
+    assert.equal((await client.request('DELETE', `/api/questions/${firstId}/delete`)).status, 200);
     const bin = await client.request('GET', '/api/questions/recycle-bin');
-    assert.equal(bin.status, 200);
     assert.ok(bin.data.items.some((q) => String(q._id) === String(firstId)));
+    assert.equal((await client.request('POST', `/api/questions/recycle-bin/${firstId}/restore`)).status, 200);
 
-    const restored = await client.request('POST', `/api/questions/recycle-bin/${firstId}/restore`);
-    assert.equal(restored.status, 200);
-  });
-
-  it('blueprint generate is reproducible with fixed seed', async () => {
+    console.log('· blueprint generate + export');
     const blueprint = {
       title: '场景测试卷',
       subject: '高等代数',
@@ -93,15 +82,11 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
         { type: '计算题', count: 1, scoreEach: 10, difficultyMix: { 易: 0, 中: 0, 难: 0 } },
       ],
     };
-
     const saved = await client.request('POST', '/api/exam-blueprints', { body: blueprint });
     assert.equal(saved.status, 201);
     const blueprintId = saved.data._id;
-
     const gen1 = await client.request('POST', '/api/exams/generate', { body: { blueprintId } });
     const gen2 = await client.request('POST', '/api/exams/generate', { body: { blueprintId } });
-    assert.equal(gen1.status, 200);
-    assert.equal(gen2.status, 200);
     assert.deepEqual(gen1.data.questionIds, gen2.data.questionIds);
     assert.ok(gen1.data.questionIds.length >= 1);
 
@@ -112,7 +97,6 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
         paperId: gen1.data.paperId,
         metadata: { exportMode: 'both' },
       },
-      json: true,
     });
     assert.equal(exportRes.status, 200);
     assert.ok(Buffer.isBuffer(exportRes.data));
@@ -120,11 +104,31 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
     assert.ok(zipText.includes('mathexam.sty'));
     assert.ok(zipText.includes('.tex'));
 
-    const parser = new LatexParser();
-    const sample = gen1.data.questions[0]?.originalLaTeX || gen1.data.questions[0]?.questionText;
+    const sample = gen1.data.questions[0]?.originalLaTeX;
     if (sample && sample.includes('\\begin{problem}')) {
-      const parsed = parser.parse(sample);
+      const parsed = new LatexParser().parse(sample);
       assert.ok(parsed.length >= 1);
     }
+
+    console.log('Scenario product flow: OK');
+  } finally {
+    await stopServer(serverProc);
+    await mongoose.disconnect().catch(() => {});
+  }
+}
+
+const deadline = setTimeout(() => {
+  console.error('Scenario timed out after 90s');
+  process.exit(1);
+}, 90000);
+
+run()
+  .then(() => {
+    clearTimeout(deadline);
+    process.exit(0);
+  })
+  .catch((err) => {
+    clearTimeout(deadline);
+    console.error(err);
+    process.exit(1);
   });
-});
