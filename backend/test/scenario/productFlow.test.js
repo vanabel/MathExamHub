@@ -20,7 +20,7 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
   const password = 'ScenarioPass123!';
 
   before(async () => {
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 });
     await mongoose.connection.db.dropDatabase();
 
     serverProc = await startServer(mongoUri, port);
