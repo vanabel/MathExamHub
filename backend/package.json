@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:scenario": "node --test test/scenario/productFlow.test.js"
   },
   "keywords": [],
   "author": "",

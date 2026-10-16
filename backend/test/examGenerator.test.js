@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { generateExamPaper } = require('../services/examGenerator');
+const { generateExamPaper, pickSwapReplacement } = require('../services/examGenerator');
 const { createSeededRandom } = require('../utils/seededRandom');
 
 function q(id, overrides = {}) {
@@ -75,6 +75,28 @@ describe('examGenerator', () => {
     );
     assert.equal(result.success, false);
     assert.ok(result.shortfalls.length > 0);
+  });
+  it('pickSwapReplacement finds another question with same type', () => {
+    const pool = [
+      q('1', { difficulty: '易' }),
+      q('2', { difficulty: '易' }),
+      q('3', { difficulty: '难' }),
+    ];
+    const blueprint = {
+      title: 'swap',
+      sections: [{ type: '填空题', count: 2, scoreEach: 4 }],
+    };
+    const swap = pickSwapReplacement({
+      blueprint,
+      pool,
+      kpExpansionMap: new Map(),
+      sectionIndex: 0,
+      replaceQuestionId: '1',
+      occupiedQuestionIds: ['1', '3'],
+      randomSeed: 1,
+    });
+    assert.ok(swap.replacement);
+    assert.equal(String(swap.replacement._id), '2');
   });
 });
 

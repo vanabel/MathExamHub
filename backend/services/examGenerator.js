@@ -351,9 +351,68 @@ function generateExamPaper(blueprint, pool, kpExpansionMap) {
   };
 }
 
+/**
+ * 在已生成试卷中替换单题：同 section 约束（题型 / 难度 / 知识点子树 / 分值容差）。
+ * @returns {{ replacement?: object, error?: string, candidatesCount?: number }}
+ */
+function pickSwapReplacement({
+  blueprint,
+  pool,
+  kpExpansionMap,
+  sectionIndex,
+  replaceQuestionId,
+  occupiedQuestionIds = [],
+  randomSeed,
+}) {
+  const work = cloneBlueprintForWork(blueprint);
+  const section = work.sections[sectionIndex];
+  if (!section) {
+    return { error: 'invalid_section' };
+  }
+  const replaced = pool.find((q) => String(q._id) === String(replaceQuestionId));
+  if (!replaced) {
+    return { error: 'question_not_found' };
+  }
+
+  const kpSet = resolveKpSet(section, kpExpansionMap);
+  const slotDifficulty = section.difficultyFlexible
+    ? null
+    : normalizeDifficulty(replaced.difficulty);
+
+  const exclude = new Set(occupiedQuestionIds.map(String));
+  exclude.add(String(replaceQuestionId));
+
+  const candidatePool = pool.filter((q) => {
+    if (work.subject && q.subject && q.subject !== work.subject) return false;
+    if (q.status === 'archived' || q.status === 'deleted') return false;
+    return true;
+  });
+
+  const candidates = candidatePool.filter(
+    (q) => !exclude.has(String(q._id))
+      && questionMatches(
+        q,
+        section,
+        slotDifficulty,
+        kpSet,
+        section.scoreEach,
+        section.scoreTolerancePct,
+      ),
+  );
+
+  if (!candidates.length) {
+    return { error: 'no_candidates', candidatesCount: 0 };
+  }
+
+  const random = createSeededRandom(Number(randomSeed) || Date.now());
+  shuffleInPlace(candidates, random);
+  return { replacement: candidates[0], candidatesCount: candidates.length };
+}
+
 module.exports = {
   cloneBlueprintForWork,
   generateExamPaper,
   tryGenerateOnce,
   normalizeDifficultyMix,
+  pickSwapReplacement,
 };

@@ -9,6 +9,7 @@ import LatexExportView from "../views/LatexExportView.vue";
 import KnowledgePointView from "../views/KnowledgePointView.vue";
 import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 import RecycleBinView from "../views/RecycleBinView.vue";
+import ExamWizardView from "../views/ExamWizardView.vue";
 
 const routes = [
   {
@@ -71,6 +72,12 @@ const routes = [
     path: "/recycle-bin",
     name: "recycle-bin",
     component: RecycleBinView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/exam-wizard",
+    name: "exam-wizard",
+    component: ExamWizardView,
     meta: { requiresAuth: true },
   },
 ];

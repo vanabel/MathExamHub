@@ -28,6 +28,11 @@ jobs:
         run: npm ci
       - name: Unit tests
         run: npm test
+      - name: Scenario tests (Mongo)
+        env:
+          MONGODB_URI: mongodb://localhost:27017/mathexam_ci_scenario
+          SCENARIO_PORT: 3099
+        run: npm run test:scenario
       - name: Smoke API health
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci

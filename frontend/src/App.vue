@@ -45,6 +45,11 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'exam-wizard' }" to="/exam-wizard">
+                <i class="bi bi-magic"></i> 组卷向导
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link class="nav-link" :class="{ active: $route.name === 'duplicates' }" to="/duplicates">
                 <i class="bi bi-files"></i> 重复审查
               </router-link>
