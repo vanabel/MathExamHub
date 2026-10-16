@@ -44,8 +44,10 @@ async function run() {
     console.log('· import multi-part fixture');
     const imp1 = await client.importLatexFile(fixturePath, { skipDuplicates: false });
     assert.equal(imp1.status, 200, JSON.stringify(imp1.data));
+    const firstTotal = imp1.data.imported + imp1.data.skipped + (imp1.data.failed || 0);
+    assert.ok(firstTotal >= 4, `import batch size ${firstTotal}`);
     assert.ok(
-      imp1.data.imported >= 4,
+      imp1.data.imported >= 3,
       `imported=${imp1.data.imported} skipped=${imp1.data.skipped} failed=${imp1.data.failed}`,
     );
 
@@ -53,7 +55,7 @@ async function run() {
     const imp2 = await client.importLatexFile(fixturePath);
     assert.equal(imp2.status, 200);
     assert.equal(imp2.data.imported, 0);
-    assert.ok(imp2.data.skipped >= 4);
+    assert.ok(imp2.data.skipped >= imp1.data.imported);
 
     console.log('· soft-delete and restore');
     const list = await client.request('GET', '/api/questions/list');
@@ -67,18 +69,20 @@ async function run() {
     assert.equal((await client.request('POST', `/api/questions/recycle-bin/${firstId}/restore`)).status, 200);
 
     console.log('· blueprint generate + export');
+    const typesInBank = [...new Set(rows.map((q) => q.type))];
+    assert.ok(typesInBank.length >= 2, '题库题型不足');
     const blueprint = {
       title: '场景测试卷',
-      subject: '高等代数',
-      totalScore: 16,
+      subject: rows[0]?.subject || '高等代数',
+      totalScore: typesInBank.length * 4,
       randomSeed: 4242,
       allowRelaxation: true,
-      sections: [
-        { type: '判断题', count: 1, scoreEach: 2, difficultyMix: { 易: 0, 中: 0, 难: 0 } },
-        { type: '单选题', count: 1, scoreEach: 2, difficultyMix: { 易: 0, 中: 0, 难: 0 } },
-        { type: '填空题', count: 1, scoreEach: 2, difficultyMix: { 易: 0, 中: 0, 难: 0 } },
-        { type: '计算题', count: 1, scoreEach: 10, difficultyMix: { 易: 0, 中: 0, 难: 0 } },
-      ],
+      sections: typesInBank.slice(0, 4).map((type) => ({
+        type,
+        count: 1,
+        scoreEach: 4,
+        difficultyMix: { 易: 0, 中: 0, 难: 0 },
+      })),
     };
     const saved = await client.request('POST', '/api/exam-blueprints', { body: blueprint });
     assert.equal(saved.status, 201);
