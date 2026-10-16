@@ -5,6 +5,10 @@ const Question = require('../models/Question');
 const requireAuth = require('../middleware/requireAuth');
 const requirePlatformAdmin = require('../middleware/requirePlatformAdmin');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
+const {
+  getPlatformSettings,
+  updatePlatformSettings,
+} = require('../services/platformSettingsService');
 
 const router = express.Router();
 
@@ -53,6 +57,24 @@ router.patch('/users/:id/role', async (req, res) => {
     res.json({ user });
   } catch (error) {
     res.status(400).json({ error: '更新角色失败' });
+  }
+});
+
+router.get('/settings', async (req, res) => {
+  try {
+    const settings = await getPlatformSettings();
+    res.json({ settings });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load settings' });
+  }
+});
+
+router.patch('/settings', async (req, res) => {
+  try {
+    const settings = await updatePlatformSettings(req.body || {});
+    res.json({ settings });
+  } catch (error) {
+    res.status(400).json({ error: '更新设置失败' });
   }
 });
 
