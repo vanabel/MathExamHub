@@ -1,7 +1,19 @@
 <template>
   <div class="container py-4">
+<<<<<<< HEAD
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1"><i class="bi bi-bar-chart"></i> 题库统计</h1>
+        <p class="text-muted mb-0">题目分布与蓝图缺口概览。</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!stats" @click="exportCsv">
+        导出 CSV
+      </button>
+    </div>
+=======
     <h1 class="h3 mb-3"><i class="bi bi-bar-chart"></i> 题库统计</h1>
     <p class="text-muted">当前题库题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致，固定蓝图 randomSeed、不放宽）。</p>
+>>>>>>> origin/main
 
     <div v-if="loading" class="text-muted">加载中…</div>
     <template v-else-if="stats">
@@ -20,39 +32,58 @@
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-header">按题型</div>
-            <ul class="list-group list-group-flush">
-              <li v-for="row in stats.byType" :key="row.type" class="list-group-item d-flex justify-content-between">
-                <span>{{ row.type }}</span>
-                <span class="badge bg-primary">{{ row.count }}</span>
-              </li>
-            </ul>
+            <div class="card-body">
+              <div v-for="row in stats.byType" :key="row.type" class="mb-2">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span>{{ row.type }}</span><span>{{ row.count }}</span>
+                </div>
+                <div class="progress" style="height: 8px">
+                  <div
+                    class="progress-bar bg-primary"
+                    role="progressbar"
+                    :style="{ width: barPct(row.count, maxTypeCount) + '%' }"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-header">按难度</div>
-            <ul class="list-group list-group-flush">
-              <li v-for="(count, diff) in stats.byDifficulty" :key="diff" class="list-group-item d-flex justify-content-between">
-                <span>{{ diff }}</span>
-                <span class="badge bg-secondary">{{ count }}</span>
-              </li>
-            </ul>
+            <div class="card-body">
+              <div v-for="(count, diff) in stats.byDifficulty" :key="diff" class="mb-2">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span>{{ diff }}</span><span>{{ count }}</span>
+                </div>
+                <div class="progress" style="height: 8px">
+                  <div
+                    class="progress-bar bg-secondary"
+                    role="progressbar"
+                    :style="{ width: barPct(count, maxDifficultyCount) + '%' }"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="card shadow-sm mt-3">
-        <div class="card-header">知识点（Top 25）</div>
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <thead><tr><th>路径</th><th>题量</th></tr></thead>
-            <tbody>
-              <tr v-for="row in stats.byKnowledgePoint" :key="row.knowledgePointId">
-                <td>{{ row.path }}</td>
-                <td>{{ row.count }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="card-header">知识点 Top 10</div>
+        <div class="card-body">
+          <div v-for="row in topKnowledgePoints" :key="row.knowledgePointId" class="mb-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="text-truncate me-2">{{ row.path }}</span><span>{{ row.count }}</span>
+            </div>
+            <div class="progress" style="height: 6px">
+              <div
+                class="progress-bar bg-info"
+                role="progressbar"
+                :style="{ width: barPct(row.count, maxKpCount) + '%' }"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -102,15 +133,48 @@ export default {
   data() {
     return { stats: null, loading: false };
   },
+  computed: {
+    maxTypeCount() {
+      return Math.max(1, ...(this.stats?.byType || []).map((r) => r.count));
+    },
+    maxDifficultyCount() {
+      const vals = Object.values(this.stats?.byDifficulty || {});
+      return Math.max(1, ...vals, 0);
+    },
+    maxKpCount() {
+      return Math.max(1, ...(this.topKnowledgePoints || []).map((r) => r.count));
+    },
+    topKnowledgePoints() {
+      return (this.stats?.byKnowledgePoint || []).slice(0, 10);
+    },
+  },
   mounted() {
     this.load();
   },
   methods: {
+<<<<<<< HEAD
+    barPct(value, max) {
+      return Math.min(100, Math.round((Number(value) / Number(max)) * 100));
+    },
+    async exportCsv() {
+      try {
+        const res = await axios.get('/questions/stats/dashboard.csv', { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bank-stats.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert(err.response?.data?.error || '导出失败');
+      }
+=======
     formatGapMeta(g) {
       const parts = [];
       if (g.neededDifficulty) parts.push(`难度 ${g.neededDifficulty}`);
       if (g.scoreEach != null) parts.push(`分值≈${g.scoreEach}`);
       return parts.join(' · ') || '—';
+>>>>>>> origin/main
     },
     async load() {
       this.loading = true;
