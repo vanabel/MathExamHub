@@ -59,6 +59,11 @@
                 <i class="bi bi-trash"></i> 回收站
               </router-link>
             </li>
+            <li v-if="isPlatformAdmin" class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'admin-console' }" to="/admin">
+                <i class="bi bi-shield-lock"></i> 平台管理
+              </router-link>
+            </li>
           </ul>
           <bank-selector v-if="showNavbar" class="me-3" @bank-changed="onBankChanged" />
           <ul class="navbar-nav">
@@ -115,6 +120,10 @@ export default {
     showNavbar() {
       // 在登录和注册页面不显示导航栏
       return this.$route.name !== 'login' && this.$route.name !== 'register';
+    },
+    isPlatformAdmin() {
+      const role = this.currentUser?.role;
+      return role === 'admin' || role === 'Admin';
     },
   },
   mounted() {
