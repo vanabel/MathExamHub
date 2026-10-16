@@ -30,7 +30,7 @@ API (optional):
 
 ![Exam wizard coverage](./screenshots/onboarding-wizard.png)
 
-Screenshots are captured by the Playwright smoke test (`npm --prefix e2e test` with backend + frontend running; see CI `e2e-smoke` job).
+Screenshots below are **committed from the green `e2e-smoke` CI run** (Playwright). Refresh with `npm --prefix e2e test` locally or download the `e2e-screenshots` artifact from CI.
 
 ## Related docs
 

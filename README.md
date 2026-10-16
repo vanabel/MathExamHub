@@ -19,7 +19,13 @@ An application for managing and generating math exam questions, with **Node + Ex
 
 相关文档：[快速上手（含截图）](./docs/GETTING_STARTED.md)、[LaTeX 导入导出](./docs/LaTeX_IMPORT_EXPORT.md)、[mathexam vendoring](./docs/MATHEXAM_VENDOR.md)、[路线图](./docs/ROADMAP.md)、[NAS/Docker 部署](./docs/DEPLOYMENT_NAS.md)。
 
-**首次登录**会弹出引导：一键导入示例 `package-examples.tex`，并浏览 **导入 → 组卷向导 → 导出** 流程（详见 [GETTING_STARTED](./docs/GETTING_STARTED.md)）。
+**首次登录**会弹出引导：一键导入 **44 题示例题库**，并浏览 **导入 → 组卷向导 → 导出** 流程（详见 [GETTING_STARTED](./docs/GETTING_STARTED.md)）。
+
+<p align="center">
+  <img src="./docs/screenshots/onboarding-import.png" alt="Onboarding sample import" width="640" />
+  <br />
+  <em>Playwright 截图：首次登录导入示例题库</em>
+</p>
 
 - **数学公式展示 (Math Rendering)**
   - 使用 `vue-mathjax-next` 在前端渲染题干和选项中的 LaTeX 数学公式。
