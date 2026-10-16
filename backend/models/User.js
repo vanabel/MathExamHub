@@ -30,7 +30,18 @@ const userSchema = new Schema({
 	updatedTime: {
 		type: Date,
 	},
-	// 其他用户信息字段
+	onboardingSampleImported: {
+		type: Boolean,
+		default: false,
+	},
+	onboardingTourCompleted: {
+		type: Boolean,
+		default: false,
+	},
+	onboardingTourStep: {
+		type: Number,
+		default: 0,
+	},
 });
 
 const User = mongoose.model('User', userSchema);
