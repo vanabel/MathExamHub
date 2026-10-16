@@ -158,7 +158,21 @@ router.get('/list', async (req, res) => {
       }
     }
 
-    const questions = await Question.find(query).sort({ createdAt: -1 });
+    const sort = { createdAt: -1 };
+    const hasPagination = req.query.limit != null || req.query.offset != null;
+    const limit = hasPagination
+      ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200)
+      : null;
+    const offset = hasPagination ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
+
+    let questionsQuery = Question.find(query).sort(sort);
+    if (limit != null) {
+      questionsQuery = questionsQuery.skip(offset).limit(limit);
+    }
+    const [questions, total] = await Promise.all([
+      questionsQuery.exec(),
+      hasPagination ? Question.countDocuments(query) : Promise.resolve(null),
+    ]);
 
     if (checkDuplicates === 'true') {
       const threshold = parseFloat(req.query.duplicateThreshold) || 0.85;
@@ -180,9 +194,24 @@ router.get('/list', async (req, res) => {
         };
       });
 
-      return res.json({
+      const payload = {
         questions: questionsWithDuplicates,
         duplicateGroups: formatGroupsForApi(duplicateGroups),
+      };
+      if (hasPagination) {
+        payload.total = total;
+        payload.limit = limit;
+        payload.offset = offset;
+      }
+      return res.json(payload);
+    }
+
+    if (hasPagination) {
+      return res.json({
+        questions,
+        total,
+        limit,
+        offset,
       });
     }
 

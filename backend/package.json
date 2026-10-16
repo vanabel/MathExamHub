@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon server",
     "test": "node --test test/*.test.js",
-    "test:scenario": "node test/scenario/productFlow.run.js"
+    "test:scenario": "node test/scenario/productFlow.run.js",
+    "test:bench": "node test/bench/listPagination.run.js"
   },
   "keywords": [],
   "author": "",

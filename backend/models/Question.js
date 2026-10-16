@@ -79,6 +79,7 @@ const questionSchema = new mongoose.Schema({
 });
 
 questionSchema.index({ bankId: 1, status: 1, deletedAt: -1 });
+questionSchema.index({ bankId: 1, createdAt: -1 });
 questionSchema.index({ bankId: 1, subject: 1, type: 1 });
 questionSchema.index({ bankId: 1, knowledgePointIds: 1 });
 questionSchema.index({ bankId: 1, contentHash: 1 }, { unique: true, sparse: true });

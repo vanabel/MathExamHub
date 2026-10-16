@@ -9,7 +9,8 @@
               <i class="bi bi-list-ul"></i> 试题列表
             </h1>
             <p class="text-muted mb-0">
-              <i class="bi bi-bar-chart"></i> 共 {{ questions.length }} 道题目
+              <i class="bi bi-bar-chart"></i> 共 {{ totalCount }} 道题目
+              <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
             </p>
           </div>
           <div class="d-flex gap-2 flex-wrap">
@@ -25,7 +26,7 @@
                 @input="handleSearch"
               />
             </div>
-            <select v-model="kpFilter" class="form-select" style="max-width: 220px" @change="getQuestionList">
+            <select v-model="kpFilter" class="form-select" style="max-width: 220px" @change="onFilterChange">
               <option value="">全部知识点</option>
               <option v-for="kp in knowledgePoints" :key="kp._id" :value="kp._id">
                 {{ kp.path }}
@@ -50,8 +51,25 @@
         <i class="bi bi-info-circle"></i> 未找到匹配的题目，请尝试其他关键词
       </div>
 
+      <div v-if="totalCount > pageSize" class="d-flex justify-content-end gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="pageOffset <= 0" @click="prevPage">
+          上一页
+        </button>
+        <span class="align-self-center small text-muted">
+          {{ pageOffset + 1 }}–{{ Math.min(pageOffset + pageSize, totalCount) }} / {{ totalCount }}
+        </span>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          :disabled="pageOffset + pageSize >= totalCount"
+          @click="nextPage"
+        >
+          下一页
+        </button>
+      </div>
+
       <!-- 题目列表 -->
-      <div v-else-if="questions.length > 0" class="row g-4">
+      <div v-if="!loading && questions.length > 0" class="row g-4">
         <div
           v-for="question in questions"
           :key="question._id"
@@ -138,6 +156,9 @@ export default {
       searchQuery: "",
       knowledgePoints: [],
       kpFilter: "",
+      totalCount: 0,
+      pageSize: 50,
+      pageOffset: 0,
     };
   },
   mounted() {
@@ -205,17 +226,42 @@ export default {
         console.error("加载知识点失败", e);
       }
     },
+    onFilterChange() {
+      this.pageOffset = 0;
+      this.getQuestionList();
+    },
+    prevPage() {
+      this.pageOffset = Math.max(0, this.pageOffset - this.pageSize);
+      this.getQuestionList();
+    },
+    nextPage() {
+      if (this.pageOffset + this.pageSize < this.totalCount) {
+        this.pageOffset += this.pageSize;
+        this.getQuestionList();
+      }
+    },
     async getQuestionList() {
       this.loading = true;
       try {
-        const params = {};
+        const params = {
+          limit: this.pageSize,
+          offset: this.pageOffset,
+        };
         if (this.kpFilter) {
           params.knowledgePointId = this.kpFilter;
           params.subtree = "true";
         }
         const response = await axios.get("/questions/list", { params });
-        this.allQuestions = response.data;
-        this.questions = response.data;
+        const data = response.data;
+        if (Array.isArray(data)) {
+          this.allQuestions = data;
+          this.questions = data;
+          this.totalCount = data.length;
+        } else {
+          this.allQuestions = data.questions || [];
+          this.questions = data.questions || [];
+          this.totalCount = data.total ?? this.questions.length;
+        }
       } catch (error) {
         console.error("Failed to retrieve question list:", error);
       } finally {
@@ -223,6 +269,7 @@ export default {
       }
     },
     handleSearch() {
+      this.pageOffset = 0;
       if (!this.searchQuery.trim()) {
         this.questions = this.allQuestions;
         return;

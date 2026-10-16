@@ -33,6 +33,12 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci_scenario
           SCENARIO_PORT: 3099
         run: npm run test:scenario
+      - name: List pagination benchmark (10k seed)
+        env:
+          MONGODB_URI: mongodb://localhost:27017/mathexam_ci_bench
+          BENCH_TARGET_COUNT: 10000
+          BENCH_P95_MS: 3000
+        run: npm run test:bench
       - name: Smoke API health
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci
