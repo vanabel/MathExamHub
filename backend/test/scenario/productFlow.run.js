@@ -142,6 +142,22 @@ async function run() {
     const missingTypes = requiredCreates.filter((t) => !rows.some((q) => q.type === t));
     assert.equal(missingTypes.length, 0, `after ensure missing: ${missingTypes.join(', ')}`);
 
+    while (rows.filter((q) => q.type === '填空题').length < 2) {
+      const created = await client.request('POST', '/api/questions/create', {
+        body: {
+          questionText: `场景换题备用填空 ${Date.now()}`,
+          type: '填空题',
+          totalScore: 4,
+          difficulty: '中',
+          subject: '高等代数',
+          correctAnswer: '略',
+        },
+      });
+      assert.ok(created.status === 201 || created.status === 200);
+      list = await client.request('GET', '/api/questions/list');
+      rows = listRows(list.data);
+    }
+
     console.log('· four-section blueprint generate');
     const blueprintBody = buildFourSectionBlueprint(rows);
     const saved = await client.request('POST', '/api/exam-blueprints', { body: blueprintBody });
