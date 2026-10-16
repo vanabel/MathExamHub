@@ -76,13 +76,16 @@ test.describe('product smoke', () => {
     const starterClone = page.getByRole('button', { name: '克隆' }).first();
     await expect(starterClone).toBeVisible({ timeout: 15000 });
     await starterClone.click();
-
-    await page.getByTestId('wizard-coverage-check').click();
+    await page.getByTestId('wizard-coverage-check').waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByTestId('wizard-coverage-check').click({ timeout: 60000 });
     await expect(page.getByTestId('wizard-coverage-result')).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: path.join(shots, 'onboarding-wizard.png'), fullPage: true });
 
     await page.getByTestId('wizard-generate').click();
-    await expect(page.getByText(/预览|大题|第 1/)).toBeVisible({ timeout: 60000 });
+    const previewTab = page.getByRole('button', { name: '2. 预览' });
+    await expect(previewTab).toBeEnabled({ timeout: 90000 });
+    await previewTab.click();
+    await expect(page.getByText(/将当前预览中的 [1-9]\d* 道题/)).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();
     const downloadPromise = page.waitForEvent('download');
