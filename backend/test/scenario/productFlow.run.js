@@ -120,22 +120,21 @@ async function run() {
     rows = listRows(list.data);
 
     console.log('· ensure four question types for blueprint');
-    const have = new Set(rows.map((q) => q.type));
-    for (const group of TYPE_PLAN) {
-      const type = group.find((t) => have.has(t)) || group[0];
-      if (!have.has(type)) {
+    const requiredCreates = ['判断题', '单选题', '填空题', '计算题'];
+    for (const type of requiredCreates) {
+      if (!rows.some((q) => q.type === type)) {
         const created = await client.request('POST', '/api/questions/create', {
           body: {
-            questionText: `场景测试占位题（${type}）`,
+            questionText: `场景测试占位题（${type}）${Date.now()}`,
             type,
             totalScore: 4,
             difficulty: '中',
             subject: '高等代数',
             correctAnswer: type === '判断题' ? true : '略',
+            ...(type === '单选题' ? { options: { A: '1', B: '2', C: '3', D: '4' } } : {}),
           },
         });
         assert.ok(created.status === 201 || created.status === 200, JSON.stringify(created.data));
-        have.add(type);
       }
     }
     list = await client.request('GET', '/api/questions/list');
