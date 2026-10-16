@@ -97,6 +97,10 @@ jobs:
       - name: Install Playwright (Chromium)
         working-directory: e2e
         run: npx playwright install --with-deps chromium
+      - name: Install XeLaTeX (e2e export compile)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra unzip
       - name: Build frontend
         working-directory: frontend
         env:
@@ -120,7 +124,7 @@ jobs:
           done
           curl -sf http://127.0.0.1:3000/api/health
           curl -sf http://127.0.0.1:8080/login | head -c 200
-          PLAYWRIGHT_API_URL=http://127.0.0.1:3000/api npm --prefix e2e test
+          E2E_COMPILE_TEX=1 PLAYWRIGHT_API_URL=http://127.0.0.1:3000/api npm --prefix e2e test
           kill $BACK_PID $FE_PID 2>/dev/null || true
       - name: Upload e2e screenshots
         if: always()
