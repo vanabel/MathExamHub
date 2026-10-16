@@ -41,18 +41,8 @@ async function run() {
     assert.equal(login.status, 200);
     await client.loadDefaultBank();
 
-    const texBuffer = fs.readFileSync(fixturePath);
-    const appendTex = (form) => {
-      form.append(
-        'file',
-        new File([texBuffer], 'package-examples.tex', { type: 'text/plain' }),
-      );
-    };
-
     console.log('· import multi-part fixture');
-    const form1 = new FormData();
-    appendTex(form1);
-    const imp1 = await client.request('POST', '/api/questions/import/latex', { formData: form1, json: false });
+    const imp1 = await client.importLatexFile(fixturePath);
     assert.equal(imp1.status, 200, JSON.stringify(imp1.data));
     assert.ok(
       imp1.data.imported >= 4,
@@ -60,9 +50,7 @@ async function run() {
     );
 
     console.log('· re-import skips duplicates');
-    const form2 = new FormData();
-    appendTex(form2);
-    const imp2 = await client.request('POST', '/api/questions/import/latex', { formData: form2, json: false });
+    const imp2 = await client.importLatexFile(fixturePath);
     assert.equal(imp2.status, 200);
     assert.equal(imp2.data.imported, 0);
     assert.ok(imp2.data.skipped >= 4);
