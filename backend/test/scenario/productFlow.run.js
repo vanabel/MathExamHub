@@ -89,8 +89,10 @@ async function run() {
     const blueprintId = saved.data._id;
     const gen1 = await client.request('POST', '/api/exams/generate', { body: { blueprintId } });
     const gen2 = await client.request('POST', '/api/exams/generate', { body: { blueprintId } });
+    assert.equal(gen1.status, 200, JSON.stringify(gen1.data));
+    assert.equal(gen2.status, 200);
     assert.deepEqual(gen1.data.questionIds, gen2.data.questionIds);
-    assert.ok(gen1.data.questionIds.length >= 1);
+    assert.ok(gen1.data.questionIds?.length >= 1, JSON.stringify(gen1.data));
 
     const exportRes = await client.request('POST', '/api/questions/export/latex', {
       body: {
