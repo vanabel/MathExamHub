@@ -7,6 +7,8 @@ function toPublicSettings(doc) {
     llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
     llmModel: doc.llmModel || 'gpt-4o-mini',
     llmTimeoutMs: doc.llmTimeoutMs ?? 12000,
+    llmPreviewMaxQuestions: doc.llmPreviewMaxQuestions ?? 20,
+    llmPreviewConcurrency: doc.llmPreviewConcurrency ?? 3,
     hasApiKey: Boolean(doc.llmApiKey),
     updatedAt: doc.updatedAt,
   };
@@ -46,6 +48,12 @@ async function updatePlatformSettings(patch) {
   }
   if (typeof patch.llmTimeoutMs === 'number' && patch.llmTimeoutMs >= 3000) {
     update.llmTimeoutMs = Math.min(patch.llmTimeoutMs, 60000);
+  }
+  if (typeof patch.llmPreviewMaxQuestions === 'number') {
+    update.llmPreviewMaxQuestions = Math.min(Math.max(patch.llmPreviewMaxQuestions, 1), 200);
+  }
+  if (typeof patch.llmPreviewConcurrency === 'number') {
+    update.llmPreviewConcurrency = Math.min(Math.max(patch.llmPreviewConcurrency, 1), 10);
   }
   if (typeof patch.llmApiKey === 'string' && patch.llmApiKey.trim()) {
     update.llmApiKey = patch.llmApiKey.trim();
