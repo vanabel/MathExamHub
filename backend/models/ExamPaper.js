@@ -12,6 +12,14 @@ const examPaperSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ExamBlueprint',
   },
+  variantGroupId: {
+    type: mongoose.Schema.Types.ObjectId,
+    index: true,
+  },
+  variantLabel: {
+    type: String,
+    enum: ['A', 'B'],
+  },
   title: { type: String, required: true },
   subject: { type: String },
   randomSeed: { type: Number, required: true },

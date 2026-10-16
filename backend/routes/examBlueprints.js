@@ -47,7 +47,7 @@ router.put('/:id', requireBankWrite, async (req, res) => {
   try {
     const doc = await ExamBlueprint.findOne({ _id: req.params.id, bankId: req.bankId });
     if (!doc) return res.status(404).json({ error: 'Blueprint not found' });
-    const fields = ['title', 'subject', 'totalScore', 'sections', 'randomSeed', 'allowRelaxation'];
+    const fields = ['title', 'subject', 'totalScore', 'sections', 'randomSeed', 'allowRelaxation', 'maxVariantOverlapPct'];
     for (const key of fields) {
       if (typeof req.body[key] !== 'undefined') doc[key] = req.body[key];
     }

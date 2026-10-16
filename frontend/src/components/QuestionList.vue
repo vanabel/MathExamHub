@@ -69,6 +69,7 @@
                 </div>
                 <span class="badge bg-secondary">{{ question.type }}</span>
                 <span class="badge bg-info ms-2">{{ question.totalScore }} 分</span>
+                <span v-if="question.usageCount" class="badge bg-light text-dark ms-1">已用 {{ question.usageCount }} 次</span>
               </div>
 
               <!-- 题目内容：先转成 HTML，再由 MathJax / PDF.js 排版 -->

@@ -72,6 +72,7 @@ const questionSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  lastUsedAt: { type: Date },
   createdBy: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },

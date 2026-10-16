@@ -67,6 +67,23 @@
                     <label class="form-check-label" for="allowRelax">允许自动放宽约束</label>
                   </div>
                 </div>
+                <div class="col-md-4">
+                  <label class="form-label">A/B 重合率上限（%）</label>
+                  <input
+                    v-model.number="maxOverlapPctUi"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    class="form-control"
+                  />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <div class="form-check">
+                    <input id="genAb" v-model="generateAbPair" class="form-check-input" type="checkbox" />
+                    <label class="form-check-label" for="genAb">同时生成 A/B 双卷</label>
+                  </div>
+                </div>
               </div>
 
               <div v-for="(section, idx) in blueprint.sections" :key="idx" class="border rounded p-3 mb-3 bg-light-subtle">
@@ -110,7 +127,7 @@
                 {{ savingBlueprint ? '保存中…' : '保存蓝图' }}
               </button>
               <button type="button" class="btn btn-primary" :disabled="generating" @click="generateExam">
-                {{ generating ? '生成中…' : '生成试卷' }}
+                {{ generating ? '生成中…' : (generateAbPair ? '生成 A/B 卷' : '生成试卷') }}
               </button>
             </div>
           </div>
@@ -147,7 +164,31 @@
       <!-- Step 2 -->
       <div v-show="step === 2">
         <div v-if="!paperQuestions.length" class="alert alert-secondary">请先在「蓝图」步骤生成试卷。</div>
-        <div v-else class="row g-3">
+        <div v-else>
+          <div v-if="variants.A && variants.B" class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <div class="btn-group" role="group">
+              <button
+                type="button"
+                class="btn btn-sm"
+                :class="activeVariant === 'A' ? 'btn-primary' : 'btn-outline-primary'"
+                @click="switchVariant('A')"
+              >
+                A 卷
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm"
+                :class="activeVariant === 'B' ? 'btn-primary' : 'btn-outline-primary'"
+                @click="switchVariant('B')"
+              >
+                B 卷
+              </button>
+            </div>
+            <span class="text-muted small">
+              题目重合率：{{ (variantOverlapRatio * 100).toFixed(1) }}%（上限 {{ maxOverlapPctUi }}%）
+            </span>
+          </div>
+          <div class="row g-3">
           <div v-for="(item, index) in paperQuestions" :key="item._id + '-' + index" class="col-12">
             <div class="card shadow-sm">
               <div class="card-body">
@@ -157,6 +198,7 @@
                     <span class="badge bg-secondary me-1">{{ item.difficulty }}</span>
                     <span class="badge bg-info">{{ item.totalScore }} 分</span>
                     <span v-if="item.usageCount != null" class="badge bg-light text-dark ms-1">已用 {{ item.usageCount }} 次</span>
+                    <span v-if="item.lastUsedAt" class="badge bg-light text-muted ms-1">{{ formatLastUsed(item.lastUsedAt) }}</span>
                     <span class="text-muted small ms-2">第 {{ index + 1 }} 题 · 大题 {{ item.sectionIndex + 1 }}</span>
                   </div>
                   <button
@@ -175,6 +217,7 @@
               </div>
             </div>
           </div>
+          </div>
         </div>
       </div>
 
@@ -182,7 +225,10 @@
       <div v-show="step === 3">
         <div class="card shadow-sm max-w-600">
           <div class="card-body">
-            <p class="text-muted">将当前预览中的 {{ paperQuestions.length }} 道题导出为 mathexam LaTeX ZIP（含试卷与答案）。</p>
+            <p class="text-muted">
+              将当前{{ activeVariant && activeVariant !== 'single' ? ` ${activeVariant} 卷` : '' }}预览中的
+              {{ paperQuestions.length }} 道题导出为 mathexam LaTeX ZIP（含试卷与答案）。
+            </p>
             <button type="button" class="btn btn-success" :disabled="exporting || !paperQuestions.length" @click="exportZip">
               {{ exporting ? '导出中…' : '下载 LaTeX ZIP' }}
             </button>
@@ -219,8 +265,14 @@ export default {
         totalScore: 100,
         randomSeed: 42,
         allowRelaxation: true,
+        maxVariantOverlapPct: 0.2,
         sections: [defaultSection()],
       },
+      generateAbPair: false,
+      maxOverlapPctUi: 20,
+      activeVariant: 'single',
+      variants: { A: null, B: null },
+      variantOverlapRatio: 0,
       savedBlueprintId: null,
       paperId: null,
       paperQuestions: [],
@@ -239,6 +291,12 @@ export default {
   },
   methods: {
     processQuestionTextToHTML,
+    formatLastUsed(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return `最近使用 ${d.toLocaleDateString('zh-CN')}`;
+    },
     formatMap(obj) {
       if (!obj) return '—';
       return Object.entries(obj).map(([k, v]) => `${k}:${v}`).join('，');
@@ -266,12 +324,18 @@ export default {
       if (bp) {
         this.blueprint = JSON.parse(JSON.stringify(bp));
         this.savedBlueprintId = bp._id;
+        if (typeof bp.maxVariantOverlapPct === 'number') {
+          this.maxOverlapPctUi = Math.round(bp.maxVariantOverlapPct * 100);
+        }
       }
     },
     async saveBlueprint() {
       this.savingBlueprint = true;
       try {
-        const payload = { ...this.blueprint };
+        const payload = {
+          ...this.blueprint,
+          maxVariantOverlapPct: Math.min(1, Math.max(0, this.maxOverlapPctUi / 100)),
+        };
         if (this.savedBlueprintId) {
           const { data } = await axios.put(`/exam-blueprints/${this.savedBlueprintId}`, payload);
           this.blueprint = data;
@@ -305,24 +369,56 @@ export default {
       }
       return flat;
     },
+    applyGeneratePayload(data, variantKey = 'single') {
+      this.relaxations = data.relaxations || [];
+      this.warnings = data.warnings || [];
+      this.shortfalls = data.shortfalls || [];
+      this.generateStats = data.stats || null;
+      this.paperId = data.paperId;
+      this.paperQuestions = this.buildFlatQuestions(data.sections, data.questions || []);
+      if (variantKey === 'A' || variantKey === 'B') {
+        this.variants[variantKey] = data;
+      }
+    },
+    switchVariant(label) {
+      if (!this.variants[label]) return;
+      this.activeVariant = label;
+      this.applyGeneratePayload(this.variants[label], label);
+      this.$nextTick(() => {
+        if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise();
+      });
+    },
     async generateExam() {
       this.generating = true;
       this.relaxations = [];
       this.warnings = [];
       this.shortfalls = [];
+      this.variants = { A: null, B: null };
+      this.activeVariant = 'single';
       try {
         if (!this.savedBlueprintId) {
           await this.saveBlueprint();
         }
-        const { data } = await axios.post('/exams/generate', {
-          blueprintId: this.savedBlueprintId,
-        });
-        this.paperId = data.paperId;
-        this.relaxations = data.relaxations || [];
-        this.warnings = data.warnings || [];
-        this.shortfalls = data.shortfalls || [];
-        this.generateStats = data.stats || null;
-        this.paperQuestions = this.buildFlatQuestions(data.sections, data.questions || []);
+        const maxVariantOverlapPct = Math.min(1, Math.max(0, this.maxOverlapPctUi / 100));
+        if (this.generateAbPair) {
+          const { data } = await axios.post('/exams/generate-variants', {
+            blueprintId: this.savedBlueprintId,
+            maxVariantOverlapPct,
+          });
+          this.variantOverlapRatio = data.overlapRatio ?? 0;
+          if (data.warnings?.length) {
+            this.warnings = data.warnings;
+          }
+          this.variants.A = data.variants.A;
+          this.variants.B = data.variants.B;
+          this.activeVariant = 'A';
+          this.applyGeneratePayload(data.variants.A, 'A');
+        } else {
+          const { data } = await axios.post('/exams/generate', {
+            blueprintId: this.savedBlueprintId,
+          });
+          this.applyGeneratePayload(data);
+        }
         if (this.paperQuestions.length) {
           this.step = 2;
           this.$nextTick(() => {
@@ -386,7 +482,10 @@ export default {
             questionIds,
             blueprintId: this.savedBlueprintId,
             paperId: this.paperId,
-            metadata: { exportMode: 'both' },
+            metadata: {
+              exportMode: 'both',
+              AorB: this.activeVariant === 'B' ? 'B' : 'A',
+            },
           },
           { responseType: 'blob' },
         );

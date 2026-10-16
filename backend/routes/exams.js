@@ -6,6 +6,13 @@ const Question = require('../models/Question');
 const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 const { generateExamPaper, pickSwapReplacement } = require('../services/examGenerator');
+const { generateAbVariants } = require('../services/examVariantService');
+const {
+  recordQuestionUsage,
+  mapQuestionsForApi,
+  createExamPaperDoc,
+  buildGeneratePayload,
+} = require('../services/examPaperService');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const { examPoolFilter } = require('../constants/questionLifecycle');
 
@@ -30,77 +37,129 @@ async function buildKpExpansionMap(bankId, blueprint) {
   return map;
 }
 
+async function loadBlueprint(req) {
+  let blueprint = req.body.blueprint;
+  const blueprintId = req.body.blueprintId;
+  if (blueprintId) {
+    const doc = await ExamBlueprint.findOne({
+      _id: blueprintId,
+      bankId: req.bankId,
+    }).lean();
+    if (!doc) return { error: 'Blueprint not found', status: 404 };
+    blueprint = doc;
+  }
+  if (!blueprint?.sections?.length) {
+    return { error: '需要提供 blueprint 或 blueprintId', status: 400 };
+  }
+  return { blueprint, blueprintId };
+}
+
 router.post('/generate', requireBankWrite, async (req, res) => {
   try {
-    let blueprint = req.body.blueprint;
-    if (req.body.blueprintId) {
-      const doc = await ExamBlueprint.findOne({
-        _id: req.body.blueprintId,
-        bankId: req.bankId,
-      }).lean();
-      if (!doc) return res.status(404).json({ error: 'Blueprint not found' });
-      blueprint = doc;
-    }
-    if (!blueprint || !blueprint.sections?.length) {
-      return res.status(400).json({ error: '需要提供 blueprint 或 blueprintId' });
-    }
+    const loaded = await loadBlueprint(req);
+    if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
+    const { blueprint, blueprintId } = loaded;
 
     const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
-
     const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
     const result = generateExamPaper(blueprint, pool, kpExpansionMap);
 
-    const questionDocs = result.questionIds
-      .map((id) => pool.find((q) => String(q._id) === String(id)))
-      .filter(Boolean);
-
     if (result.success && result.questionIds.length) {
-      await Question.updateMany(
-        { _id: { $in: result.questionIds }, bankId: req.bankId },
-        { $inc: { usageCount: 1 } },
-      );
+      await recordQuestionUsage(req.bankId, result.questionIds);
     }
 
-    const paper = await ExamPaper.create({
+    const paper = await createExamPaperDoc({
       bankId: req.bankId,
-      blueprintId: req.body.blueprintId || undefined,
-      title: blueprint.title,
-      subject: blueprint.subject,
-      randomSeed: blueprint.randomSeed,
-      questionIds: result.questionIds,
-      sections: result.sections,
-      stats: result.stats,
-      relaxations: result.relaxations,
-      warnings: result.warnings,
-      shortfalls: result.shortfalls,
-      createdBy: req.user.username,
+      blueprintId,
+      blueprint,
+      result,
+      username: req.user.username,
     });
 
-    res.status(result.success ? 200 : 200).json({
-      paperId: paper._id,
-      success: result.success,
-      questionIds: result.questionIds,
-      questions: questionDocs.map((q) => ({
-        _id: q._id,
-        type: q.type,
-        difficulty: q.difficulty,
-        totalScore: q.totalScore,
-        subject: q.subject,
-        questionText: q.questionText,
-        originalLaTeX: q.originalLaTeX,
-        knowledgePointIds: q.knowledgePointIds,
-        usageCount: q.usageCount,
-      })),
-      sections: result.sections,
-      stats: result.stats,
-      relaxations: result.relaxations,
-      warnings: result.warnings,
-      shortfalls: result.shortfalls,
-      randomSeed: blueprint.randomSeed,
-    });
+    const questions = mapQuestionsForApi(pool, result.questionIds);
+    res.status(200).json(buildGeneratePayload(paper, result, questions));
   } catch (error) {
     console.error('generate exam failed', error);
     res.status(500).json({ error: error.message || 'Generate failed' });
+  }
+});
+
+router.post('/generate-variants', requireBankWrite, async (req, res) => {
+  try {
+    const loaded = await loadBlueprint(req);
+    if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
+    const { blueprint, blueprintId } = loaded;
+
+    const maxPct = typeof req.body.maxVariantOverlapPct === 'number'
+      ? req.body.maxVariantOverlapPct
+      : (blueprint.maxVariantOverlapPct ?? 0.2);
+    const seedA = Number(req.body.seedA ?? blueprint.randomSeed ?? 42);
+    const seedBStart = Number(req.body.seedB ?? seedA + 1009);
+
+    const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
+    const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
+
+    const ab = generateAbVariants(
+      blueprint,
+      pool,
+      kpExpansionMap,
+      seedA,
+      seedBStart,
+      maxPct,
+    );
+
+    const allIds = [...new Set([
+      ...ab.resultA.questionIds,
+      ...ab.resultB.questionIds,
+    ].map(String))];
+
+    if (allIds.length) {
+      await recordQuestionUsage(req.bankId, allIds);
+    }
+
+    const paperA = await createExamPaperDoc({
+      bankId: req.bankId,
+      blueprintId,
+      blueprint: { ...blueprint, randomSeed: ab.seedA },
+      result: ab.resultA,
+      username: req.user.username,
+      variantLabel: 'A',
+      variantGroupId: ab.variantGroupId,
+    });
+    const paperB = await createExamPaperDoc({
+      bankId: req.bankId,
+      blueprintId,
+      blueprint: { ...blueprint, randomSeed: ab.seedB },
+      result: ab.resultB,
+      username: req.user.username,
+      variantLabel: 'B',
+      variantGroupId: ab.variantGroupId,
+    });
+
+    const warnings = [...(ab.warnings || [])];
+    if (ab.resultA.warnings?.length) warnings.push(...ab.resultA.warnings);
+    if (ab.resultB.warnings?.length) warnings.push(...ab.resultB.warnings);
+
+    res.status(200).json({
+      variantGroupId: ab.variantGroupId,
+      maxVariantOverlapPct: maxPct,
+      overlapRatio: ab.overlapRatio,
+      overlapCount: ab.overlapCount,
+      warnings,
+      variants: {
+        A: {
+          ...buildGeneratePayload(paperA, ab.resultA, mapQuestionsForApi(pool, ab.resultA.questionIds)),
+          variantLabel: 'A',
+        },
+        B: {
+          ...buildGeneratePayload(paperB, ab.resultB, mapQuestionsForApi(pool, ab.resultB.questionIds)),
+          variantLabel: 'B',
+        },
+      },
+    });
+  } catch (error) {
+    console.error('generate variants failed', error);
+    res.status(500).json({ error: error.message || 'Generate variants failed' });
   }
 });
 
@@ -162,6 +221,8 @@ router.post('/swap-question', requireBankWrite, async (req, res) => {
         questionText: q.questionText,
         originalLaTeX: q.originalLaTeX,
         knowledgePointIds: q.knowledgePointIds,
+        usageCount: q.usageCount,
+        lastUsedAt: q.lastUsedAt,
       },
       candidatesCount: swap.candidatesCount,
     });
