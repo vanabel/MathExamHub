@@ -30,6 +30,30 @@
         </div>
       </div>
 
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">LLM 辅助（默认关闭）</div>
+        <div class="card-body row g-3 align-items-center">
+          <div class="col-md-4">
+            <div class="form-check form-switch">
+              <input id="llmOn" v-model="settings.llmAssistEnabled" class="form-check-input" type="checkbox" />
+              <label class="form-check-label" for="llmOn">导入时自动建议难度与知识点</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">Provider</label>
+            <select v-model="settings.llmProvider" class="form-select form-select-sm">
+              <option value="mock">mock（测试/离线）</option>
+              <option value="openai">openai（需 OPENAI_API_KEY）</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <button type="button" class="btn btn-primary btn-sm" :disabled="savingSettings" @click="saveSettings">
+              {{ savingSettings ? '保存中…' : '保存 LLM 设置' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>用户与角色</span>
@@ -92,6 +116,8 @@ export default {
       stats: {},
       users: [],
       savingId: null,
+      settings: { llmAssistEnabled: false, llmProvider: 'mock' },
+      savingSettings: false,
     };
   },
   mounted() {
@@ -105,12 +131,14 @@ export default {
     async loadAll() {
       this.forbidden = false;
       try {
-        const [statsRes, usersRes] = await Promise.all([
+        const [statsRes, usersRes, settingsRes] = await Promise.all([
           axios.get('/admin/stats'),
           axios.get('/admin/users'),
+          axios.get('/admin/settings'),
         ]);
         this.stats = statsRes.data;
         this.users = usersRes.data.users || [];
+        this.settings = settingsRes.data.settings || this.settings;
       } catch (e) {
         if (e.response?.status === 403) {
           this.forbidden = true;
@@ -126,6 +154,18 @@ export default {
         this.users = data.users || [];
       } catch (e) {
         alert(e.response?.data?.error || '加载用户失败');
+      }
+    },
+    async saveSettings() {
+      this.savingSettings = true;
+      try {
+        const { data } = await axios.patch('/admin/settings', this.settings);
+        this.settings = data.settings;
+        alert('LLM 设置已保存');
+      } catch (e) {
+        alert(e.response?.data?.error || '保存失败');
+      } finally {
+        this.savingSettings = false;
       }
     },
     async saveRole(user) {

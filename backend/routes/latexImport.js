@@ -9,6 +9,9 @@ const { validateQuestionBatch } = require('../utils/questionValidator');
 const { normalizeDifficulty } = require('../constants/difficulty');
 const { requireBankWrite } = require('../middleware/bankContext');
 const QuestionBank = require('../models/QuestionBank');
+const KnowledgePoint = require('../models/KnowledgePoint');
+const { getPlatformSettings } = require('../services/platformSettingsService');
+const { suggestQuestionMetadata } = require('../services/llmAssistService');
 const {
   fillBankLatexMetadata,
   metadataForExportForm,
@@ -185,6 +188,13 @@ function registerLatexImportRoutes(router) {
           }
         }
 
+        const platformSettings = await getPlatformSettings();
+        const applyLlmAssist = platformSettings.llmAssistEnabled && req.body.llmAssist !== 'false';
+        const kpNodes = applyLlmAssist
+          ? await KnowledgePoint.find({ bankId: req.bankId }).select('_id path name subject').lean()
+          : [];
+        let llmAssistApplied = 0;
+
         for (const q of validation.questions) {
           const dupEntry = dupResult.duplicates.find((d) => d.question === q);
           const hash = computeContentHash(q);
@@ -205,17 +215,36 @@ function registerLatexImportRoutes(router) {
             continue;
           }
           try {
+            let difficulty = normalizeDifficulty(q.difficulty, '中');
+            let knowledgePointIds = [];
+            if (applyLlmAssist) {
+              const suggestion = await suggestQuestionMetadata(
+                {
+                  questionText: q.questionText,
+                  type: q.type,
+                  subject: q.subject || '解析几何',
+                  knowledgePoints: kpNodes,
+                },
+                platformSettings,
+              );
+              if (suggestion) {
+                difficulty = suggestion.difficulty;
+                knowledgePointIds = suggestion.knowledgePointIds || [];
+                llmAssistApplied += 1;
+              }
+            }
             const doc = new Question({
               bankId: req.bankId,
               questionText: q.questionText,
               type: q.type,
               totalScore: q.totalScore || 0,
               correctAnswer: q.correctAnswer || q.solution || '',
-              difficulty: normalizeDifficulty(q.difficulty, '中'),
+              difficulty,
               subject: q.subject || '解析几何',
               createdBy: req.user.username,
               options: q.options,
               originalLaTeX: q.originalLaTeX,
+              knowledgePointIds,
               source: { kind: 'latex-import', fileName: sourceFileName },
             });
             await doc.save();
@@ -237,6 +266,7 @@ function registerLatexImportRoutes(router) {
           warnings: validation.warnings,
           bankMetadataUpdated,
           exportDefaults: metadataForExportForm(bank, documentMetadata),
+          llmAssistApplied,
         });
       } catch (error) {
         const status = error.status || 500;
