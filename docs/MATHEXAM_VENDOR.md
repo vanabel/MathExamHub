@@ -37,12 +37,18 @@ latex mathexam.dtx
 # 生成 mathexam.sty 后复制到 docs/vendor/
 ```
 
+## Hub 本地补丁（相对上游 v2.3.1）
+
+- **`\\DTLwrite` 兼容**：`TeX/mathexam.sty` 在 `\\@ifundefined{DTLwrite}` 时跳过期末 CSV/dbtex 导出并给出警告，避免 Ubuntu/旧 TeX Live 上编译失败。建议上游 [vanabel/mathexam](https://github.com/vanabel/mathexam) 合并同等 guard 后，Hub 刷新 pin 时可还原为纯上游 sty。
+
 ## 导出试卷编译提示
 
 Hub 导出的 `.tex` 使用 `mathexam` 宏包。导出 ZIP 内会附带 `mathexam.sty`（与 `TeX/` 中 pin 版本一致）。在 ZIP 目录下使用 **XeLaTeX** 编译即可，例如：
 
 ```bash
-xelatex your-exam.tex
+xelatex -shell-escape your-exam.tex
 ```
+
+TeX Live 版本与 apt 包列表见 [TEXLIVE.md](./TEXLIVE.md)。
 
 试卷卷默认 **不** 带 `showans`；答案卷使用 `\usepackage[showans,...]{mathexam}` 或单独的 `*-answer.tex` 文件。
