@@ -26,6 +26,24 @@
                 @input="handleSearch"
               />
             </div>
+            <input
+              v-model="subjectFilter"
+              type="text"
+              class="form-control"
+              style="max-width: 140px"
+              placeholder="科目"
+              @change="onFilterChange"
+            />
+            <select v-model="typeFilter" class="form-select" style="max-width: 130px" @change="onFilterChange">
+              <option value="">全部题型</option>
+              <option v-for="t in questionTypes" :key="t" :value="t">{{ t }}</option>
+            </select>
+            <select v-model="difficultyFilter" class="form-select" style="max-width: 100px" @change="onFilterChange">
+              <option value="">难度</option>
+              <option value="易">易</option>
+              <option value="中">中</option>
+              <option value="难">难</option>
+            </select>
             <select v-model="kpFilter" class="form-select" style="max-width: 220px" @change="onFilterChange">
               <option value="">全部知识点</option>
               <option v-for="kp in knowledgePoints" :key="kp._id" :value="kp._id">
@@ -156,9 +174,14 @@ export default {
       searchQuery: "",
       knowledgePoints: [],
       kpFilter: "",
+      subjectFilter: "",
+      typeFilter: "",
+      difficultyFilter: "",
+      questionTypes: ['判断题', '单选题', '多选题', '填空题', '简答题', '解答题', '计算题', '证明题', '作图题'],
       totalCount: 0,
       pageSize: 50,
       pageOffset: 0,
+      searchTimer: null,
     };
   },
   mounted() {
@@ -251,6 +274,10 @@ export default {
           params.knowledgePointId = this.kpFilter;
           params.subtree = "true";
         }
+        if (this.subjectFilter.trim()) params.subject = this.subjectFilter.trim();
+        if (this.typeFilter) params.type = this.typeFilter;
+        if (this.difficultyFilter) params.difficulty = this.difficultyFilter;
+        if (this.searchQuery.trim()) params.q = this.searchQuery.trim();
         const response = await axios.get("/questions/list", { params });
         const data = response.data;
         if (Array.isArray(data)) {
@@ -270,20 +297,10 @@ export default {
     },
     handleSearch() {
       this.pageOffset = 0;
-      if (!this.searchQuery.trim()) {
-        this.questions = this.allQuestions;
-        return;
-      }
-
-      const query = this.searchQuery.toLowerCase();
-      this.questions = this.allQuestions.filter((q) => {
-        return (
-          q.questionText?.toLowerCase().includes(query) ||
-          q.subject?.toLowerCase().includes(query) ||
-          q.type?.toLowerCase().includes(query) ||
-          q.difficulty?.toLowerCase().includes(query)
-        );
-      });
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.getQuestionList();
+      }, 350);
     },
     answerToText(content) {
       if (content == null) return "";

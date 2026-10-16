@@ -768,11 +768,13 @@ export default {
         const params = {};
         if (this.filters.subject) params.subject = this.filters.subject;
         if (this.filters.type) params.questionType = this.filters.type;
-        if (this.filters.keyword) params.questionText = this.filters.keyword;
+        if (this.filters.keyword) params.q = this.filters.keyword;
+        params.limit = 500;
+        params.offset = 0;
 
         const response = await axios.get("/questions/list", { params });
-        // 确保返回的数据是数组
-        this.questions = Array.isArray(response.data) ? response.data : [];
+        const data = response.data;
+        this.questions = Array.isArray(data) ? data : (data.questions || []);
       } catch (error) {
         console.error("加载题目失败:", error);
         alert("加载题目失败");

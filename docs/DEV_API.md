@@ -38,8 +38,14 @@ cd backend && cp .env.example .env && npm run dev
 
 # 终端 2
 curl -s http://localhost:3000/api/health | jq .
-curl -s http://localhost:3000/api/questions/list
+curl -s 'http://localhost:3000/api/questions/list?limit=20&offset=0'
+
+# 筛选示例（需登录 session + X-Bank-Id）
+# curl -s -b cookies.txt -H 'X-Bank-Id: ...' \
+#   'http://localhost:3000/api/questions/list?limit=50&q=勾股&type=填空题&difficulty=中'
 ```
+
+列表参数详见 `docs/M6_PERFORMANCE.md`。
 
 ## 本地前后端一起跑
 

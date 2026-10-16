@@ -12,6 +12,11 @@ const registerRecycleBinRoutes = require('./recycleBin');
 const { findAllDuplicatesInBank, formatGroupsForApi } = require('../utils/duplicateDetector');
 const { activeQuestionFilter, QUESTION_STATUS } = require('../constants/questionLifecycle');
 const { softDeleteQuestion } = require('../services/questionLifecycle');
+const {
+  buildQuestionListFilter,
+  parseListPagination,
+  parseListSort,
+} = require('../utils/questionListQuery');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -136,34 +141,26 @@ router.delete('/:id/delete', requireBankWrite, async (req, res) => {
   }
 });
 
-router.get('/list', async (req, res) => {
+async function runQuestionList(req, res) {
   try {
-    const { subject, questionType, knowledgePointId, status, subtree, checkDuplicates } = req.query;
-    const query = activeQuestionFilter({ bankId: req.bankId });
-    if (subject) query.subject = subject;
-    if (questionType) query.type = questionType;
-    if (status) {
-      if (status === QUESTION_STATUS.DELETED) {
-        return res.status(400).json({ error: '请使用 GET /questions/recycle-bin 查看回收站' });
-      }
-      query.status = status;
+    const { knowledgePointId, subtree, checkDuplicates, status } = req.query;
+    if (status === QUESTION_STATUS.DELETED) {
+      return res.status(400).json({ error: '请使用 GET /questions/recycle-bin 查看回收站' });
     }
 
-    if (knowledgePointId) {
-      if (subtree === 'true') {
-        const ids = await getSubtreeNodeIds(req.bankId, knowledgePointId);
-        query.knowledgePointIds = { $in: ids };
-      } else {
-        query.knowledgePointIds = knowledgePointId;
-      }
+    let kpSubtreeIds = null;
+    if (knowledgePointId && subtree === 'true') {
+      kpSubtreeIds = await getSubtreeNodeIds(req.bankId, knowledgePointId);
     }
 
-    const sort = { createdAt: -1 };
-    const hasPagination = req.query.limit != null || req.query.offset != null;
-    const limit = hasPagination
-      ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200)
-      : null;
-    const offset = hasPagination ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
+    const query = buildQuestionListFilter({
+      bankId: req.bankId,
+      query: req.query,
+      kpSubtreeIds,
+    });
+
+    const sort = parseListSort(req.query);
+    const { explicit: hasPagination, limit, offset } = parseListPagination(req.query);
 
     let questionsQuery = Question.find(query).sort(sort);
     if (limit != null) {
@@ -219,33 +216,17 @@ router.get('/list', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve questions' });
   }
-});
+}
 
-router.get('/search', async (req, res) => {
-  try {
-    const { subject, questionType, questionText } = req.query;
-    const query = activeQuestionFilter({ bankId: req.bankId });
-    if (subject) query.subject = subject;
-    if (questionType) query.type = questionType;
+router.get('/list', runQuestionList);
 
-    if (questionText && String(questionText).trim()) {
-      const keywordsArray = String(questionText)
-        .split(/[,、;]/)
-        .map((keyword) => keyword.trim())
-        .filter(Boolean);
-      if (keywordsArray.length > 0) {
-        query.questionText = {
-          $all: keywordsArray.map((keyword) => new RegExp(keyword, 'i')),
-        };
-      }
-    }
-
-    const searchResults = await Question.find(query);
-    res.json(searchResults);
-  } catch (error) {
-    console.error('Error searching questions:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+/** @deprecated 与 /list 相同参数；请使用 GET /questions/list?q=&limit=&offset= */
+router.get('/search', (req, res) => {
+  if (req.query.limit == null && req.query.offset == null) {
+    req.query.limit = '200';
+    req.query.offset = '0';
   }
+  return runQuestionList(req, res);
 });
 
 router.post('/extractKeywords', async (req, res) => {
