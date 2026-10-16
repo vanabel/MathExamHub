@@ -1,27 +1,70 @@
 const { getPlatformSettings } = require('./platformSettingsService');
 const { suggestQuestionMetadata } = require('./llmAssistService');
 
-async function attachLlmSuggestions(questions, bankId) {
-  const settings = await getPlatformSettings();
-  if (!settings.llmAssistEnabled || !questions?.length) {
-    return { llmSuggestions: [], settings, knowledgePoints: [] };
+const LLM_PREVIEW_MAX_QUESTIONS = Number(process.env.LLM_PREVIEW_MAX_QUESTIONS) || 20;
+const LLM_PREVIEW_CONCURRENCY = Number(process.env.LLM_PREVIEW_CONCURRENCY) || 3;
+
+async function mapWithConcurrency(items, limit, fn) {
+  if (!items.length) return [];
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Math.min(limit, items.length);
+  async function worker() {
+    for (;;) {
+      const i = nextIndex;
+      nextIndex += 1;
+      if (i >= items.length) break;
+      results[i] = await fn(items[i], i);
+    }
   }
-  const KnowledgePoint = require('../models/KnowledgePoint');
-  const kpNodes = await KnowledgePoint.find({ bankId }).select('_id path name subject').lean();
-  const llmSuggestions = [];
-  for (const q of questions) {
-    const suggestion = await suggestQuestionMetadata(
-      {
-        questionText: q.questionText,
-        type: q.type,
-        subject: q.subject || '解析几何',
-        knowledgePoints: kpNodes,
-      },
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
+}
+
+async function attachLlmSuggestions(questions, bankId, opts = {}) {
+  const maxQuestions = opts.maxQuestions ?? LLM_PREVIEW_MAX_QUESTIONS;
+  const concurrency = opts.concurrency ?? LLM_PREVIEW_CONCURRENCY;
+  const suggestFn = opts.suggestQuestionMetadata || suggestQuestionMetadata;
+
+  const settings = opts.settings ?? await getPlatformSettings();
+  const total = questions?.length || 0;
+  if (!settings.llmAssistEnabled || !total) {
+    return {
+      llmSuggestions: [],
       settings,
-    );
-    llmSuggestions.push(suggestion);
+      knowledgePoints: [],
+      llmPreviewCap: maxQuestions,
+      llmPreviewProcessed: 0,
+      llmPreviewTruncated: false,
+    };
   }
-  return { llmSuggestions, settings, knowledgePoints: kpNodes };
+  let kpNodes = opts.knowledgePoints;
+  if (!kpNodes) {
+    const KnowledgePoint = require('../models/KnowledgePoint');
+    kpNodes = await KnowledgePoint.find({ bankId }).select('_id path name subject').lean();
+  }
+  const slice = questions.slice(0, maxQuestions);
+  const llmSuggestionsPartial = await mapWithConcurrency(slice, concurrency, async (q) => suggestFn(
+    {
+      questionText: q.questionText,
+      type: q.type,
+      subject: q.subject || '解析几何',
+      knowledgePoints: kpNodes,
+    },
+    settings,
+  ));
+  const llmSuggestions = [...llmSuggestionsPartial];
+  while (llmSuggestions.length < total) {
+    llmSuggestions.push(null);
+  }
+  return {
+    llmSuggestions,
+    settings,
+    knowledgePoints: kpNodes,
+    llmPreviewCap: maxQuestions,
+    llmPreviewProcessed: slice.length,
+    llmPreviewTruncated: total > maxQuestions,
+  };
 }
 
 function parseMetadataOverrides(body) {
@@ -39,4 +82,7 @@ function parseMetadataOverrides(body) {
 module.exports = {
   attachLlmSuggestions,
   parseMetadataOverrides,
+  mapWithConcurrency,
+  LLM_PREVIEW_MAX_QUESTIONS,
+  LLM_PREVIEW_CONCURRENCY,
 };

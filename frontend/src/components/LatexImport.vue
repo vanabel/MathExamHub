@@ -191,6 +191,13 @@
               </div>
 
               <!-- 预览区域 -->
+              <div
+                v-if="previewData && useLlmPreview && previewData.llmPreviewTruncated"
+                class="alert alert-warning mt-3 mb-0"
+              >
+                仅对前 {{ previewData.llmPreviewProcessed ?? '?' }} / {{ previewQuestions.length }} 题请求 LLM（上限
+                {{ previewData.llmPreviewCap ?? 20 }} 题）；其余题目请手动填写或导入后再编辑。
+              </div>
               <div v-if="previewData && useLlmPreview && llmEdits.length" class="alert alert-info mt-3">
                 <strong>LLM 建议</strong>（确认导入前可修改）
                 <div class="table-responsive mt-2">
@@ -642,9 +649,9 @@ export default {
         this.llmEdits = (data.questions || []).map((q, i) => {
           const s = suggestions[i];
           return {
-            difficulty: s?.difficulty || q.difficulty || '中',
-            knowledgePointId: (s?.knowledgePointIds && s.knowledgePointIds[0]) || '',
-            source: s?.source,
+            difficulty: (s && s.difficulty) || q.difficulty || '中',
+            knowledgePointId: (s && s.knowledgePointIds && s.knowledgePointIds[0]) || '',
+            source: s && s.source,
           };
         });
         if (data.exportDefaults) {
