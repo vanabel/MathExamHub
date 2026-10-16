@@ -17,7 +17,7 @@ An application for managing and generating math exam questions, with **Node + Ex
   - 列出全部试题。
   - 按 **科目 + 题目类型 + 关键词** 搜索试题。
 
-相关文档：[快速上手（含截图）](./docs/GETTING_STARTED.md)、[LaTeX 导入导出](./docs/LaTeX_IMPORT_EXPORT.md)、[mathexam vendoring](./docs/MATHEXAM_VENDOR.md)、[路线图](./docs/ROADMAP.md)、[NAS/Docker 部署](./docs/DEPLOYMENT_NAS.md)。
+相关文档：[快速上手（含截图）](./docs/GETTING_STARTED.md)、[CHANGELOG](./CHANGELOG.md)、[v1.0.0 发布说明](./docs/RELEASE_v1.0.0.md)、[LaTeX 导入导出](./docs/LaTeX_IMPORT_EXPORT.md)、[mathexam vendoring](./docs/MATHEXAM_VENDOR.md)、[路线图](./docs/ROADMAP.md)、[NAS/Docker 部署](./docs/DEPLOYMENT_NAS.md)。
 
 **首次登录**会弹出引导：一键导入 **44 题示例题库**，并浏览 **导入 → 组卷向导 → 导出** 流程（详见 [GETTING_STARTED](./docs/GETTING_STARTED.md)）。
 

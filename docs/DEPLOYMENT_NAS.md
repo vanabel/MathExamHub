@@ -56,6 +56,24 @@ location /api/ {
 
 新装空库可跳过；注册用户时会自动创建个人题库。
 
+## 5.1 Production upgrade checklist（v0.x → v1.0.0）
+
+在维护窗口内执行，**先备份** MongoDB 与 `backend/uploads`：
+
+| Step | Action |
+|------|--------|
+| 1 | `mongodump`（或 NAS 快照）保存当前库 |
+| 2 | 拉取目标版本代码 / 镜像，`docker compose build --pull` |
+| 3 | 设置 `.env`：`SESSION_SECRET`（≥32 字节随机）、`MONGODB_URI`、`NODE_ENV=production` |
+| 4 | 运行 §5 迁移脚本（仅首次升级该环境时需要；已执行过的脚本可跳过） |
+| 5 | `docker compose up -d`；确认 `curl -sf http://<host>:8080/api/health` |
+| 6 | **Nginx**：确认 `location /api/` → `proxy_pass http://backend:3000/api/;`（保留 `/api` 前缀，见 §4） |
+| 7 |  smoke：注册/登录 → 导入或 onboarding 示例 → 组卷向导导出 ZIP |
+| 8 | 可选：本地 XeLaTeX 编译 ZIP（见 [TEXLIVE.md](./TEXLIVE.md)） |
+| 9 | 回滚：恢复 dump + 上一版镜像 tag，勿混用新旧 schema 代码 |
+
+发布说明：[RELEASE_v1.0.0.md](./RELEASE_v1.0.0.md)、[CHANGELOG.md](../CHANGELOG.md)。
+
 ## 6. 安全 checklist
 
 - [ ] `SESSION_SECRET` 已更换
