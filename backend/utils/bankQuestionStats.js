@@ -1,53 +1,58 @@
-const mongoose = require('mongoose');
 const Question = require('../models/Question');
 const ExamBlueprint = require('../models/ExamBlueprint');
 const KnowledgePoint = require('../models/KnowledgePoint');
-const { activeQuestionFilter } = require('../constants/questionLifecycle');
+const { activeQuestionFilter, examPoolFilter } = require('../constants/questionLifecycle');
 const { DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
+const { analyzeBlueprintCoverage } = require('./blueprintCoverage');
+const mongoose = require('mongoose');
 
-async function countMatchingPool(bankId, section) {
-  const filter = activeQuestionFilter({
-    bankId,
-    type: section.type,
-  });
-  if (section.knowledgePointIds?.length) {
-    const kpSet = new Set();
-    for (const kpId of section.knowledgePointIds) {
-      const subtree = await getSubtreeNodeIds(bankId, kpId);
-      subtree.forEach((id) => kpSet.add(String(id)));
+async function buildKpExpansionMap(bankId, blueprint) {
+  const map = new Map();
+  const ids = new Set();
+  for (const section of blueprint.sections || []) {
+    for (const id of section.knowledgePointIds || []) {
+      ids.add(String(id));
     }
-    filter.knowledgePointIds = { $in: [...kpSet].map((id) => new mongoose.Types.ObjectId(id)) };
   }
-  return Question.countDocuments(filter);
+  for (const id of ids) {
+    if (!mongoose.Types.ObjectId.isValid(id)) continue;
+    const subtree = await getSubtreeNodeIds(bankId, new mongoose.Types.ObjectId(id));
+    map.set(String(id), subtree.map(String));
+  }
+  return map;
 }
 
-async function buildBlueprintCoverageGaps(bankId) {
+async function buildBlueprintCoverageGaps(bankId, pool) {
   const blueprints = await ExamBlueprint.find({ bankId })
-    .select('title sections')
+    .select('title sections randomSeed subject')
     .sort({ updatedAt: -1 })
     .limit(15)
     .lean();
-  const gaps = [];
+  const questionPool = pool || await Question.find(examPoolFilter({ bankId })).lean();
+  const rows = [];
   for (const bp of blueprints) {
-    for (let si = 0; si < (bp.sections || []).length; si += 1) {
-      const section = bp.sections[si];
-      const available = await countMatchingPool(bankId, section);
-      const needed = section.count || 0;
-      if (available < needed) {
-        gaps.push({
-          blueprintId: bp._id,
-          blueprintTitle: bp.title,
-          sectionIndex: si,
-          type: section.type,
-          needed,
-          available,
-          shortfall: needed - available,
-        });
-      }
+    const kpMap = await buildKpExpansionMap(bankId, bp);
+    const analysis = analyzeBlueprintCoverage(bp, questionPool, kpMap, {
+      randomSeed: bp.randomSeed,
+      allowRelaxation: false,
+    });
+    if (analysis.ok) continue;
+    for (const gap of analysis.gaps) {
+      rows.push({
+        blueprintId: bp._id,
+        blueprintTitle: bp.title,
+        sectionIndex: gap.sectionIndex,
+        slot: gap.slot,
+        type: gap.sectionType,
+        neededDifficulty: gap.neededDifficulty,
+        scoreEach: gap.scoreEach,
+        message: gap.message,
+        listQuery: gap.listQuery,
+      });
     }
   }
-  return gaps.slice(0, 40);
+  return rows.slice(0, 60);
 }
 
 async function buildBankQuestionDashboard(bankId) {
@@ -88,7 +93,7 @@ async function buildBankQuestionDashboard(bankId) {
     }
   }
 
-  const blueprintGaps = await buildBlueprintCoverageGaps(bankId);
+  const blueprintGaps = await buildBlueprintCoverageGaps(bankId, null);
 
   return {
     totalQuestions: total,
@@ -102,5 +107,5 @@ async function buildBankQuestionDashboard(bankId) {
 module.exports = {
   buildBankQuestionDashboard,
   buildBlueprintCoverageGaps,
-  countMatchingPool,
+  buildKpExpansionMap,
 };
