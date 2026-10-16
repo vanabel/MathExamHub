@@ -197,7 +197,7 @@ export default {
         const { data } = await axios.get('/exams/papers', { params: this.buildParams() });
         this.pairs = data.pairs || [];
         this.singles = data.singles || [];
-        this.total = data.total || 0;
+        this.total = data.totalEntries ?? data.total ?? 0;
       } catch (e) {
         alert(e.response?.data?.error || '加载失败');
       } finally {
