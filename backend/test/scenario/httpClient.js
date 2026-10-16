@@ -1,5 +1,8 @@
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const FormData = require('form-data');
 
 function mergeCookieJar(jar, setCookieLines) {
   const map = new Map();
@@ -88,6 +91,32 @@ class ScenarioClient {
       body: { username, password },
     });
     return res;
+  }
+
+  async importLatexFile(filePath) {
+    const form = new FormData();
+    form.append('file', fs.createReadStream(filePath), {
+      filename: path.basename(filePath),
+      contentType: 'text/plain',
+    });
+    const url = `${this.baseUrl}/api/questions/import/latex`;
+    const headers = {
+      ...form.getHeaders(),
+    };
+    if (this.cookieJar) headers.Cookie = this.cookieJar;
+    if (this.bankId) headers['X-Bank-Id'] = this.bankId;
+    const res = await axios.post(url, form, {
+      headers,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      validateStatus: () => true,
+    });
+    const setCookie = res.headers['set-cookie'];
+    if (setCookie) {
+      const lines = Array.isArray(setCookie) ? setCookie : [setCookie];
+      this.cookieJar = mergeCookieJar(this.cookieJar, lines);
+    }
+    return { status: res.status, data: res.data };
   }
 
   async loadDefaultBank() {

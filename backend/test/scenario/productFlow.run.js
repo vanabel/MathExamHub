@@ -1,7 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { File } = require('node:buffer');
 const mongoose = require('mongoose');
 const { ScenarioClient, startServer } = require('./httpClient');
 const { LatexParser } = require('../../utils/latexParser');
@@ -42,16 +41,27 @@ async function run() {
     assert.equal(login.status, 200);
     await client.loadDefaultBank();
 
+    const texBuffer = fs.readFileSync(fixturePath);
+    const appendTex = (form) => {
+      form.append(
+        'file',
+        new File([texBuffer], 'package-examples.tex', { type: 'text/plain' }),
+      );
+    };
+
     console.log('· import multi-part fixture');
     const form1 = new FormData();
-    form1.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
+    appendTex(form1);
     const imp1 = await client.request('POST', '/api/questions/import/latex', { formData: form1, json: false });
-    assert.equal(imp1.status, 200);
-    assert.ok(imp1.data.imported >= 4);
+    assert.equal(imp1.status, 200, JSON.stringify(imp1.data));
+    assert.ok(
+      imp1.data.imported >= 4,
+      `imported=${imp1.data.imported} skipped=${imp1.data.skipped} failed=${imp1.data.failed}`,
+    );
 
     console.log('· re-import skips duplicates');
     const form2 = new FormData();
-    form2.append('file', new Blob([fs.readFileSync(fixturePath)]), 'package-examples.tex');
+    appendTex(form2);
     const imp2 = await client.request('POST', '/api/questions/import/latex', { formData: form2, json: false });
     assert.equal(imp2.status, 200);
     assert.equal(imp2.data.imported, 0);
