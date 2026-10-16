@@ -19,6 +19,9 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      - name: Check for merge conflict markers
+        working-directory: ${{ github.workspace }}
+        run: bash scripts/check-no-conflict-markers.sh
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -77,6 +80,8 @@ jobs:
           - 27017:27017
     steps:
       - uses: actions/checkout@v4
+      - name: Check for merge conflict markers
+        run: bash scripts/check-no-conflict-markers.sh
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
