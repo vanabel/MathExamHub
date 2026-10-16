@@ -133,6 +133,9 @@
               <button type="button" class="btn btn-secondary" :disabled="savingBlueprint" @click="saveBlueprint">
                 {{ savingBlueprint ? '保存中…' : '保存蓝图' }}
               </button>
+              <button type="button" class="btn btn-outline-info" :disabled="coverageLoading" @click="refreshCoverageAnalysis">
+                {{ coverageLoading ? '分析中…' : '检查题库覆盖' }}
+              </button>
               <button type="button" class="btn btn-primary" :disabled="generating" @click="generateExam">
                 {{ generating ? '生成中…' : (generateAbPair ? '生成 A/B 卷' : '生成试卷') }}
               </button>
@@ -168,6 +171,23 @@
                 <button type="button" class="btn btn-sm btn-outline-primary shrink-0" @click="cloneTemplate(tpl._id)">
                   克隆
                 </button>
+              </li>
+            </ul>
+          </div>
+          <div v-if="coverageAnalysis && !coverageAnalysis.ok" class="card border-danger shadow-sm mb-3">
+            <div class="card-header bg-danger-subtle text-danger-emphasis">
+              <i class="bi bi-x-octagon"></i> 生成前覆盖缺口（与抽题规则一致，未放宽）
+            </div>
+            <ul class="list-group list-group-flush small">
+              <li v-for="(g, i) in coverageAnalysis.gaps" :key="'cov' + i" class="list-group-item d-flex justify-content-between gap-2">
+                <span>{{ g.message || g.sectionType }}</span>
+                <router-link
+                  v-if="g.listQuery"
+                  class="btn btn-sm btn-outline-primary shrink-0"
+                  :to="{ name: 'question-list', query: g.listQuery }"
+                >
+                  筛选题库
+                </router-link>
               </li>
             </ul>
           </div>
@@ -327,6 +347,8 @@ export default {
       templateLibrary: [],
       saveAsTemplate: false,
       shareWithBank: false,
+      coverageAnalysis: null,
+      coverageLoading: false,
     };
   },
   mounted() {
@@ -505,7 +527,32 @@ export default {
         if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise();
       });
     },
+    async refreshCoverageAnalysis() {
+      this.coverageLoading = true;
+      try {
+        if (!this.savedBlueprintId) {
+          await this.saveBlueprint();
+        }
+        const { data } = await axios.post('/exams/coverage-analysis', {
+          blueprintId: this.savedBlueprintId,
+          blueprint: this.blueprint,
+          randomSeed: this.blueprint.randomSeed,
+          allowRelaxation: false,
+        });
+        this.coverageAnalysis = data;
+      } catch (e) {
+        alert(e.response?.data?.error || '覆盖分析失败');
+      } finally {
+        this.coverageLoading = false;
+      }
+    },
     async generateExam() {
+      await this.refreshCoverageAnalysis();
+      if (this.coverageAnalysis && !this.coverageAnalysis.ok && !this.blueprint.allowRelaxation) {
+        if (!confirm('当前蓝图在未放宽时存在缺口，仍要尝试生成吗？')) {
+          return;
+        }
+      }
       this.generating = true;
       this.relaxations = [];
       this.warnings = [];

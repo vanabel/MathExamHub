@@ -1,5 +1,6 @@
 <template>
   <div class="container py-4">
+<<<<<<< HEAD
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
       <div>
         <h1 class="h3 mb-1"><i class="bi bi-bar-chart"></i> 题库统计</h1>
@@ -9,6 +10,10 @@
         导出 CSV
       </button>
     </div>
+=======
+    <h1 class="h3 mb-3"><i class="bi bi-bar-chart"></i> 题库统计</h1>
+    <p class="text-muted">当前题库题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致，固定蓝图 randomSeed、不放宽）。</p>
+>>>>>>> origin/main
 
     <div v-if="loading" class="text-muted">加载中…</div>
     <template v-else-if="stats">
@@ -92,19 +97,25 @@
                 <th>蓝图</th>
                 <th>Section</th>
                 <th>题型</th>
-                <th>需要</th>
-                <th>可用</th>
-                <th>缺口</th>
+                <th>说明</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(g, i) in stats.blueprintCoverageGaps" :key="i">
                 <td>{{ g.blueprintTitle }}</td>
-                <td>#{{ g.sectionIndex + 1 }}</td>
+                <td>#{{ (g.sectionIndex ?? 0) + 1 }}<span v-if="g.slot != null"> · 槽 {{ g.slot + 1 }}</span></td>
                 <td>{{ g.type }}</td>
-                <td>{{ g.needed }}</td>
-                <td>{{ g.available }}</td>
-                <td class="text-danger">{{ g.shortfall }}</td>
+                <td class="small">{{ g.message || formatGapMeta(g) }}</td>
+                <td>
+                  <router-link
+                    v-if="g.listQuery"
+                    class="btn btn-sm btn-outline-primary"
+                    :to="{ name: 'question-list', query: g.listQuery }"
+                  >
+                    筛选
+                  </router-link>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -141,6 +152,7 @@ export default {
     this.load();
   },
   methods: {
+<<<<<<< HEAD
     barPct(value, max) {
       return Math.min(100, Math.round((Number(value) / Number(max)) * 100));
     },
@@ -156,6 +168,13 @@ export default {
       } catch (err) {
         alert(err.response?.data?.error || '导出失败');
       }
+=======
+    formatGapMeta(g) {
+      const parts = [];
+      if (g.neededDifficulty) parts.push(`难度 ${g.neededDifficulty}`);
+      if (g.scoreEach != null) parts.push(`分值≈${g.scoreEach}`);
+      return parts.join(' · ') || '—';
+>>>>>>> origin/main
     },
     async load() {
       this.loading = true;
