@@ -12,6 +12,7 @@ const QuestionBank = require('../models/QuestionBank');
 const KnowledgePoint = require('../models/KnowledgePoint');
 const { getPlatformSettings } = require('../services/platformSettingsService');
 const { suggestQuestionMetadata } = require('../services/llmAssistService');
+const { attachLlmSuggestions, parseMetadataOverrides } = require('../services/latexImportLlmHelper');
 const {
   fillBankLatexMetadata,
   metadataForExportForm,
@@ -126,6 +127,16 @@ function registerLatexImportRoutes(router) {
             duplicates: entry.duplicates,
           }));
         }
+        let llmSuggestions = [];
+        let knowledgePoints = [];
+        if (req.body.llmPreview === 'true') {
+          const llm = await attachLlmSuggestions(validation.questions, req.bankId);
+          llmSuggestions = llm.llmSuggestions;
+          knowledgePoints = (llm.knowledgePoints || []).map((k) => ({
+            _id: k._id,
+            path: k.path || k.name,
+          }));
+        }
         res.json({
           success: validation.summary.errorCount === 0,
           filePrefix,
@@ -140,6 +151,8 @@ function registerLatexImportRoutes(router) {
           parsedDocumentMetadata: documentMetadata,
           bankLatexMetadata: bank?.latexExamMetadata || {},
           exportDefaults: metadataForExportForm(bank, documentMetadata),
+          llmSuggestions,
+          knowledgePoints,
         });
       } catch (error) {
         const status = error.status || 500;
@@ -189,13 +202,17 @@ function registerLatexImportRoutes(router) {
         }
 
         const platformSettings = await getPlatformSettings();
-        const applyLlmAssist = platformSettings.llmAssistEnabled && req.body.llmAssist !== 'false';
+        const overrides = parseMetadataOverrides(req.body);
+        const applyLlmAssist = !overrides
+          && platformSettings.llmAssistEnabled
+          && req.body.llmAssist !== 'false';
         const kpNodes = applyLlmAssist
           ? await KnowledgePoint.find({ bankId: req.bankId }).select('_id path name subject').lean()
           : [];
         let llmAssistApplied = 0;
 
-        for (const q of validation.questions) {
+        for (let qi = 0; qi < validation.questions.length; qi += 1) {
+          const q = validation.questions[qi];
           const dupEntry = dupResult.duplicates.find((d) => d.question === q);
           const hash = computeContentHash(q);
           let skipReason = null;
@@ -217,7 +234,12 @@ function registerLatexImportRoutes(router) {
           try {
             let difficulty = normalizeDifficulty(q.difficulty, '中');
             let knowledgePointIds = [];
-            if (applyLlmAssist) {
+            const ov = overrides?.[qi];
+            if (ov) {
+              if (ov.difficulty) difficulty = normalizeDifficulty(ov.difficulty, difficulty);
+              if (Array.isArray(ov.knowledgePointIds)) knowledgePointIds = ov.knowledgePointIds;
+              llmAssistApplied += 1;
+            } else if (applyLlmAssist) {
               const suggestion = await suggestQuestionMetadata(
                 {
                   questionText: q.questionText,

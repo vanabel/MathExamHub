@@ -136,6 +136,12 @@
                         自动跳过重复题目（不导入）
                       </label>
                     </div>
+                    <div class="form-check mt-2">
+                      <input id="llmPreview" v-model="useLlmPreview" class="form-check-input" type="checkbox" />
+                      <label class="form-check-label" for="llmPreview">
+                        预览 LLM 建议的难度与知识点（需在平台管理开启）
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -185,6 +191,43 @@
               </div>
 
               <!-- 预览区域 -->
+              <div v-if="previewData && useLlmPreview && llmEdits.length" class="alert alert-info mt-3">
+                <strong>LLM 建议</strong>（确认导入前可修改）
+                <div class="table-responsive mt-2">
+                  <table class="table table-sm mb-0">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>难度</th>
+                        <th>知识点</th>
+                        <th>来源</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(row, idx) in llmEdits" :key="idx">
+                        <td>{{ idx + 1 }}</td>
+                        <td>
+                          <select v-model="row.difficulty" class="form-select form-select-sm">
+                            <option value="易">易</option>
+                            <option value="中">中</option>
+                            <option value="难">难</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select v-model="row.knowledgePointId" class="form-select form-select-sm">
+                            <option value="">（无）</option>
+                            <option v-for="kp in previewKnowledgePoints" :key="kp._id" :value="kp._id">
+                              {{ kp.path }}
+                            </option>
+                          </select>
+                        </td>
+                        <td class="small text-muted">{{ row.source || '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <div v-if="previewData && !importResult" class="preview-area mt-4">
                 <div class="card">
                   <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
@@ -466,6 +509,9 @@ export default {
       importResult: null,
       previewData: null,
       previewMode: true, // true = 预览模式, false = 文本模式
+      useLlmPreview: false,
+      llmEdits: [],
+      previewKnowledgePoints: [],
       checkDuplicates: true,
       skipDuplicates: false,
       duplicateThreshold: 0.85,
@@ -561,6 +607,7 @@ export default {
       });
       formData.append("checkDuplicates", this.checkDuplicates ? "true" : "false");
       formData.append("duplicateThreshold", this.duplicateThreshold.toString());
+      formData.append("llmPreview", this.useLlmPreview ? "true" : "false");
 
       try {
         console.log("🚀 开始预览 LaTeX 文件...");
@@ -590,6 +637,16 @@ export default {
           };
         }
         this.previewData = data;
+        this.previewKnowledgePoints = data.knowledgePoints || [];
+        const suggestions = data.llmSuggestions || [];
+        this.llmEdits = (data.questions || []).map((q, i) => {
+          const s = suggestions[i];
+          return {
+            difficulty: s?.difficulty || q.difficulty || '中',
+            knowledgePointId: (s?.knowledgePointIds && s.knowledgePointIds[0]) || '',
+            source: s?.source,
+          };
+        });
         if (data.exportDefaults) {
           sessionStorage.setItem('latexExportDefaults', JSON.stringify(data.exportDefaults));
         }
@@ -632,6 +689,13 @@ export default {
       formData.append("checkDuplicates", this.checkDuplicates ? "true" : "false");
       formData.append("skipDuplicates", this.skipDuplicates ? "true" : "false");
       formData.append("duplicateThreshold", this.duplicateThreshold.toString());
+      if (this.useLlmPreview && this.llmEdits?.length) {
+        const overrides = this.llmEdits.map((row) => ({
+          difficulty: row.difficulty,
+          knowledgePointIds: row.knowledgePointId ? [row.knowledgePointId] : [],
+        }));
+        formData.append("metadataOverrides", JSON.stringify(overrides));
+      }
 
       try {
         const response = await axios.post("/questions/import/latex", formData, {
@@ -715,6 +779,9 @@ export default {
       this.selectedImages = [];
       this.importResult = null;
       this.previewData = null;
+      this.useLlmPreview = false;
+      this.llmEdits = [];
+      this.previewKnowledgePoints = [];
       this.createdBy = "";
       this.checkDuplicates = true;
       this.skipDuplicates = false;
