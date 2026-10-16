@@ -67,6 +67,17 @@ test.describe('product smoke', () => {
 
     await ensureSampleImported();
 
+    const questionTotal = await page.evaluate(async ({ base }) => {
+      const bankId = localStorage.getItem('currentBankId');
+      const res = await fetch(`${base}/questions/list?limit=1`, {
+        credentials: 'include',
+        headers: bankId ? { 'X-Bank-Id': bankId } : {},
+      });
+      const data = await res.json();
+      return data.total ?? (Array.isArray(data) ? data.length : 0);
+    }, { base: apiBase });
+    expect(questionTotal).toBeGreaterThan(30);
+
     await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
     if (await page.getByTestId('onboarding-panel').isVisible().catch(() => false)) {
       await page.getByTestId('onboarding-skip').click();
