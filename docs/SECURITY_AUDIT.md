@@ -21,7 +21,7 @@
 
 - Session 密钥：生产环境必须设置 `SESSION_SECRET`。
 - CORS：默认允许 localhost；生产应配合 Nginx 同源。
-- 平台 `admin` 角色：已提供 `requirePlatformAdmin` 中间件，供后续管理端点使用。
+- 平台 `admin` 角色：`/api/admin/*` 挂载 `requirePlatformAdmin`（统计、用户列表、角色变更）。
 
 ## 验证
 

@@ -62,6 +62,7 @@ const knowledgePointRoutes = require('./routes/knowledgePoints');
 const bankRoutes = require('./routes/banks');
 const examBlueprintRoutes = require('./routes/examBlueprints');
 const examRoutes = require('./routes/exams');
+const adminRoutes = require('./routes/admin');
 const path = require('path');
 
 app.get('/api/health', (req, res) => {
@@ -78,6 +79,7 @@ app.use('/api/knowledge-points', knowledgePointRoutes);
 app.use('/api/banks', bankRoutes);
 app.use('/api/exam-blueprints', examBlueprintRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 

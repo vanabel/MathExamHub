@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const User = require('../../models/User');
 const { ScenarioClient, startServer } = require('./httpClient');
 const { LatexParser } = require('../../utils/latexParser');
 
@@ -88,6 +89,17 @@ async function run() {
     const login = await client.login(username, password);
     assert.equal(login.status, 200);
     await client.loadDefaultBank();
+
+    console.log('· platform admin API smoke');
+    const denied = await client.request('GET', '/api/admin/stats');
+    assert.equal(denied.status, 403);
+    await User.findOneAndUpdate({ username }, { role: 'admin' });
+    const stats = await client.request('GET', '/api/admin/stats');
+    assert.equal(stats.status, 200, JSON.stringify(stats.data));
+    assert.ok(typeof stats.data.userCount === 'number');
+    const users = await client.request('GET', '/api/admin/users');
+    assert.equal(users.status, 200);
+    assert.ok(users.data.users?.some((u) => u.username === username));
 
     console.log('· import multi-part fixture');
     const imp1 = await client.importLatexFile(fixturePath, { skipDuplicates: false });
