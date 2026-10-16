@@ -111,6 +111,13 @@
       </div>
     </nav>
 
+    <onboarding-tour
+      v-if="showOnboardingTour"
+      :onboarding="onboardingState"
+      @updated="onOnboardingUpdated"
+      @closed="onOnboardingClosed"
+    />
+
     <!-- 主内容区域 -->
     <main :class="{ 'with-navbar': showNavbar }">
       <router-view />
@@ -121,14 +128,16 @@
 <script>
 import axios from 'axios';
 import BankSelector from './components/BankSelector.vue';
+import OnboardingTour from './components/OnboardingTour.vue';
 
 export default {
   name: 'App',
-  components: { BankSelector },
+  components: { BankSelector, OnboardingTour },
   data() {
     return {
       currentUser: null,
       showUserMenu: false,
+      onboardingDismissed: false,
     };
   },
   computed: {
@@ -139,6 +148,21 @@ export default {
     isPlatformAdmin() {
       const role = this.currentUser?.role;
       return role === 'admin' || role === 'Admin';
+    },
+    onboardingState() {
+      return this.currentUser?.onboarding || {
+        sampleImported: false,
+        tourCompleted: false,
+        tourStep: 0,
+      };
+    },
+    showOnboardingTour() {
+      return (
+        this.showNavbar
+        && this.currentUser
+        && !this.onboardingState.tourCompleted
+        && !this.onboardingDismissed
+      );
     },
   },
   mounted() {
@@ -198,6 +222,15 @@ export default {
       if (this.$route.name === 'question-list') {
         this.$router.go(0);
       }
+    },
+    onOnboardingUpdated(onboarding) {
+      if (this.currentUser) {
+        this.currentUser = { ...this.currentUser, onboarding };
+        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+      }
+    },
+    onOnboardingClosed() {
+      this.onboardingDismissed = true;
     },
     async logout() {
       // 关闭下拉菜单

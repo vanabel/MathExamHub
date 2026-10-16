@@ -4,6 +4,17 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const bankService = require('../services/bankService');
+const { onboardingPayload } = require('../services/onboardingService');
+
+function serializeUser(user) {
+	return {
+		id: user._id,
+		username: user.username,
+		role: user.role,
+		email: user.email,
+		onboarding: onboardingPayload(user),
+	};
+}
 
 // 用户注册路由
 router.post('/register', async (req, res) => {
@@ -61,14 +72,7 @@ router.post('/login', (req, res, next) => {
 				console.error('确保个人题库失败:', e);
 			}
 
-			const safeUser = {
-				id: user._id,
-				username: user.username,
-				role: user.role,
-				email: user.email,
-			};
-
-			return res.json({ message: '登录成功', user: safeUser });
+			return res.json({ message: '登录成功', user: serializeUser(user) });
 		});
 	})(req, res, next);
 });
@@ -79,18 +83,13 @@ router.get('/me', async (req, res) => {
 		return res.status(401).json({ error: '未登录' });
 	}
 	try {
-		const fresh = await User.findById(req.user._id).select('username email role');
+		const fresh = await User.findById(req.user._id).select(
+			'username email role onboardingSampleImported onboardingTourCompleted onboardingTourStep',
+		);
 		if (!fresh) {
 			return res.status(401).json({ error: '用户不存在' });
 		}
-		res.json({
-			user: {
-				id: fresh._id,
-				username: fresh.username,
-				email: fresh.email,
-				role: fresh.role,
-			},
-		});
+		res.json({ user: serializeUser(fresh) });
 	} catch (error) {
 		res.status(500).json({ error: '获取用户信息失败' });
 	}
@@ -102,18 +101,13 @@ router.post('/refresh', async (req, res) => {
 		return res.status(401).json({ error: '未登录' });
 	}
 	try {
-		const fresh = await User.findById(req.user._id).select('username email role');
+		const fresh = await User.findById(req.user._id).select(
+			'username email role onboardingSampleImported onboardingTourCompleted onboardingTourStep',
+		);
 		if (!fresh) {
 			return res.status(401).json({ error: '用户不存在' });
 		}
-		return res.json({
-			user: {
-				id: fresh._id,
-				username: fresh.username,
-				email: fresh.email,
-				role: fresh.role,
-			},
-		});
+		return res.json({ user: serializeUser(fresh) });
 	} catch (error) {
 		return res.status(500).json({ error: '刷新失败' });
 	}
