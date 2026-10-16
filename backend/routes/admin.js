@@ -6,7 +6,7 @@ const requireAuth = require('../middleware/requireAuth');
 const requirePlatformAdmin = require('../middleware/requirePlatformAdmin');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const {
-  getPlatformSettings,
+  getPlatformSettingsPublic,
   updatePlatformSettings,
 } = require('../services/platformSettingsService');
 
@@ -62,7 +62,7 @@ router.patch('/users/:id/role', async (req, res) => {
 
 router.get('/settings', async (req, res) => {
   try {
-    const settings = await getPlatformSettings();
+    const settings = await getPlatformSettingsPublic();
     res.json({ settings });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load settings' });

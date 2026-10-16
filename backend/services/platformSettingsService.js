@@ -1,15 +1,33 @@
 const PlatformSettings = require('../models/PlatformSettings');
 
-async function getPlatformSettings() {
-  let doc = await PlatformSettings.findOne({ key: 'global' }).lean();
-  if (!doc) {
-    doc = (await PlatformSettings.create({ key: 'global' })).toObject();
-  }
+function toPublicSettings(doc) {
   return {
     llmAssistEnabled: !!doc.llmAssistEnabled,
     llmProvider: doc.llmProvider || 'mock',
+    llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
+    llmModel: doc.llmModel || 'gpt-4o-mini',
+    llmTimeoutMs: doc.llmTimeoutMs ?? 12000,
+    hasApiKey: Boolean(doc.llmApiKey),
     updatedAt: doc.updatedAt,
   };
+}
+
+async function getPlatformSettings() {
+  let doc = await PlatformSettings.findOne({ key: 'global' }).select('+llmApiKey').lean();
+  if (!doc) {
+    doc = (await PlatformSettings.create({ key: 'global' })).toObject();
+    doc.llmApiKey = undefined;
+  }
+  return {
+    ...toPublicSettings(doc),
+    llmApiKey: doc.llmApiKey || process.env.OPENAI_API_KEY || process.env.SILICONFLOW_API_KEY || '',
+  };
+}
+
+async function getPlatformSettingsPublic() {
+  const full = await getPlatformSettings();
+  const { llmApiKey, ...rest } = full;
+  return { ...rest, hasApiKey: Boolean(llmApiKey) };
 }
 
 async function updatePlatformSettings(patch) {
@@ -17,22 +35,34 @@ async function updatePlatformSettings(patch) {
   if (typeof patch.llmAssistEnabled === 'boolean') {
     update.llmAssistEnabled = patch.llmAssistEnabled;
   }
-  if (patch.llmProvider === 'mock' || patch.llmProvider === 'openai') {
-    update.llmProvider = patch.llmProvider;
+  if (patch.llmProvider === 'mock' || patch.llmProvider === 'openai_compatible' || patch.llmProvider === 'openai') {
+    update.llmProvider = patch.llmProvider === 'openai' ? 'openai_compatible' : patch.llmProvider;
   }
+  if (typeof patch.llmApiBaseUrl === 'string' && patch.llmApiBaseUrl.trim()) {
+    update.llmApiBaseUrl = patch.llmApiBaseUrl.trim().replace(/\/$/, '');
+  }
+  if (typeof patch.llmModel === 'string' && patch.llmModel.trim()) {
+    update.llmModel = patch.llmModel.trim();
+  }
+  if (typeof patch.llmTimeoutMs === 'number' && patch.llmTimeoutMs >= 3000) {
+    update.llmTimeoutMs = Math.min(patch.llmTimeoutMs, 60000);
+  }
+  if (typeof patch.llmApiKey === 'string' && patch.llmApiKey.trim()) {
+    update.llmApiKey = patch.llmApiKey.trim();
+  }
+
   const doc = await PlatformSettings.findOneAndUpdate(
     { key: 'global' },
     { $set: update },
     { upsert: true, new: true },
-  ).lean();
-  return {
-    llmAssistEnabled: !!doc.llmAssistEnabled,
-    llmProvider: doc.llmProvider,
-    updatedAt: doc.updatedAt,
-  };
+  ).select('+llmApiKey').lean();
+
+  return toPublicSettings(doc);
 }
 
 module.exports = {
   getPlatformSettings,
+  getPlatformSettingsPublic,
   updatePlatformSettings,
+  toPublicSettings,
 };

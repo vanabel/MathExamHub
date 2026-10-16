@@ -32,7 +32,7 @@
 
       <div class="card shadow-sm mb-4">
         <div class="card-header">LLM 辅助（默认关闭）</div>
-        <div class="card-body row g-3 align-items-center">
+        <div class="card-body row g-3">
           <div class="col-md-4">
             <div class="form-check form-switch">
               <input id="llmOn" v-model="settings.llmAssistEnabled" class="form-check-input" type="checkbox" />
@@ -42,11 +42,23 @@
           <div class="col-md-4">
             <label class="form-label small">Provider</label>
             <select v-model="settings.llmProvider" class="form-select form-select-sm">
-              <option value="mock">mock（测试/离线）</option>
-              <option value="openai">openai（需 OPENAI_API_KEY）</option>
+              <option value="mock">mock（离线）</option>
+              <option value="openai_compatible">OpenAI 兼容 API</option>
             </select>
           </div>
           <div class="col-md-4">
+            <label class="form-label small">API Base URL</label>
+            <input v-model="settings.llmApiBaseUrl" class="form-control form-control-sm" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">Model</label>
+            <input v-model="settings.llmModel" class="form-control form-control-sm" placeholder="gpt-4o-mini" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">API Key {{ settings.hasApiKey ? '（已配置，留空则不修改）' : '' }}</label>
+            <input v-model="llmApiKeyInput" type="password" class="form-control form-control-sm" autocomplete="new-password" />
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
             <button type="button" class="btn btn-primary btn-sm" :disabled="savingSettings" @click="saveSettings">
               {{ savingSettings ? '保存中…' : '保存 LLM 设置' }}
             </button>
@@ -116,7 +128,14 @@ export default {
       stats: {},
       users: [],
       savingId: null,
-      settings: { llmAssistEnabled: false, llmProvider: 'mock' },
+      settings: {
+        llmAssistEnabled: false,
+        llmProvider: 'mock',
+        llmApiBaseUrl: 'https://api.openai.com/v1',
+        llmModel: 'gpt-4o-mini',
+        hasApiKey: false,
+      },
+      llmApiKeyInput: '',
       savingSettings: false,
     };
   },
@@ -159,8 +178,11 @@ export default {
     async saveSettings() {
       this.savingSettings = true;
       try {
-        const { data } = await axios.patch('/admin/settings', this.settings);
+        const payload = { ...this.settings };
+        if (this.llmApiKeyInput.trim()) payload.llmApiKey = this.llmApiKeyInput.trim();
+        const { data } = await axios.patch('/admin/settings', payload);
         this.settings = data.settings;
+        this.llmApiKeyInput = '';
         alert('LLM 设置已保存');
       } catch (e) {
         alert(e.response?.data?.error || '保存失败');

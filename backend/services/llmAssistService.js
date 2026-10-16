@@ -1,14 +1,77 @@
-const { normalizeDifficulty } = require('../constants/difficulty');
+const { normalizeDifficulty, DIFFICULTY_VALUES } = require('../constants/difficulty');
+const { chatCompletionJson } = require('./llmChatClient');
 
 async function suggestQuestionMetadata(input, settings) {
   const provider = settings?.llmProvider || 'mock';
   if (provider === 'mock') {
     return suggestWithMock(input);
   }
-  if (provider === 'openai' && process.env.OPENAI_API_KEY) {
+  if (provider === 'openai_compatible') {
+    try {
+      const fromApi = await suggestWithChatApi(input, settings);
+      if (fromApi) return fromApi;
+    } catch (err) {
+      console.warn('LLM assist fallback to mock:', err.message);
+    }
     return suggestWithMock(input);
   }
-  return null;
+  return suggestWithMock(input);
+}
+
+function buildKpCatalog(knowledgePoints) {
+  return (knowledgePoints || []).map((k) => ({
+    id: String(k._id),
+    path: k.path || k.name || '',
+  }));
+}
+
+function validateSuggestion(raw, kpCatalog) {
+  if (!raw || typeof raw !== 'object') return null;
+  const difficulty = normalizeDifficulty(raw.difficulty, '');
+  if (!DIFFICULTY_VALUES.includes(difficulty)) return null;
+  const allowed = new Set(kpCatalog.map((k) => k.id));
+  let knowledgePointIds = [];
+  if (Array.isArray(raw.knowledgePointIds)) {
+    knowledgePointIds = raw.knowledgePointIds.map(String).filter((id) => allowed.has(id));
+  } else if (raw.knowledgePointId && allowed.has(String(raw.knowledgePointId))) {
+    knowledgePointIds = [String(raw.knowledgePointId)];
+  }
+  return {
+    difficulty,
+    knowledgePointIds,
+    source: 'llm',
+    rationale: typeof raw.rationale === 'string' ? raw.rationale.slice(0, 500) : undefined,
+  };
+}
+
+async function suggestWithChatApi(input, settings) {
+  const apiKey = settings.llmApiKey;
+  const baseUrl = settings.llmApiBaseUrl || 'https://api.openai.com/v1';
+  const model = settings.llmModel || 'gpt-4o-mini';
+  if (!apiKey) {
+    throw new Error('LLM API key not configured');
+  }
+  const kpCatalog = buildKpCatalog(input.knowledgePoints);
+  const system = [
+    '你是数学题库助教。根据题干与题型，从给定知识点目录中选择 0–2 个最相关节点，并给出难度（易/中/难）。',
+    '只输出 JSON 对象：{"difficulty":"易|中|难","knowledgePointIds":["id",...],"rationale":"简短理由"}',
+    'knowledgePointIds 必须来自目录中的 id，若无合适节点则返回空数组。',
+  ].join('\n');
+  const user = JSON.stringify({
+    questionText: String(input.questionText || '').slice(0, 4000),
+    type: input.type,
+    subject: input.subject,
+    knowledgePointCatalog: kpCatalog,
+  });
+  const raw = await chatCompletionJson({
+    baseUrl,
+    apiKey,
+    model,
+    system,
+    user,
+    timeoutMs: settings.llmTimeoutMs || 12000,
+  });
+  return validateSuggestion(raw, kpCatalog);
 }
 
 function suggestWithMock(input) {
@@ -34,4 +97,6 @@ function suggestWithMock(input) {
 
 module.exports = {
   suggestQuestionMetadata,
+  validateSuggestion,
+  buildKpCatalog,
 };

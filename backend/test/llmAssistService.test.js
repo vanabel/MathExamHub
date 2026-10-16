@@ -1,6 +1,6 @@
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { suggestQuestionMetadata } = require('../services/llmAssistService');
+const { suggestQuestionMetadata, validateSuggestion } = require('../services/llmAssistService');
 
 describe('llmAssistService mock', () => {
   it('suggests difficulty and kp id', async () => {
@@ -15,6 +15,57 @@ describe('llmAssistService mock', () => {
     );
     assert.equal(out.difficulty, '难');
     assert.deepEqual(out.knowledgePointIds, ['abc']);
-    assert.equal(out.source, 'mock');
+  });
+
+  it('validateSuggestion rejects bad difficulty', () => {
+    assert.equal(validateSuggestion({ difficulty: '超难' }, [{ id: '1', path: 'a' }]), null);
+  });
+});
+
+describe('llmAssistService openai_compatible', () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('uses HTTP mock and returns validated suggestion', async () => {
+    global.fetch = async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                difficulty: '易',
+                knowledgePointIds: ['kp1'],
+                rationale: '基础题',
+              }),
+            },
+          }],
+        };
+      },
+    });
+    const out = await suggestQuestionMetadata(
+      {
+        questionText: '判断是否为真',
+        type: '判断题',
+        subject: '代数',
+        knowledgePoints: [{ _id: 'kp1', path: '代数/基础' }],
+      },
+      {
+        llmProvider: 'openai_compatible',
+        llmApiKey: 'sk-x',
+        llmApiBaseUrl: 'https://api.test/v1',
+        llmModel: 'test-model',
+      },
+    );
+    assert.equal(out.difficulty, '易');
+    assert.deepEqual(out.knowledgePointIds, ['kp1']);
+    assert.equal(out.source, 'llm');
   });
 });
