@@ -316,6 +316,30 @@
                     max="10"
                     class="form-control form-control-sm"
                   />
+                  <label for="answerSheetRowHeight" class="form-label small mt-2">客观题格高（如 1.2em）</label>
+                  <input
+                    id="answerSheetRowHeight"
+                    v-model="metadata.answerSheetRowHeight"
+                    class="form-control form-control-sm"
+                    placeholder="1.2em"
+                  />
+                  <div class="form-check mt-2">
+                    <input
+                      id="includeSubjectiveAnswerAreas"
+                      v-model="metadata.includeSubjectiveAnswerAreas"
+                      class="form-check-input"
+                      type="checkbox"
+                    />
+                    <label class="form-check-label" for="includeSubjectiveAnswerAreas">附加解答题空白作答区</label>
+                  </div>
+                  <label v-if="metadata.includeSubjectiveAnswerAreas" for="answerSheetSubjectiveRowHeight" class="form-label small mt-2">解答区行高</label>
+                  <input
+                    v-if="metadata.includeSubjectiveAnswerAreas"
+                    id="answerSheetSubjectiveRowHeight"
+                    v-model="metadata.answerSheetSubjectiveRowHeight"
+                    class="form-control form-control-sm"
+                    placeholder="6em"
+                  />
                 </div>
               </div>
 
@@ -558,6 +582,9 @@ export default {
         exportMode: "exam",
         includeAnswerSheet: false,
         answerSheetCols: 5,
+        answerSheetRowHeight: '1.2em',
+        includeSubjectiveAnswerAreas: true,
+        answerSheetSubjectiveRowHeight: '6em',
         packageOptions: ["nospace"],
       },
     };
