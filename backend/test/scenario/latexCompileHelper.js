@@ -8,15 +8,6 @@ function hasXeLaTeX() {
   return r.status === 0;
 }
 
-/** TeX Live on CI may ship datatool without \\DTLwrite (v3 API). */
-function patchMathexamStyInDir(dir) {
-  const p = path.join(dir, 'mathexam.sty');
-  if (!fs.existsSync(p)) return;
-  let s = fs.readFileSync(p, 'utf8');
-  s = s.replace(/\\DTLwrite[^\n]*/g, '% $&');
-  fs.writeFileSync(p, s);
-}
-
 function compileExportZip(zipBuffer, { preferExamTex = true } = {}) {
   if (!Buffer.isBuffer(zipBuffer)) {
     throw new Error('compileExportZip expects zip buffer');
@@ -37,7 +28,6 @@ function compileExportZip(zipBuffer, { preferExamTex = true } = {}) {
   if (sourceTex !== mainTex) {
     fs.copyFileSync(path.join(dir, sourceTex), path.join(dir, mainTex));
   }
-  patchMathexamStyInDir(dir);
   let lastErr = null;
   for (let pass = 0; pass < 2; pass += 1) {
     try {
