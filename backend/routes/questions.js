@@ -17,6 +17,7 @@ const {
   parseListPagination,
   parseListSort,
 } = require('../utils/questionListQuery');
+const { assessQuestionQuality } = require('../utils/questionQuality');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -141,6 +142,28 @@ router.delete('/:id/delete', requireBankWrite, async (req, res) => {
   }
 });
 
+router.post('/batch-metadata', requireBankWrite, async (req, res) => {
+  try {
+    const updates = req.body?.updates;
+    if (!Array.isArray(updates) || !updates.length) {
+      return res.status(400).json({ error: 'updates 数组必填' });
+    }
+    let modified = 0;
+    for (const row of updates) {
+      if (!row.id) continue;
+      const q = await Question.findOne(activeQuestionFilter({ _id: row.id, bankId: req.bankId }));
+      if (!q) continue;
+      if (row.difficulty) q.difficulty = row.difficulty;
+      if (Array.isArray(row.knowledgePointIds)) q.knowledgePointIds = row.knowledgePointIds;
+      await q.save();
+      modified += 1;
+    }
+    res.json({ modified });
+  } catch (error) {
+    res.status(500).json({ error: '批量更新失败' });
+  }
+});
+
 async function runQuestionList(req, res) {
   try {
     const { knowledgePointId, subtree, checkDuplicates, status } = req.query;
@@ -203,16 +226,25 @@ async function runQuestionList(req, res) {
       return res.json(payload);
     }
 
+    const attachQuality = req.query.includeQuality === 'true';
+    const mapQ = (q) => {
+      const obj = q.toObject ? q.toObject() : q;
+      if (attachQuality) {
+        obj.qualityIssues = assessQuestionQuality(obj);
+      }
+      return obj;
+    };
+
     if (hasPagination) {
       return res.json({
-        questions,
+        questions: questions.map(mapQ),
         total,
         limit,
         offset,
       });
     }
 
-    res.json(questions);
+    res.json(questions.map(mapQ));
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve questions' });
   }

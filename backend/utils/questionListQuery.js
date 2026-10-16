@@ -7,8 +7,11 @@ const { DIFFICULTY_VALUES } = require('../constants/difficulty');
  * @param {Record<string, string>} opts.query req.query
  * @param {string[]|null} [opts.kpSubtreeIds]
  */
+const { mergeQualityMongoFilter } = require('./questionQuality');
+
 function buildQuestionListFilter({ bankId, query, kpSubtreeIds }) {
-  const filter = activeQuestionFilter({ bankId });
+  let filter = activeQuestionFilter({ bankId });
+  filter = mergeQualityMongoFilter(filter, query.quality);
 
   const subject = query.subject;
   const questionType = query.questionType || query.type;
