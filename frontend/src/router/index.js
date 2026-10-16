@@ -11,6 +11,7 @@ import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 import RecycleBinView from "../views/RecycleBinView.vue";
 import ExamWizardView from "../views/ExamWizardView.vue";
 import ExamHistoryView from "../views/ExamHistoryView.vue";
+import AdminConsoleView from "../views/AdminConsoleView.vue";
 
 const routes = [
   {
@@ -87,6 +88,12 @@ const routes = [
     component: ExamHistoryView,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/admin",
+    name: "admin-console",
+    component: AdminConsoleView,
+    meta: { requiresAuth: true, requiresPlatformAdmin: true },
+  },
 ];
 
 const router = createRouter({
@@ -94,10 +101,25 @@ const router = createRouter({
   routes,
 });
 
+function readStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('currentUser') || 'null');
+  } catch {
+    return null;
+  }
+}
+
 router.beforeEach((to, from, next) => {
   const isAuthed = !!localStorage.getItem('currentUser');
   if (to.meta.requiresAuth && !isAuthed) {
     return next({ name: 'login', query: { redirect: to.fullPath } });
+  }
+  if (to.meta.requiresPlatformAdmin) {
+    const user = readStoredUser();
+    const role = user?.role;
+    if (role !== 'admin' && role !== 'Admin') {
+      return next({ name: 'question-list' });
+    }
   }
   if ((to.name === 'login' || to.name === 'register') && isAuthed) {
     return next({ name: 'question-list' });
