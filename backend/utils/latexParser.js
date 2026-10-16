@@ -1213,8 +1213,21 @@ class LatexGenerator {
       }
     }
 
+    if (metadata.includeAnswerSheet && mode === 'exam') {
+      const sheetCount = this.countAnswerSheetSlots(questions);
+      if (sheetCount > 0) {
+        const cols = Math.min(10, Math.max(3, Number(metadata.answerSheetCols) || 5));
+        latex += `\n\\newpage\n\\section*{答题卡}\n\\answertable[1.2em]{${sheetCount}}{${cols}}\n`;
+      }
+    }
+
     latex += '\\end{document}\n';
     return latex;
+  }
+
+  countAnswerSheetSlots(questions) {
+    const sheetTypes = new Set(['判断题', '单选题', '多选题', '填空题']);
+    return questions.filter((q) => sheetTypes.has(q.type)).length;
   }
 
   buildPackageOptions(metadata, mode) {

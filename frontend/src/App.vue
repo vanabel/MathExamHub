@@ -65,6 +65,11 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'bank-stats' }" to="/bank-stats">
+                <i class="bi bi-bar-chart"></i> 统计
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link class="nav-link" :class="{ active: $route.name === 'recycle-bin' }" to="/recycle-bin">
                 <i class="bi bi-trash"></i> 回收站
               </router-link>
