@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const latexExamMetadataSchema = require('../schemas/latexExamMetadataSchema');
 
 const examPaperSchema = new mongoose.Schema({
   bankId: {
@@ -39,6 +40,10 @@ const examPaperSchema = new mongoose.Schema({
   }],
   warnings: [String],
   shortfalls: [mongoose.Schema.Types.Mixed],
+  latexExamMetadata: {
+    type: latexExamMetadataSchema,
+    default: undefined,
+  },
   createdBy: { type: String },
   createdAt: { type: Date, default: Date.now },
 });

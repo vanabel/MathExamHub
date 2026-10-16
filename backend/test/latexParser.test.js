@@ -22,4 +22,15 @@ describe('LatexParser', () => {
     const questions = parser.parse('\\documentclass{article}\\begin{document}\\end{document}');
     assert.equal(questions.length, 0);
   });
+
+  it('parses mathexam v2.3.1 package doc examples', () => {
+    const texPath = path.join(__dirname, 'fixtures', 'package-examples.tex');
+    const content = fs.readFileSync(texPath, 'utf-8');
+    const parser = new LatexParser();
+    const questions = parser.parse(content);
+    assert.equal(questions.length, 4);
+    assert.equal(questions[0].correctAnswer, '对');
+    assert.equal(questions[1].correctAnswer, 'C');
+    assert.deepEqual(parser.documentMetadata.packageOptions, ['nospace']);
+  });
 });

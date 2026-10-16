@@ -5,6 +5,7 @@ import QuestionAddView from "../views/QuestionAddView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import LoginView from "../views/LoginView.vue";
 import LatexImportView from "../views/LatexImportView.vue";
+import LatexExportView from "../views/LatexExportView.vue";
 import KnowledgePointView from "../views/KnowledgePointView.vue";
 import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 import RecycleBinView from "../views/RecycleBinView.vue";
@@ -46,6 +47,12 @@ const routes = [
     path: "/latex-import",
     name: "latex-import",
     component: LatexImportView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/latex-export",
+    name: "latex-export",
+    component: LatexExportView,
     meta: { requiresAuth: true },
   },
   {

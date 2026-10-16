@@ -17,6 +17,8 @@ An application for managing and generating math exam questions, with **Node + Ex
   - 列出全部试题。
   - 按 **科目 + 题目类型 + 关键词** 搜索试题。
 
+相关文档：[LaTeX 导入导出](./docs/LaTeX_IMPORT_EXPORT.md)、[mathexam vendoring](./docs/MATHEXAM_VENDOR.md)、[路线图](./docs/ROADMAP.md)。
+
 - **数学公式展示 (Math Rendering)**
   - 使用 `vue-mathjax-next` 在前端渲染题干和选项中的 LaTeX 数学公式。
   - 对答案字符串中形如 `\score{1}` 的标记做额外处理，组合成带分值标记的展示形式。

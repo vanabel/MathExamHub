@@ -11,14 +11,17 @@
         {{ b.name }} ({{ b.role }})
       </option>
     </select>
+    <BankLatexMetadataEditor :bank-id="currentBankId" />
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import BankLatexMetadataEditor from './BankLatexMetadataEditor.vue';
 
 export default {
   name: 'BankSelector',
+  components: { BankLatexMetadataEditor },
   data() {
     return {
       banks: [],

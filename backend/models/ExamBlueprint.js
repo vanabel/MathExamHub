@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { DIFFICULTY_VALUES } = require('../constants/difficulty');
+const latexExamMetadataSchema = require('../schemas/latexExamMetadataSchema');
 
 const sectionSchema = new mongoose.Schema({
   type: { type: String, required: true },
@@ -31,6 +32,10 @@ const examBlueprintSchema = new mongoose.Schema({
   },
   randomSeed: { type: Number, default: () => Date.now() },
   allowRelaxation: { type: Boolean, default: true },
+  latexExamMetadata: {
+    type: latexExamMetadataSchema,
+    default: undefined,
+  },
   createdBy: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
