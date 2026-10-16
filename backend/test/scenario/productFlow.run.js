@@ -290,18 +290,27 @@ async function run() {
     assert.ok(ab.data.overlapRatio <= 0.2 || (ab.data.warnings || []).length > 0);
 
     console.log('· strict A/B overlap (large pool, no overlap warning)');
-    for (let i = 0; i < 30; i += 1) {
-      const extra = await client.request('POST', '/api/questions/create', {
-        body: {
-          questionText: `场景扩池填空 ${i}-${Date.now()}`,
-          type: '填空题',
-          totalScore: fillScore,
-          difficulty: '中',
-          subject: '高等代数',
-          correctAnswer: '略',
-        },
-      });
-      assert.ok(extra.status === 201 || extra.status === 200);
+    const expandTypes = [
+      { type: '判断题', totalScore: 2, correctAnswer: true },
+      { type: '单选题', totalScore: 2, correctAnswer: 'A', options: { A: '1', B: '2', C: '3', D: '4' } },
+      { type: '填空题', totalScore: fillScore, correctAnswer: '略' },
+      { type: '计算题', totalScore: 10, correctAnswer: '略' },
+    ];
+    for (const spec of expandTypes) {
+      for (let i = 0; i < 12; i += 1) {
+        const extra = await client.request('POST', '/api/questions/create', {
+          body: {
+            questionText: `场景扩池 ${spec.type} ${i}-${Date.now()}`,
+            type: spec.type,
+            totalScore: spec.totalScore,
+            difficulty: '中',
+            subject: '高等代数',
+            correctAnswer: spec.correctAnswer,
+            ...(spec.options ? { options: spec.options } : {}),
+          },
+        });
+        assert.ok(extra.status === 201 || extra.status === 200);
+      }
     }
     const abStrict = await client.request('POST', '/api/exams/generate-variants', {
       body: { blueprintId, maxVariantOverlapPct: 0.2, seedA: 88001, seedB: 99001 },
