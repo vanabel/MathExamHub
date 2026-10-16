@@ -191,7 +191,6 @@ import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/lat
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
-  listQueryToRouteQuery,
 } from "../utils/coverageGapBatch";
 
 export default {
