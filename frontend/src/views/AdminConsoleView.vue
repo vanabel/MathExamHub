@@ -133,6 +133,13 @@ export default {
       try {
         await axios.patch(`/admin/users/${user._id}/role`, { role: user.role });
         alert('角色已更新');
+        const me = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (me.id === user._id || me.username === user.username) {
+          const { data: refreshed } = await axios.post('/auth/refresh');
+          if (refreshed.user) {
+            localStorage.setItem('currentUser', JSON.stringify(refreshed.user));
+          }
+        }
       } catch (e) {
         alert(e.response?.data?.error || '保存失败');
       } finally {

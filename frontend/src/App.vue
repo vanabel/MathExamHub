@@ -147,16 +147,31 @@ export default {
     },
   },
   methods: {
-    loadUser() {
+    async loadUser() {
       const userStr = localStorage.getItem('currentUser');
-      if (userStr) {
-        try {
-          this.currentUser = JSON.parse(userStr);
-        } catch (e) {
-          console.error('解析 currentUser 失败:', e);
-        }
-      } else {
+      if (!userStr) {
         this.currentUser = null;
+        return;
+      }
+      try {
+        this.currentUser = JSON.parse(userStr);
+      } catch (e) {
+        this.currentUser = null;
+        return;
+      }
+      if (this.$route.name === 'login' || this.$route.name === 'register') {
+        return;
+      }
+      try {
+        const { data } = await axios.get('/auth/me');
+        if (data.user) {
+          this.currentUser = data.user;
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
+      } catch (e) {
+        if (e.response?.status !== 401) {
+          console.error('刷新用户信息失败', e);
+        }
       }
     },
     toggleUserMenu(event) {

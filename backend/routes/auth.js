@@ -74,18 +74,49 @@ router.post('/login', (req, res, next) => {
 });
 
 // 用户登出
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
 	if (!req.isAuthenticated || !req.isAuthenticated()) {
 		return res.status(401).json({ error: '未登录' });
 	}
-	res.json({
-		user: {
-			id: req.user._id,
-			username: req.user.username,
-			email: req.user.email,
-			role: req.user.role,
-		},
-	});
+	try {
+		const fresh = await User.findById(req.user._id).select('username email role');
+		if (!fresh) {
+			return res.status(401).json({ error: '用户不存在' });
+		}
+		res.json({
+			user: {
+				id: fresh._id,
+				username: fresh.username,
+				email: fresh.email,
+				role: fresh.role,
+			},
+		});
+	} catch (error) {
+		res.status(500).json({ error: '获取用户信息失败' });
+	}
+});
+
+/** 刷新会话中的用户快照（角色变更后无需重新登录） */
+router.post('/refresh', async (req, res) => {
+	if (!req.isAuthenticated || !req.isAuthenticated()) {
+		return res.status(401).json({ error: '未登录' });
+	}
+	try {
+		const fresh = await User.findById(req.user._id).select('username email role');
+		if (!fresh) {
+			return res.status(401).json({ error: '用户不存在' });
+		}
+		return res.json({
+			user: {
+				id: fresh._id,
+				username: fresh.username,
+				email: fresh.email,
+				role: fresh.role,
+			},
+		});
+	} catch (error) {
+		return res.status(500).json({ error: '刷新失败' });
+	}
 });
 
 router.post('/logout', (req, res, next) => {
