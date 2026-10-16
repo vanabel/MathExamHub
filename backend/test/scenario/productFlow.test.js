@@ -34,7 +34,13 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
   });
 
   after(async () => {
-    if (serverProc) serverProc.kill();
+    if (serverProc) {
+      serverProc.kill('SIGTERM');
+      await new Promise((resolve) => {
+        serverProc.on('exit', resolve);
+        setTimeout(resolve, 2000);
+      });
+    }
     await mongoose.disconnect();
   });
 
