@@ -15,6 +15,11 @@ const {
 } = require('../services/examPaperService');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
 const { examPoolFilter } = require('../constants/questionLifecycle');
+const {
+  buildExamPaperEntries,
+  paginateEntries,
+  enrichPapers,
+} = require('../utils/examPaperListEntries');
 
 const router = express.Router();
 
@@ -302,6 +307,26 @@ router.get('/papers', async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
+    if (groupAb) {
+      const all = await ExamPaper.find(filter).sort({ createdAt: -1 }).limit(3000).lean();
+      const blueprintIds = [...new Set(all.map((p) => p.blueprintId).filter(Boolean))];
+      const blueprints = blueprintIds.length
+        ? await ExamBlueprint.find({ _id: { $in: blueprintIds } }).select('title subject').lean()
+        : [];
+      const bpMap = new Map(blueprints.map((b) => [String(b._id), b]));
+      const items = enrichPapers(all, bpMap);
+      const entries = buildExamPaperEntries(items);
+      const page = paginateEntries(entries, offset, limit);
+      return res.json({
+        pairs: page.pairs,
+        singles: page.singles,
+        total: page.total,
+        totalEntries: page.total,
+        limit: page.limit,
+        offset: page.offset,
+      });
+    }
+
     const [papers, total] = await Promise.all([
       ExamPaper.find(filter).sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
       ExamPaper.countDocuments(filter),
@@ -312,20 +337,7 @@ router.get('/papers', async (req, res) => {
       ? await ExamBlueprint.find({ _id: { $in: blueprintIds } }).select('title subject').lean()
       : [];
     const bpMap = new Map(blueprints.map((b) => [String(b._id), b]));
-
-    const items = papers.map((p) => {
-      const bp = p.blueprintId ? bpMap.get(String(p.blueprintId)) : null;
-      return {
-        ...p,
-        blueprintTitle: bp?.title,
-        blueprintSubject: bp?.subject,
-      };
-    });
-
-    if (groupAb) {
-      const { pairs, singles } = groupExamPapers(items);
-      return res.json({ pairs, singles, papers: items, total, limit, offset });
-    }
+    const items = enrichPapers(papers, bpMap);
 
     res.json({ papers: items, total, limit, offset });
   } catch (error) {
