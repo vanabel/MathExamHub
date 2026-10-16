@@ -10,9 +10,13 @@ const { normalizeDifficulty } = require('../constants/difficulty');
 const { requireBankWrite } = require('../middleware/bankContext');
 const QuestionBank = require('../models/QuestionBank');
 const KnowledgePoint = require('../models/KnowledgePoint');
-const { getPlatformSettings } = require('../services/platformSettingsService');
+const platformSettingsService = require('../services/platformSettingsService');
 const { suggestQuestionMetadata } = require('../services/llmAssistService');
-const { attachLlmSuggestions, parseMetadataOverrides } = require('../services/latexImportLlmHelper');
+const latexImportLlmHelper = require('../services/latexImportLlmHelper');
+const {
+  attachLlmSuggestions: defaultAttachLlmSuggestions,
+  parseMetadataOverrides,
+} = latexImportLlmHelper;
 const {
   fillBankLatexMetadata,
   metadataForExportForm,
@@ -98,10 +102,13 @@ async function parseTexUpload(req) {
 /**
  * @param {import('express').Router} router
  */
-function registerLatexImportRoutes(router) {
+function registerLatexImportRoutes(router, opts = {}) {
+  const requireBankWriteMw = opts.requireBankWrite || requireBankWrite;
+  const attachLlmSuggestions = opts.attachLlmSuggestions || defaultAttachLlmSuggestions;
+
   router.post(
     '/import/latex/preview',
-    requireBankWrite,
+    requireBankWriteMw,
     upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
@@ -129,6 +136,9 @@ function registerLatexImportRoutes(router) {
         }
         let llmSuggestions = [];
         let knowledgePoints = [];
+        let llmPreviewTruncated = false;
+        let llmPreviewCap = null;
+        let llmPreviewProcessed = null;
         if (req.body.llmPreview === 'true') {
           const llm = await attachLlmSuggestions(validation.questions, req.bankId);
           llmSuggestions = llm.llmSuggestions;
@@ -136,6 +146,9 @@ function registerLatexImportRoutes(router) {
             _id: k._id,
             path: k.path || k.name,
           }));
+          llmPreviewTruncated = Boolean(llm.llmPreviewTruncated);
+          llmPreviewCap = llm.llmPreviewCap;
+          llmPreviewProcessed = llm.llmPreviewProcessed;
         }
         res.json({
           success: validation.summary.errorCount === 0,
@@ -153,6 +166,9 @@ function registerLatexImportRoutes(router) {
           exportDefaults: metadataForExportForm(bank, documentMetadata),
           llmSuggestions,
           knowledgePoints,
+          llmPreviewTruncated,
+          llmPreviewCap,
+          llmPreviewProcessed,
         });
       } catch (error) {
         const status = error.status || 500;
@@ -163,7 +179,7 @@ function registerLatexImportRoutes(router) {
 
   router.post(
     '/import/latex',
-    requireBankWrite,
+    requireBankWriteMw,
     upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
@@ -201,7 +217,7 @@ function registerLatexImportRoutes(router) {
           }
         }
 
-        const platformSettings = await getPlatformSettings();
+        const platformSettings = await platformSettingsService.getPlatformSettings();
         const overrides = parseMetadataOverrides(req.body);
         const applyLlmAssist = !overrides
           && platformSettings.llmAssistEnabled
