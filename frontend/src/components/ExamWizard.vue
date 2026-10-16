@@ -61,6 +61,17 @@
                   <label class="form-label">随机种子</label>
                   <input v-model.number="blueprint.randomSeed" type="number" class="form-control" />
                 </div>
+                <div class="col-md-4">
+                  <label class="form-label">覆盖分析种子数</label>
+                  <input
+                    v-model.number="coverageSeedTrials"
+                    type="number"
+                    min="1"
+                    max="32"
+                    class="form-control"
+                    title="连续尝试 N 个种子，报告最好/最差缺口"
+                  />
+                </div>
                 <div class="col-md-4 d-flex align-items-end">
                   <div class="form-check">
                     <input id="allowRelax" v-model="blueprint.allowRelaxation" class="form-check-input" type="checkbox" />
@@ -173,6 +184,19 @@
                 </button>
               </li>
             </ul>
+          </div>
+          <div
+            v-if="coverageAnalysis?.multiSeed && coverageAnalysis.multiSeed.seedTrials > 1"
+            class="alert alert-info small py-2 mb-3"
+          >
+            已试 {{ coverageAnalysis.multiSeed.seedTrials }} 个连续种子（从
+            {{ coverageAnalysis.multiSeed.baseSeed }} 起）：
+            {{ multiSeedOkCount }}/{{ coverageAnalysis.multiSeed.seedTrials }} 可一次抽满；
+            最少缺口种子 <strong>{{ coverageAnalysis.multiSeed.best?.seed }}</strong>
+            （{{ coverageAnalysis.multiSeed.best?.gapCount }} 处）；
+            最差 <strong>{{ coverageAnalysis.multiSeed.worst?.seed }}</strong>
+            （{{ coverageAnalysis.multiSeed.worst?.gapCount }} 处）。
+            下方缺口按最差种子展示。
           </div>
           <div v-if="coverageAnalysis && !coverageAnalysis.ok" class="card border-danger shadow-sm mb-3">
             <div class="card-header bg-danger-subtle text-danger-emphasis">
@@ -349,7 +373,15 @@ export default {
       shareWithBank: false,
       coverageAnalysis: null,
       coverageLoading: false,
+      coverageSeedTrials: 8,
     };
+  },
+  computed: {
+    multiSeedOkCount() {
+      const attempts = this.coverageAnalysis?.multiSeed?.attempts;
+      if (!attempts?.length) return 0;
+      return attempts.filter((a) => a.ok).length;
+    },
   },
   mounted() {
     this.loadBlueprintList();
@@ -533,11 +565,13 @@ export default {
         if (!this.savedBlueprintId) {
           await this.saveBlueprint();
         }
+        const seedTrials = Math.min(32, Math.max(1, Number(this.coverageSeedTrials) || 1));
         const { data } = await axios.post('/exams/coverage-analysis', {
           blueprintId: this.savedBlueprintId,
           blueprint: this.blueprint,
           randomSeed: this.blueprint.randomSeed,
           allowRelaxation: false,
+          seedTrials,
         });
         this.coverageAnalysis = data;
       } catch (e) {
