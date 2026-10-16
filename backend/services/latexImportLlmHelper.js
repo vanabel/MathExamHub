@@ -22,18 +22,20 @@ async function mapWithConcurrency(items, limit, fn) {
 }
 
 async function attachLlmSuggestions(questions, bankId, opts = {}) {
-  const maxQuestions = opts.maxQuestions ?? LLM_PREVIEW_MAX_QUESTIONS;
-  const concurrency = opts.concurrency ?? LLM_PREVIEW_CONCURRENCY;
   const suggestFn = opts.suggestQuestionMetadata || suggestQuestionMetadata;
 
   const settings = opts.settings ?? await getPlatformSettings();
+  const maxFromSettings = settings.llmPreviewMaxQuestions ?? LLM_PREVIEW_MAX_QUESTIONS;
+  const concurrencyFromSettings = settings.llmPreviewConcurrency ?? LLM_PREVIEW_CONCURRENCY;
+  const effectiveMax = opts.maxQuestions ?? maxFromSettings;
+  const effectiveConcurrency = opts.concurrency ?? concurrencyFromSettings;
   const total = questions?.length || 0;
   if (!settings.llmAssistEnabled || !total) {
     return {
       llmSuggestions: [],
       settings,
       knowledgePoints: [],
-      llmPreviewCap: maxQuestions,
+      llmPreviewCap: effectiveMax,
       llmPreviewProcessed: 0,
       llmPreviewTruncated: false,
     };
@@ -43,8 +45,8 @@ async function attachLlmSuggestions(questions, bankId, opts = {}) {
     const KnowledgePoint = require('../models/KnowledgePoint');
     kpNodes = await KnowledgePoint.find({ bankId }).select('_id path name subject').lean();
   }
-  const slice = questions.slice(0, maxQuestions);
-  const llmSuggestionsPartial = await mapWithConcurrency(slice, concurrency, async (q) => suggestFn(
+  const slice = questions.slice(0, effectiveMax);
+  const llmSuggestionsPartial = await mapWithConcurrency(slice, effectiveConcurrency, async (q) => suggestFn(
     {
       questionText: q.questionText,
       type: q.type,

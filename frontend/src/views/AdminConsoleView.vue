@@ -58,6 +58,14 @@
             <label class="form-label small">API Key {{ settings.hasApiKey ? '（已配置，留空则不修改）' : '' }}</label>
             <input v-model="llmApiKeyInput" type="password" class="form-control form-control-sm" autocomplete="new-password" />
           </div>
+          <div class="col-md-4">
+            <label class="form-label small">LaTeX 预览 LLM 上限（题数）</label>
+            <input v-model.number="settings.llmPreviewMaxQuestions" type="number" min="1" max="200" class="form-control form-control-sm" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">LaTeX 预览并发数</label>
+            <input v-model.number="settings.llmPreviewConcurrency" type="number" min="1" max="10" class="form-control form-control-sm" />
+          </div>
           <div class="col-md-4 d-flex align-items-end">
             <button type="button" class="btn btn-primary btn-sm" :disabled="savingSettings" @click="saveSettings">
               {{ savingSettings ? '保存中…' : '保存 LLM 设置' }}
