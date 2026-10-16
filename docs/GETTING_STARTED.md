@@ -6,7 +6,7 @@ This guide walks through the recommended first session: **sample bank import →
 
 After you register or log in, a **快速上手** panel appears at the bottom of the screen.
 
-1. Click **一键导入示例题库** to load `package-examples.tex` into your personal bank (skipped if you already imported it).
+1. Click **一键导入示例题库** to load the rich sample bank (44 questions, knowledge-point tree, starter blueprint template) into your personal bank (skipped if you already imported it).
 2. Follow the tour steps to open **LaTeX 导入**, **组卷向导**, and **LaTeX 导出**.
 3. Click **完成** to dismiss the tour (stored on your user profile).
 
