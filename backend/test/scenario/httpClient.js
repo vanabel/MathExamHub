@@ -92,10 +92,11 @@ class ScenarioClient {
 
   async loadDefaultBank() {
     const { status, data } = await this.request('GET', '/api/banks/mine');
-    if (status !== 200 || !data?.length) {
+    const banks = data?.banks ?? (Array.isArray(data) ? data : []);
+    if (status !== 200 || !banks.length) {
       throw new Error('无法获取个人题库');
     }
-    const personal = data.find((b) => b.isPersonalDefault) || data[0];
+    const personal = banks.find((b) => b.isPersonalDefault) || banks[0];
     this.bankId = String(personal._id);
     return personal;
   }
