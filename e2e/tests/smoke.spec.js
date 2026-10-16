@@ -46,7 +46,7 @@ test.describe('product smoke', () => {
     }
 
     await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: /组卷向导/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /自动组卷向导/ })).toBeVisible();
 
     const starterClone = page.getByRole('button', { name: '克隆' }).first();
     await expect(starterClone).toBeVisible({ timeout: 15000 });
