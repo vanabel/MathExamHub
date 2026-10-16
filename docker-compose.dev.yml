@@ -1,0 +1,29 @@
+# Local dev / CI-like tests: MongoDB only (no app containers).
+# Usage:
+#   docker compose -f docker-compose.dev.yml --profile dev up -d
+#   docker compose -f docker-compose.dev.yml --profile test up -d
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mathexam-mongodb-dev
+    profiles:
+      - dev
+      - test
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: mathexam
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 3s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    volumes:
+      - mongodb_dev_data:/data/db
+
+volumes:
+  mongodb_dev_data:
+    driver: local
