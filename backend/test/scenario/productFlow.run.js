@@ -69,18 +69,18 @@ async function run() {
     assert.equal((await client.request('POST', `/api/questions/recycle-bin/${firstId}/restore`)).status, 200);
 
     console.log('· blueprint generate + export');
-    const typesInBank = [...new Set(rows.map((q) => q.type))];
-    assert.ok(typesInBank.length >= 1, '题库题型不足');
-    const pickType = typesInBank[0];
+    assert.ok(rows.length >= 1, '题库无题');
+    const sampleQ = rows[0];
+    const scoreEach = Number(sampleQ.totalScore) || 4;
     const blueprint = {
       title: '场景测试卷',
-      totalScore: 4,
+      totalScore: scoreEach,
       randomSeed: 4242,
       allowRelaxation: true,
       sections: [{
-        type: pickType,
+        type: sampleQ.type,
         count: 1,
-        scoreEach: 4,
+        scoreEach,
         difficultyMix: { 易: 0, 中: 0, 难: 0 },
       }],
     };
