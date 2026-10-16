@@ -22,6 +22,15 @@ async function registerAndLogin(page, { uid, password, email }) {
     if (!loginRes.ok) {
       throw new Error(`login failed: ${loginRes.status}`);
     }
+    const me = await fetch(`${base}/auth/me`, { credentials: 'include' }).then((r) => r.json());
+    if (me.user) {
+      localStorage.setItem('currentUser', JSON.stringify(me.user));
+    }
+    const banks = await fetch(`${base}/banks/mine`, { credentials: 'include' }).then((r) => r.json());
+    const personal = (banks.banks || []).find((b) => b.isPersonalDefault) || (banks.banks || [])[0];
+    if (personal) {
+      localStorage.setItem('currentBankId', personal._id);
+    }
   }, { apiBase, username: uid, pass: password, mail: email });
   await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
 }
