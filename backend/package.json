@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon server",
     "test": "node --test test/*.test.js",
-    "test:scenario": "node --test --test-force-exit test/scenario/productFlow.test.js"
+    "test:scenario": "node --test test/scenario/productFlow.test.js"
   },
   "keywords": [],
   "author": "",

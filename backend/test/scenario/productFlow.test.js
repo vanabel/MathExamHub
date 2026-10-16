@@ -34,12 +34,12 @@ describe('product scenario (Mongo + HTTP)', { skip: process.env.SKIP_SCENARIO ==
   });
 
   after(async () => {
-    if (serverProc) {
-      serverProc.kill('SIGTERM');
-      await new Promise((resolve) => {
-        serverProc.on('exit', resolve);
-        setTimeout(resolve, 2000);
-      });
+    if (serverProc && !serverProc.killed) {
+      try {
+        if (serverProc.pid) process.kill(-serverProc.pid, 'SIGKILL');
+      } catch {
+        serverProc.kill('SIGKILL');
+      }
     }
     await mongoose.disconnect();
   });

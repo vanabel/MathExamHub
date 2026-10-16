@@ -104,6 +104,7 @@ async function startServer(mongoUri, port) {
         PORT: String(port),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     });
 
     let stderr = '';
