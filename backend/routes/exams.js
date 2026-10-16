@@ -20,6 +20,7 @@ const {
   paginateEntries,
   enrichPapers,
 } = require('../utils/examPaperListEntries');
+const { analyzeBlueprintCoverage } = require('../utils/blueprintCoverage');
 
 const router = express.Router();
 
@@ -58,6 +59,24 @@ async function loadBlueprint(req) {
   }
   return { blueprint, blueprintId };
 }
+
+router.post('/coverage-analysis', requireBankWrite, async (req, res) => {
+  try {
+    const loaded = await loadBlueprint(req);
+    if (loaded.error) return res.status(loaded.status).json({ error: loaded.error });
+    const { blueprint } = loaded;
+    const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
+    const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
+    const analysis = analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, {
+      randomSeed: req.body.randomSeed ?? blueprint.randomSeed,
+      allowRelaxation: req.body.allowRelaxation === true,
+    });
+    res.json(analysis);
+  } catch (error) {
+    console.error('coverage-analysis failed', error);
+    res.status(500).json({ error: '覆盖分析失败' });
+  }
+});
 
 router.post('/generate', requireBankWrite, async (req, res) => {
   try {

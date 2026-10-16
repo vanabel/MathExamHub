@@ -177,6 +177,8 @@ export default {
       subjectFilter: "",
       typeFilter: "",
       difficultyFilter: "",
+      minScoreFilter: "",
+      maxScoreFilter: "",
       questionTypes: ['判断题', '单选题', '多选题', '填空题', '简答题', '解答题', '计算题', '证明题', '作图题'],
       totalCount: 0,
       pageSize: 50,
@@ -185,6 +187,7 @@ export default {
     };
   },
   mounted() {
+    this.applyRouteQuery();
     this.loadKnowledgePoints();
     this.getQuestionList();
   },
@@ -241,6 +244,15 @@ export default {
           });
       });
     },
+    applyRouteQuery() {
+      const q = this.$route.query || {};
+      if (q.type) this.typeFilter = String(q.type);
+      if (q.difficulty) this.difficultyFilter = String(q.difficulty);
+      if (q.knowledgePointId) this.kpFilter = String(q.knowledgePointId);
+      if (q.subject) this.subjectFilter = String(q.subject);
+      if (q.minScore != null && q.minScore !== "") this.minScoreFilter = Number(q.minScore);
+      if (q.maxScore != null && q.maxScore !== "") this.maxScoreFilter = Number(q.maxScore);
+    },
     async loadKnowledgePoints() {
       try {
         const { data } = await axios.get("/knowledge-points/tree");
@@ -277,6 +289,8 @@ export default {
         if (this.subjectFilter.trim()) params.subject = this.subjectFilter.trim();
         if (this.typeFilter) params.type = this.typeFilter;
         if (this.difficultyFilter) params.difficulty = this.difficultyFilter;
+        if (this.minScoreFilter !== "" && this.minScoreFilter != null) params.minScore = this.minScoreFilter;
+        if (this.maxScoreFilter !== "" && this.maxScoreFilter != null) params.maxScore = this.maxScoreFilter;
         if (this.searchQuery.trim()) params.q = this.searchQuery.trim();
         const response = await axios.get("/questions/list", { params });
         const data = response.data;
