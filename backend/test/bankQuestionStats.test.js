@@ -10,9 +10,19 @@ describe('LatexGenerator answer sheet', () => {
       { type: '单选题', questionText: 'b', totalScore: 2 },
       { type: '解答题', questionText: 'c', totalScore: 10 },
     ];
-    const tex = gen.generateDocument(questions, { includeAnswerSheet: true, answerSheetCols: 4 }, 'exam');
+    const tex = gen.generateDocument(questions, {
+      includeAnswerSheet: true,
+      answerSheetCols: 4,
+      answerSheetRowHeight: '1.5em',
+    }, 'exam');
     assert.ok(tex.includes('\\answertable'));
-    assert.ok(tex.includes('{2}{4}'));
+    assert.ok(tex.includes('[1.5em]{2}{4}'));
+    const tex2 = gen.generateDocument(
+      [{ type: '解答题', questionText: 'x' }],
+      { includeAnswerSheet: true, includeSubjectiveAnswerAreas: true },
+      'exam',
+    );
+    assert.ok(tex2.includes('解答题作答区'));
   });
 
   it('countAnswerSheetSlots ignores subjective types', () => {

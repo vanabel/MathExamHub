@@ -1214,10 +1214,14 @@ class LatexGenerator {
     }
 
     if (metadata.includeAnswerSheet && mode === 'exam') {
+      const rowHeight = metadata.answerSheetRowHeight || '1.2em';
       const sheetCount = this.countAnswerSheetSlots(questions);
       if (sheetCount > 0) {
         const cols = Math.min(10, Math.max(3, Number(metadata.answerSheetCols) || 5));
-        latex += `\n\\newpage\n\\section*{答题卡}\n\\answertable[1.2em]{${sheetCount}}{${cols}}\n`;
+        latex += `\n\\newpage\n\\section*{答题卡}\n\\answertable[${rowHeight}]{${sheetCount}}{${cols}}\n`;
+      }
+      if (metadata.includeSubjectiveAnswerAreas !== false) {
+        latex += this.generateSubjectiveAnswerAreas(questions, metadata);
       }
     }
 
@@ -1228,6 +1232,19 @@ class LatexGenerator {
   countAnswerSheetSlots(questions) {
     const sheetTypes = new Set(['判断题', '单选题', '多选题', '填空题']);
     return questions.filter((q) => sheetTypes.has(q.type)).length;
+  }
+
+  generateSubjectiveAnswerAreas(questions, metadata = {}) {
+    const subjectiveTypes = new Set(['解答题', '计算题', '证明题', '简答题']);
+    const subs = questions.filter((q) => subjectiveTypes.has(q.type));
+    if (!subs.length) return '';
+    const rowH = metadata.answerSheetSubjectiveRowHeight || '6em';
+    let latex = '\n\\section*{解答题作答区}\n\\noindent\\begin{tabular}{|c|p{0.85\\linewidth}|}\n\\hline\n';
+    subs.forEach((q, idx) => {
+      latex += `${idx + 1} & \\parbox[t][${rowH}]{\\linewidth}{\\vfill} \\\\\n\\hline\n`;
+    });
+    latex += '\\end{tabular}\n';
+    return latex;
   }
 
   buildPackageOptions(metadata, mode) {
