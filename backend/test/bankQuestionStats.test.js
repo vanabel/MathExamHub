@@ -23,6 +23,7 @@ describe('LatexGenerator answer sheet', () => {
       'exam',
     );
     assert.ok(tex2.includes('解答题作答区'));
+    assert.ok(tex2.includes('answer@cell@strut'));
   });
 
   it('countAnswerSheetSlots ignores subjective types', () => {
