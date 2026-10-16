@@ -199,8 +199,16 @@
             下方缺口按最差种子展示。
           </div>
           <div v-if="coverageAnalysis && !coverageAnalysis.ok" class="card border-danger shadow-sm mb-3">
-            <div class="card-header bg-danger-subtle text-danger-emphasis">
-              <i class="bi bi-x-octagon"></i> 生成前覆盖缺口（与抽题规则一致，未放宽）
+            <div class="card-header bg-danger-subtle text-danger-emphasis d-flex justify-content-between align-items-center gap-2">
+              <span><i class="bi bi-x-octagon"></i> 生成前覆盖缺口（与抽题规则一致，未放宽）</span>
+              <button
+                v-if="coverageAnalysis.gaps?.length"
+                type="button"
+                class="btn btn-sm btn-light"
+                @click="openGapBatchInQuestionList"
+              >
+                批量查看缺口
+              </button>
             </div>
             <ul class="list-group list-group-flush small">
               <li v-for="(g, i) in coverageAnalysis.gaps" :key="'cov' + i" class="list-group-item d-flex justify-content-between gap-2">
@@ -325,6 +333,7 @@
 import axios from 'axios';
 import { processQuestionTextToHTML } from '../utils/latexProcessor';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
+import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 
 const defaultSection = () => ({
   type: '填空题',
@@ -558,6 +567,17 @@ export default {
       this.$nextTick(() => {
         if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise();
       });
+    },
+    openGapBatchInQuestionList() {
+      const gaps = this.coverageAnalysis?.gaps;
+      if (!gaps?.length) return;
+      saveCoverageGapBatch({
+        gaps,
+        seed: this.coverageAnalysis?.multiSeed?.worst?.seed
+          ?? this.coverageAnalysis?.randomSeedUsed,
+        savedAt: Date.now(),
+      });
+      this.$router.push({ name: 'question-list', query: { gapBatch: '1' } });
     },
     async refreshCoverageAnalysis() {
       this.coverageLoading = true;
