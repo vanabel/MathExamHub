@@ -22,6 +22,9 @@ registerDuplicateReviewRoutes(router);
 registerRecycleBinRoutes(router);
 
 router.post('/create-test-data', requireBankWrite, (req, res) => {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_TEST_ROUTES !== '1') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const testData = req.body.map((row) => ({ ...row, bankId: req.bankId }));
   Question.insertMany(testData)
     .then((questions) => res.json(questions))

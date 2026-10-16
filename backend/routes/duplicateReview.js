@@ -1,5 +1,6 @@
 const express = require('express');
 const { requireBankWrite } = require('../middleware/bankContext');
+const requireBankOwner = require('../middleware/requireBankOwner');
 const { softDeleteQuestion } = require('../services/questionLifecycle');
 const {
   findAllDuplicatesInBank,
@@ -32,7 +33,7 @@ function registerDuplicateReviewRoutes(router) {
     }
   });
 
-  router.post('/duplicates/cleanup', requireBankWrite, async (req, res) => {
+  router.post('/duplicates/cleanup', requireBankOwner, async (req, res) => {
     try {
       const threshold = parseFloat(req.query.threshold) || parseFloat(req.body?.threshold) || 0.85;
       const keepOldest = req.query.keepOldest !== 'false' && req.body?.keepOldest !== false;
