@@ -57,6 +57,31 @@
         </div>
       </div>
 
+      <div v-if="gapBatchActive" class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="small">
+          <strong>覆盖缺口批量查看</strong>
+          <span v-if="gapBatchSeed != null" class="text-muted ms-1">（种子 {{ gapBatchSeed }}）</span>
+          — 第 {{ gapBatchIndex + 1 }} / {{ gapBatchGaps.length }} 项：
+          {{ currentGapLabel }}
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="gapBatchIndex <= 0" @click="prevGapBatch">
+            上一缺口
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="gapBatchIndex >= gapBatchGaps.length - 1"
+            @click="nextGapBatch"
+          >
+            下一缺口
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-dark" @click="clearGapBatch">
+            退出
+          </button>
+        </div>
+      </div>
+
       <!-- 加载状态 -->
       <div v-if="loading" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
@@ -163,6 +188,11 @@
 <script>
 import axios from "axios";
 import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
+import {
+  loadCoverageGapBatch,
+  COVERAGE_GAP_BATCH_KEY,
+  listQueryToRouteQuery,
+} from "../utils/coverageGapBatch";
 
 export default {
   name: "QuestionList",
@@ -184,12 +214,31 @@ export default {
       pageSize: 50,
       pageOffset: 0,
       searchTimer: null,
+      gapBatchGaps: [],
+      gapBatchIndex: 0,
+      gapBatchSeed: null,
     };
   },
+  computed: {
+    gapBatchActive() {
+      return this.gapBatchGaps.length > 0;
+    },
+    currentGapLabel() {
+      const g = this.gapBatchGaps[this.gapBatchIndex];
+      if (!g) return '';
+      return g.message || g.sectionType || '缺口';
+    },
+  },
   mounted() {
+    this.initGapBatchFromRoute();
     this.applyRouteQuery();
     this.loadKnowledgePoints();
     this.getQuestionList();
+  },
+  watch: {
+    '$route.query.gapBatch'() {
+      this.initGapBatchFromRoute();
+    },
   },
   updated() {
     this.$nextTick(() => {
@@ -244,8 +293,58 @@ export default {
           });
       });
     },
+    initGapBatchFromRoute() {
+      if (this.$route.query?.gapBatch !== '1') {
+        return;
+      }
+      const batch = loadCoverageGapBatch();
+      if (!batch) return;
+      this.gapBatchGaps = batch.gaps;
+      this.gapBatchSeed = batch.seed ?? null;
+      this.gapBatchIndex = 0;
+      this.applyGapListQuery(this.gapBatchGaps[0]?.listQuery);
+    },
+    applyGapListQuery(listQuery) {
+      if (!listQuery) return;
+      this.typeFilter = listQuery.type ? String(listQuery.type) : '';
+      this.difficultyFilter = listQuery.difficulty ? String(listQuery.difficulty) : '';
+      this.kpFilter = listQuery.knowledgePointId ? String(listQuery.knowledgePointId) : '';
+      this.subjectFilter = listQuery.subject ? String(listQuery.subject) : '';
+      this.minScoreFilter = listQuery.minScore != null && listQuery.minScore !== ''
+        ? Number(listQuery.minScore)
+        : '';
+      this.maxScoreFilter = listQuery.maxScore != null && listQuery.maxScore !== ''
+        ? Number(listQuery.maxScore)
+        : '';
+      this.pageOffset = 0;
+    },
+    prevGapBatch() {
+      if (this.gapBatchIndex <= 0) return;
+      this.gapBatchIndex -= 1;
+      this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
+      this.getQuestionList();
+    },
+    nextGapBatch() {
+      if (this.gapBatchIndex >= this.gapBatchGaps.length - 1) return;
+      this.gapBatchIndex += 1;
+      this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
+      this.getQuestionList();
+    },
+    clearGapBatch() {
+      this.gapBatchGaps = [];
+      this.gapBatchIndex = 0;
+      this.gapBatchSeed = null;
+      sessionStorage.removeItem(COVERAGE_GAP_BATCH_KEY);
+      const q = { ...this.$route.query };
+      delete q.gapBatch;
+      this.$router.replace({ query: q });
+    },
     applyRouteQuery() {
       const q = this.$route.query || {};
+      if (q.gapBatch === '1' && this.gapBatchGaps.length) {
+        this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
+        return;
+      }
       if (q.type) this.typeFilter = String(q.type);
       if (q.difficulty) this.difficultyFilter = String(q.difficulty);
       if (q.knowledgePointId) this.kpFilter = String(q.knowledgePointId);
