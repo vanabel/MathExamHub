@@ -89,6 +89,7 @@ router.post('/generate', requireBankWrite, async (req, res) => {
         questionText: q.questionText,
         originalLaTeX: q.originalLaTeX,
         knowledgePointIds: q.knowledgePointIds,
+        usageCount: q.usageCount,
       })),
       sections: result.sections,
       stats: result.stats,
