@@ -142,14 +142,16 @@ async function run() {
     const missingTypes = requiredCreates.filter((t) => !rows.some((q) => q.type === t));
     assert.equal(missingTypes.length, 0, `after ensure missing: ${missingTypes.join(', ')}`);
 
+    const fillSample = rows.find((q) => q.type === '填空题');
+    const fillScore = Number(fillSample?.totalScore) || 4;
     while (rows.filter((q) => q.type === '填空题').length < 2) {
       const created = await client.request('POST', '/api/questions/create', {
         body: {
           questionText: `场景换题备用填空 ${Date.now()}`,
           type: '填空题',
-          totalScore: 4,
-          difficulty: '中',
-          subject: '高等代数',
+          totalScore: fillScore,
+          difficulty: fillSample?.difficulty || '中',
+          subject: fillSample?.subject || '高等代数',
           correctAnswer: '略',
         },
       });
@@ -173,7 +175,7 @@ async function run() {
     console.log('· swap-question API');
     const flat = flatFromGenerate(gen1.data);
     assert.ok(flat.length >= 1);
-    const target = flat[0];
+    const target = flat.find((q) => q.type === '填空题') || flat[0];
     const swap = await client.request('POST', '/api/exams/swap-question', {
       body: {
         blueprintId,
