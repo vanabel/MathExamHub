@@ -7,6 +7,7 @@
     "dev": "nodemon server",
     "test": "node --test test/*.test.js",
     "test:scenario": "node test/scenario/productFlow.run.js",
+    "test:latex-compile": "node test/scenario/latexExportCompile.run.js",
     "test:scenario:docker": "docker compose -f ../docker-compose.dev.yml --profile test up -d --wait && npm run test:scenario",
     "test:scenario:docker:down": "docker compose -f ../docker-compose.dev.yml --profile test down",
     "test:bench": "node test/bench/listPagination.run.js"
