@@ -85,7 +85,8 @@ router.get('/:_id/get', async (req, res) => {
       contentHash: question.contentHash,
       status: question.status,
       source: question.source,
-      usageCount: question.usageCount,
+      usageCount: question.usageCount ?? 0,
+      lastUsedAt: question.lastUsedAt,
       bankId: question.bankId,
     });
   } catch (error) {

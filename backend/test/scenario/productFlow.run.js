@@ -237,6 +237,15 @@ async function run() {
     assert.deepEqual(gen1.data.questionIds, gen2.data.questionIds);
     assert.ok(gen1.data.questionIds?.length >= 4, JSON.stringify(gen1.data));
 
+    console.log('· exam paper history list');
+    const history = await client.request('GET', '/api/exams/papers?limit=10');
+    assert.equal(history.status, 200);
+    assert.ok(history.data.total >= 1);
+    assert.ok(history.data.papers.some((p) => String(p._id) === String(gen1.data.paperId)));
+    const paperDetail = await client.request('GET', `/api/exams/papers/${gen1.data.paperId}`);
+    assert.equal(paperDetail.status, 200);
+    assert.ok(paperDetail.data.questions?.length >= 4);
+
     console.log('· swap-question API');
     const flat = flatFromGenerate(gen1.data);
     assert.ok(flat.length >= 1);

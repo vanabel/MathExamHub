@@ -232,12 +232,67 @@ router.post('/swap-question', requireBankWrite, async (req, res) => {
   }
 });
 
+router.get('/papers', async (req, res) => {
+  try {
+    const filter = { bankId: req.bankId };
+    if (req.query.blueprintId) {
+      if (!mongoose.Types.ObjectId.isValid(String(req.query.blueprintId))) {
+        return res.status(400).json({ error: '无效的 blueprintId' });
+      }
+      filter.blueprintId = req.query.blueprintId;
+    }
+    if (req.query.variantGroupId) {
+      if (!mongoose.Types.ObjectId.isValid(String(req.query.variantGroupId))) {
+        return res.status(400).json({ error: '无效的 variantGroupId' });
+      }
+      filter.variantGroupId = req.query.variantGroupId;
+    }
+    if (req.query.variantLabel === 'A' || req.query.variantLabel === 'B') {
+      filter.variantLabel = req.query.variantLabel;
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+    const [papers, total] = await Promise.all([
+      ExamPaper.find(filter).sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
+      ExamPaper.countDocuments(filter),
+    ]);
+
+    const blueprintIds = [...new Set(papers.map((p) => p.blueprintId).filter(Boolean))];
+    const blueprints = blueprintIds.length
+      ? await ExamBlueprint.find({ _id: { $in: blueprintIds } }).select('title subject').lean()
+      : [];
+    const bpMap = new Map(blueprints.map((b) => [String(b._id), b]));
+
+    const items = papers.map((p) => {
+      const bp = p.blueprintId ? bpMap.get(String(p.blueprintId)) : null;
+      return {
+        ...p,
+        blueprintTitle: bp?.title,
+        blueprintSubject: bp?.subject,
+      };
+    });
+
+    res.json({ papers: items, total, limit, offset });
+  } catch (error) {
+    console.error('list papers failed', error);
+    res.status(500).json({ error: 'Failed to list exam papers' });
+  }
+});
+
 router.get('/papers/:id', async (req, res) => {
   try {
     const paper = await ExamPaper.findOne({ _id: req.params.id, bankId: req.bankId }).lean();
     if (!paper) return res.status(404).json({ error: 'Paper not found' });
     const questions = await Question.find({ _id: { $in: paper.questionIds }, bankId: req.bankId }).lean();
-    res.json({ paper, questions });
+    let blueprint = null;
+    if (paper.blueprintId) {
+      blueprint = await ExamBlueprint.findOne({ _id: paper.blueprintId, bankId: req.bankId })
+        .select('title subject')
+        .lean();
+    }
+    res.json({ paper, questions, blueprint });
   } catch (error) {
     res.status(400).json({ error: 'Invalid id' });
   }

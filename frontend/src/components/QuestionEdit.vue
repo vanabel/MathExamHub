@@ -18,7 +18,13 @@
             <h1 class="page-title mb-1">
               <i class="bi bi-pencil"></i> 编辑试题
             </h1>
-            <p class="text-muted mb-0">修改题目信息</p>
+            <p class="text-muted mb-0">
+              修改题目信息
+              <span v-if="usageCount != null" class="ms-2 badge bg-light text-dark">
+                组卷使用 {{ usageCount }} 次
+              </span>
+              <span v-if="lastUsedAt" class="ms-1 text-muted small">（最近 {{ formatLastUsed(lastUsedAt) }}）</span>
+            </p>
           </div>
           <router-link to="/question-list" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> 返回列表
@@ -174,6 +180,8 @@ export default {
       },
       questionText: "",
       questionAnswer: "",
+      usageCount: null,
+      lastUsedAt: null,
       loading: false,
     };
   },
@@ -181,6 +189,11 @@ export default {
     this.getQuestionData();
   },
   methods: {
+    formatLastUsed(iso) {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString('zh-CN');
+    },
     async getQuestionData() {
       try {
         const questionId = this.$route.params.id;
@@ -194,6 +207,8 @@ export default {
         if (response.data.totalScore) this.questionScore = response.data.totalScore;
         if (response.data.difficulty) this.questionDifficulty = response.data.difficulty;
         if (response.data.options) this.options = response.data.options;
+        if (response.data.usageCount != null) this.usageCount = response.data.usageCount;
+        if (response.data.lastUsedAt) this.lastUsedAt = response.data.lastUsedAt;
       } catch (error) {
         console.error("获取试题信息失败:", error);
         alert("获取题目信息失败，请稍后重试");

@@ -10,6 +10,7 @@ import KnowledgePointView from "../views/KnowledgePointView.vue";
 import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 import RecycleBinView from "../views/RecycleBinView.vue";
 import ExamWizardView from "../views/ExamWizardView.vue";
+import ExamHistoryView from "../views/ExamHistoryView.vue";
 
 const routes = [
   {
@@ -78,6 +79,12 @@ const routes = [
     path: "/exam-wizard",
     name: "exam-wizard",
     component: ExamWizardView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/exam-history",
+    name: "exam-history",
+    component: ExamHistoryView,
     meta: { requiresAuth: true },
   },
 ];

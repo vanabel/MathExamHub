@@ -50,6 +50,11 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link class="nav-link" :class="{ active: $route.name === 'exam-history' }" to="/exam-history">
+                <i class="bi bi-clock-history"></i> 组卷历史
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link class="nav-link" :class="{ active: $route.name === 'duplicates' }" to="/duplicates">
                 <i class="bi bi-files"></i> 重复审查
               </router-link>
