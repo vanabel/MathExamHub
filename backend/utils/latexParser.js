@@ -1239,11 +1239,11 @@ class LatexGenerator {
     const subs = questions.filter((q) => subjectiveTypes.has(q.type));
     if (!subs.length) return '';
     const rowH = metadata.answerSheetSubjectiveRowHeight || '6em';
-    let latex = '\n\\section*{解答题作答区}\n\\noindent\\begin{tabular}{|c|p{0.85\\linewidth}|}\n\\hline\n';
+    let latex = '\n\\section*{解答题作答区}\n\\makeatletter\n\\noindent\\begin{tabular}{|c|p{0.85\\linewidth}|}\n\\hline\n';
     subs.forEach((q, idx) => {
-      latex += `${idx + 1} & \\parbox[t][${rowH}]{\\linewidth}{\\vfill} \\\\\n\\hline\n`;
+      latex += `${idx + 1} & \\answer@cell@strut{${rowH}} \\\\\n\\hline\n`;
     });
-    latex += '\\end{tabular}\n';
+    latex += '\\end{tabular}\n\\makeatother\n';
     return latex;
   }
 

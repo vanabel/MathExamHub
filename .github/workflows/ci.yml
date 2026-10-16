@@ -28,11 +28,20 @@ jobs:
         run: npm ci
       - name: Unit tests
         run: npm test
-      - name: Scenario tests (Mongo)
+      - name: Install XeLaTeX (export compile)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra unzip
+      - name: Scenario tests (Mongo + XeLaTeX)
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci_scenario
           SCENARIO_PORT: 3099
         run: npm run test:scenario
+      - name: LaTeX export compile smoke
+        env:
+          MONGODB_URI: mongodb://localhost:27017/mathexam_ci_latex_compile
+          SCENARIO_PORT: 3101
+        run: npm run test:latex-compile
       - name: List pagination benchmark (10k seed)
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci_bench

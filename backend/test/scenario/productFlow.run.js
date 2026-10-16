@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('../../models/User');
 const { ScenarioClient, startServer } = require('./httpClient');
 const { LatexParser } = require('../../utils/latexParser');
+const { hasXeLaTeX, compileExportZip } = require('./latexCompileHelper');
 
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mathexam_scenario_test';
 const port = Number(process.env.SCENARIO_PORT) || 3099;
@@ -353,6 +354,24 @@ async function run() {
     if (sample && sample.includes('\\begin{problem}')) {
       const parsed = new LatexParser().parse(sample);
       assert.ok(parsed.length >= 1);
+    }
+
+    if (process.env.SKIP_LATEX_COMPILE === '1') {
+      console.log('· skip XeLaTeX compile (SKIP_LATEX_COMPILE=1)');
+    } else if (!hasXeLaTeX()) {
+      console.log('· skip XeLaTeX compile (xelatex not installed)');
+    } else {
+      console.log('· XeLaTeX compile exported exam ZIP');
+      const withSheet = await client.request('POST', '/api/questions/export/latex', {
+        body: {
+          questionIds: gen1.data.questionIds,
+          blueprintId,
+          metadata: { exportMode: 'exam', includeAnswerSheet: true, answerSheetCols: 5 },
+        },
+      });
+      assert.equal(withSheet.status, 200);
+      compileExportZip(withSheet.data);
+      compileExportZip(exportRes.data);
     }
 
     console.log('Scenario product flow: OK');
