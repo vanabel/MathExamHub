@@ -46,15 +46,31 @@ test.describe('product smoke', () => {
     await registerAndLogin(page, { uid, password, email });
     await expect(page).toHaveURL(/\/question-list/, { timeout: 30000 });
 
-    const onboarding = page.getByTestId('onboarding-panel');
-    if (await onboarding.isVisible().catch(() => false)) {
-      await page.getByTestId('onboarding-import-sample').click();
-      await expect(page.getByTestId('onboarding-import-sample')).toContainText(/已导入|导入/, { timeout: 60000 });
-      await page.screenshot({ path: path.join(shots, 'onboarding-import.png'), fullPage: true });
-      await page.getByTestId('onboarding-skip').click();
+    async function ensureSampleImported() {
+      const onboarding = page.getByTestId('onboarding-panel');
+      if (await onboarding.isVisible().catch(() => false)) {
+        await page.getByTestId('onboarding-import-sample').click();
+        await expect(page.getByTestId('onboarding-import-sample')).toContainText(/已导入|导入/, { timeout: 60000 });
+        await page.screenshot({ path: path.join(shots, 'onboarding-import.png'), fullPage: true });
+        await page.getByTestId('onboarding-skip').click();
+        return;
+      }
+      await page.evaluate(async ({ base }) => {
+        const bankId = localStorage.getItem('currentBankId');
+        await fetch(`${base}/onboarding/import-sample`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: bankId ? { 'X-Bank-Id': bankId } : {},
+        });
+      }, { base: apiBase });
     }
 
+    await ensureSampleImported();
+
     await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
+    if (await page.getByTestId('onboarding-panel').isVisible().catch(() => false)) {
+      await page.getByTestId('onboarding-skip').click();
+    }
     await expect(page.getByRole('heading', { name: /自动组卷向导/ })).toBeVisible();
 
     const starterClone = page.getByRole('button', { name: '克隆' }).first();
