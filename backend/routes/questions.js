@@ -142,6 +142,44 @@ router.delete('/:id/delete', requireBankWrite, async (req, res) => {
   }
 });
 
+function escapeCsvCell(value) {
+  const s = String(value ?? '').replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+router.get('/quality/export.csv', requireBankWrite, async (req, res) => {
+  try {
+    const quality = req.query.quality || 'incomplete';
+    const query = buildQuestionListFilter({
+      bankId: req.bankId,
+      query: { ...req.query, quality },
+    });
+    const questions = await Question.find(query)
+      .select('_id questionText type difficulty knowledgePointIds correctAnswer originalLaTeX')
+      .lean();
+    const lines = [
+      'id,type,difficulty,qualityIssues,questionText',
+    ];
+    for (const q of questions) {
+      const issues = assessQuestionQuality(q).join(';');
+      lines.push([
+        escapeCsvCell(q._id),
+        escapeCsvCell(q.type),
+        escapeCsvCell(q.difficulty),
+        escapeCsvCell(issues),
+        escapeCsvCell((q.questionText || '').slice(0, 500)),
+      ].join(','));
+    }
+    const body = `\uFEFF${lines.join('\n')}\n`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="question-quality-export.csv"');
+    res.send(body);
+  } catch (error) {
+    console.error('quality CSV export failed', error);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
 router.post('/batch-metadata', requireBankWrite, async (req, res) => {
   try {
     const updates = req.body?.updates;

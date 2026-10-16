@@ -49,6 +49,20 @@ function mergeQualityMongoFilter(baseFilter, qualityFilter) {
         ],
       };
       break;
+    case 'missing_solution':
+      extra = {
+        type: { $in: ['解答题', '计算题', '证明题'] },
+        $or: [
+          { originalLaTeX: null },
+          { originalLaTeX: '' },
+          {
+            originalLaTeX: {
+              $not: /(\\begin\s*\{solution\}|\\score\s*\{)/i,
+            },
+          },
+        ],
+      };
+      break;
     default:
       break;
   }

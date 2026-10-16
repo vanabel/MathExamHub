@@ -11,10 +11,16 @@
           <option value="missing_answer">缺少答案</option>
           <option value="missing_kp">缺少知识点</option>
           <option value="missing_difficulty">缺少难度</option>
+          <option value="missing_solution">缺少解答（主观题）</option>
         </select>
       </div>
       <div class="col-md-2">
         <button type="button" class="btn btn-sm btn-primary w-100" @click="reload">刷新</button>
+      </div>
+      <div class="col-md-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary w-100" @click="exportCsv">
+          导出 CSV
+        </button>
       </div>
     </div>
 
@@ -108,6 +114,22 @@ export default {
         this.selected = [];
       } finally {
         this.loading = false;
+      }
+    },
+    async exportCsv() {
+      try {
+        const res = await axios.get('/questions/quality/export.csv', {
+          params: { quality: this.qualityFilter },
+          responseType: 'blob',
+        });
+        const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `question-quality-${this.qualityFilter}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert(err.response?.data?.error || '导出失败');
       }
     },
     async saveBatch() {
