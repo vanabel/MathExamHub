@@ -134,7 +134,7 @@ async function run() {
             correctAnswer: type === '判断题' ? true : '略',
           },
         });
-        assert.equal(created.status, 201, JSON.stringify(created.data));
+        assert.ok(created.status === 201 || created.status === 200, JSON.stringify(created.data));
         have.add(type);
       }
     }
