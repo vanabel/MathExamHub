@@ -119,6 +119,28 @@ async function run() {
     list = await client.request('GET', '/api/questions/list');
     rows = listRows(list.data);
 
+    console.log('· ensure four question types for blueprint');
+    const have = new Set(rows.map((q) => q.type));
+    for (const group of TYPE_PLAN) {
+      const type = group.find((t) => have.has(t)) || group[0];
+      if (!have.has(type)) {
+        const created = await client.request('POST', '/api/questions/create', {
+          body: {
+            questionText: `场景测试占位题（${type}）`,
+            type,
+            totalScore: 4,
+            difficulty: '中',
+            subject: '高等代数',
+            correctAnswer: type === '判断题' ? true : '略',
+          },
+        });
+        assert.equal(created.status, 201, JSON.stringify(created.data));
+        have.add(type);
+      }
+    }
+    list = await client.request('GET', '/api/questions/list');
+    rows = listRows(list.data);
+
     console.log('· four-section blueprint generate');
     const blueprintBody = buildFourSectionBlueprint(rows);
     const saved = await client.request('POST', '/api/exam-blueprints', { body: blueprintBody });
