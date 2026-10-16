@@ -12,6 +12,7 @@ import RecycleBinView from "../views/RecycleBinView.vue";
 import ExamWizardView from "../views/ExamWizardView.vue";
 import ExamHistoryView from "../views/ExamHistoryView.vue";
 import AdminConsoleView from "../views/AdminConsoleView.vue";
+import QuestionQualityView from "../views/QuestionQualityView.vue";
 
 const routes = [
   {
@@ -93,6 +94,12 @@ const routes = [
     name: "admin-console",
     component: AdminConsoleView,
     meta: { requiresAuth: true, requiresPlatformAdmin: true },
+  },
+  {
+    path: "/question-quality",
+    name: "question-quality",
+    component: QuestionQualityView,
+    meta: { requiresAuth: true },
   },
 ];
 
