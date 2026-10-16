@@ -100,9 +100,10 @@ test.describe('product smoke', () => {
       return preview && !preview.disabled;
     }, { timeout: 120000 });
     await page.getByRole('button', { name: '2. 预览' }).click();
-    await expect(page.getByText(/将当前预览中的 [1-9]\d* 道题/)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/第 1 题/)).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();
+    await expect(page.getByText(/道题导出为 mathexam LaTeX ZIP/)).toBeVisible();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('wizard-export-latex').click();
     const download = await downloadPromise;
