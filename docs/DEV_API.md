@@ -30,6 +30,25 @@ location /api/ {
 
 这样浏览器请求 `/api/questions/list` 会原样转发到后端的 `/api/questions/list`。
 
+## 场景测试（Mongo）
+
+端到端场景脚本 `npm run test:scenario` 需要本机 **MongoDB**（默认 `mongodb://127.0.0.1:27017/mathexam_scenario_test`）。
+
+仅启动 Mongo（dev/test profile，不拉起前后端容器）：
+
+```bash
+docker compose -f docker-compose.dev.yml --profile dev up -d --wait
+cd backend && npm run test:scenario
+```
+
+或一条命令（启动 test profile、跑场景、容器保持运行；结束后可 `npm run test:scenario:docker:down`）：
+
+```bash
+cd backend && npm run test:scenario:docker
+```
+
+CI 在 GitHub Actions 的 `services.mongodb` 中自动提供 Mongo，无需 compose。
+
 ## 快速 Smoke
 
 ```bash
