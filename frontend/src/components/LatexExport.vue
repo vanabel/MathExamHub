@@ -1278,8 +1278,6 @@ export default {
           }
         }
         
-        // 如果后端返回的是 zip，确保文件名是 .zip；如果是 tex，确保是 .tex
-        const contentType = response.headers['content-type'] || '';
         filename = filename.replace(/\.tex$/, '').replace(/\.zip$/, '') + '.zip';
 
         // 创建下载链接
