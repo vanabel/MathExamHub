@@ -245,6 +245,9 @@ async function run() {
     const paperDetail = await client.request('GET', `/api/exams/papers/${gen1.data.paperId}`);
     assert.equal(paperDetail.status, 200);
     assert.ok(paperDetail.data.questions?.length >= 4);
+    const grouped = await client.request('GET', '/api/exams/papers?groupAb=true&variantScope=single&limit=5');
+    assert.equal(grouped.status, 200);
+    assert.ok(Array.isArray(grouped.data.singles));
 
     console.log('· swap-question API');
     const flat = flatFromGenerate(gen1.data);

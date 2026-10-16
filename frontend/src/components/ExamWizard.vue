@@ -332,6 +332,7 @@ export default {
   mounted() {
     this.loadBlueprintList();
     this.loadTemplateLibrary();
+    this.openFromRouteQuery();
   },
   methods: {
     processQuestionTextToHTML,
@@ -344,6 +345,40 @@ export default {
     formatMap(obj) {
       if (!obj) return '—';
       return Object.entries(obj).map(([k, v]) => `${k}:${v}`).join('，');
+    },
+    async openFromRouteQuery() {
+      const paperId = this.$route.query.paperId;
+      if (!paperId) return;
+      try {
+        const { data } = await axios.get(`/exams/papers/${paperId}`);
+        const bpId = this.$route.query.blueprintId || data.paper.blueprintId;
+        if (bpId) {
+          this.selectedBlueprintId = String(bpId);
+          this.savedBlueprintId = String(bpId);
+          await this.loadBlueprintList();
+          this.loadBlueprint();
+        }
+        this.paperId = data.paper._id;
+        this.relaxations = data.paper.relaxations || [];
+        this.warnings = data.paper.warnings || [];
+        this.shortfalls = data.paper.shortfalls || [];
+        this.generateStats = data.paper.stats || null;
+        const order = data.paper.questionIds || [];
+        const byId = new Map((data.questions || []).map((q) => [String(q._id), q]));
+        const ordered = order.map((id) => byId.get(String(id))).filter(Boolean);
+        this.paperQuestions = this.buildFlatQuestions(data.paper.sections, ordered);
+        if (data.paper.variantLabel === 'A' || data.paper.variantLabel === 'B') {
+          this.activeVariant = data.paper.variantLabel;
+        }
+        if (this.paperQuestions.length) {
+          this.step = 2;
+          this.$nextTick(() => {
+            if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise();
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
     },
     addSection() {
       this.blueprint.sections.push(defaultSection());

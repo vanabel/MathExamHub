@@ -232,6 +232,49 @@ router.post('/swap-question', requireBankWrite, async (req, res) => {
   }
 });
 
+function applyVariantScope(filter, variantScope) {
+  if (variantScope === 'single') {
+    filter.$and = filter.$and || [];
+    filter.$and.push({
+      $or: [{ variantLabel: { $exists: false } }, { variantLabel: null }],
+    });
+  } else if (variantScope === 'ab') {
+    filter.variantGroupId = { $exists: true, $ne: null };
+  }
+}
+
+function groupExamPapers(items) {
+  const byGroup = new Map();
+  const singles = [];
+  for (const p of items) {
+    if (p.variantGroupId) {
+      const key = String(p.variantGroupId);
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key).push(p);
+    } else {
+      singles.push(p);
+    }
+  }
+  const pairs = [];
+  for (const [variantGroupId, papers] of byGroup) {
+    const sorted = [...papers].sort((a, b) => {
+      if (a.variantLabel === 'A') return -1;
+      if (b.variantLabel === 'A') return 1;
+      return 0;
+    });
+    pairs.push({
+      variantGroupId,
+      papers: sorted,
+      blueprintTitle: sorted[0]?.blueprintTitle,
+      blueprintId: sorted[0]?.blueprintId,
+      createdAt: sorted[0]?.createdAt,
+    });
+  }
+  pairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  singles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return { pairs, singles };
+}
+
 router.get('/papers', async (req, res) => {
   try {
     const filter = { bankId: req.bankId };
@@ -250,7 +293,12 @@ router.get('/papers', async (req, res) => {
     if (req.query.variantLabel === 'A' || req.query.variantLabel === 'B') {
       filter.variantLabel = req.query.variantLabel;
     }
+    const variantScope = req.query.variantScope;
+    if (variantScope === 'single' || variantScope === 'ab') {
+      applyVariantScope(filter, variantScope);
+    }
 
+    const groupAb = req.query.groupAb === 'true';
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
@@ -273,6 +321,11 @@ router.get('/papers', async (req, res) => {
         blueprintSubject: bp?.subject,
       };
     });
+
+    if (groupAb) {
+      const { pairs, singles } = groupExamPapers(items);
+      return res.json({ pairs, singles, papers: items, total, limit, offset });
+    }
 
     res.json({ papers: items, total, limit, offset });
   } catch (error) {
