@@ -18,6 +18,7 @@ const {
   parseListSort,
 } = require('../utils/questionListQuery');
 const { assessQuestionQuality } = require('../utils/questionQuality');
+const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -67,6 +68,16 @@ router.post('/create', requireBankWrite, (req, res) => {
   newQuestion.save()
     .then((question) => res.json(question))
     .catch((error) => res.status(400).json({ error, submittedData: req.body }));
+});
+
+router.get('/stats/dashboard', requireBankWrite, async (req, res) => {
+  try {
+    const dashboard = await buildBankQuestionDashboard(req.bankId);
+    res.json(dashboard);
+  } catch (error) {
+    console.error('stats dashboard failed', error);
+    res.status(500).json({ error: '统计加载失败' });
+  }
 });
 
 router.get('/:_id/get', async (req, res) => {

@@ -13,6 +13,7 @@ import ExamWizardView from "../views/ExamWizardView.vue";
 import ExamHistoryView from "../views/ExamHistoryView.vue";
 import AdminConsoleView from "../views/AdminConsoleView.vue";
 import QuestionQualityView from "../views/QuestionQualityView.vue";
+import BankStatsView from "../views/BankStatsView.vue";
 
 const routes = [
   {
@@ -99,6 +100,12 @@ const routes = [
     path: "/question-quality",
     name: "question-quality",
     component: QuestionQualityView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/bank-stats",
+    name: "bank-stats",
+    component: BankStatsView,
     meta: { requiresAuth: true },
   },
 ];

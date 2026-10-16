@@ -294,6 +294,31 @@
                 <small class="text-muted">ZIP 内附带 pin 版 mathexam.sty，便于 XeLaTeX 编译</small>
               </div>
 
+              <div v-if="metadata.exportMode === 'exam' || metadata.exportMode === 'both'" class="mb-3">
+                <div class="form-check">
+                  <input
+                    id="includeAnswerSheet"
+                    v-model="metadata.includeAnswerSheet"
+                    class="form-check-input"
+                    type="checkbox"
+                  />
+                  <label class="form-check-label" for="includeAnswerSheet">
+                    附加答题卡（mathexam <code>\answertable</code>，适用于选择/判断/填空题）
+                  </label>
+                </div>
+                <div v-if="metadata.includeAnswerSheet" class="mt-2">
+                  <label for="answerSheetCols" class="form-label small">每行答题格数</label>
+                  <input
+                    id="answerSheetCols"
+                    v-model.number="metadata.answerSheetCols"
+                    type="number"
+                    min="3"
+                    max="10"
+                    class="form-control form-control-sm"
+                  />
+                </div>
+              </div>
+
               <button
                 type="button"
                 class="btn btn-primary w-100"
@@ -531,6 +556,8 @@ export default {
         director: "",
         dean: "",
         exportMode: "exam",
+        includeAnswerSheet: false,
+        answerSheetCols: 5,
         packageOptions: ["nospace"],
       },
     };
