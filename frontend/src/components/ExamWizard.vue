@@ -144,10 +144,16 @@
               <button type="button" class="btn btn-secondary" :disabled="savingBlueprint" @click="saveBlueprint">
                 {{ savingBlueprint ? '保存中…' : '保存蓝图' }}
               </button>
-              <button type="button" class="btn btn-outline-info" :disabled="coverageLoading" @click="refreshCoverageAnalysis">
+              <button
+                type="button"
+                class="btn btn-outline-info"
+                data-testid="wizard-coverage-check"
+                :disabled="coverageLoading"
+                @click="refreshCoverageAnalysis"
+              >
                 {{ coverageLoading ? '分析中…' : '检查题库覆盖' }}
               </button>
-              <button type="button" class="btn btn-primary" :disabled="generating" @click="generateExam">
+              <button type="button" class="btn btn-primary" data-testid="wizard-generate" :disabled="generating" @click="generateExam">
                 {{ generating ? '生成中…' : (generateAbPair ? '生成 A/B 卷' : '生成试卷') }}
               </button>
               <div class="form-check ms-md-2">
@@ -186,6 +192,13 @@
             </ul>
           </div>
           <div
+            v-if="coverageAnalysis?.ok"
+            class="alert alert-success small py-2 mb-3"
+            data-testid="wizard-coverage-result"
+          >
+            覆盖检查通过（{{ coverageAnalysis.gaps?.length || 0 }} 个缺口）。
+          </div>
+          <div
             v-if="coverageAnalysis?.multiSeed && coverageAnalysis.multiSeed.seedTrials > 1"
             class="alert alert-info small py-2 mb-3"
           >
@@ -198,7 +211,11 @@
             （{{ coverageAnalysis.multiSeed.worst?.gapCount }} 处）。
             下方缺口按最差种子展示。
           </div>
-          <div v-if="coverageAnalysis && !coverageAnalysis.ok" class="card border-danger shadow-sm mb-3">
+          <div
+            v-if="coverageAnalysis && !coverageAnalysis.ok"
+            class="card border-danger shadow-sm mb-3"
+            data-testid="wizard-coverage-result"
+          >
             <div class="card-header bg-danger-subtle text-danger-emphasis d-flex justify-content-between align-items-center gap-2">
               <span><i class="bi bi-x-octagon"></i> 生成前覆盖缺口（与抽题规则一致，未放宽）</span>
               <button
@@ -319,7 +336,13 @@
               将当前{{ activeVariant && activeVariant !== 'single' ? ` ${activeVariant} 卷` : '' }}预览中的
               {{ paperQuestions.length }} 道题导出为 mathexam LaTeX ZIP（含试卷与答案）。
             </p>
-            <button type="button" class="btn btn-success" :disabled="exporting || !paperQuestions.length" @click="exportZip">
+            <button
+              type="button"
+              class="btn btn-success"
+              data-testid="wizard-export-latex"
+              :disabled="exporting || !paperQuestions.length"
+              @click="exportZip"
+            >
               {{ exporting ? '导出中…' : '下载 LaTeX ZIP' }}
             </button>
           </div>

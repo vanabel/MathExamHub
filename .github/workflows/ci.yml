@@ -67,3 +67,65 @@ jobs:
           echo "Server failed to become healthy"
           kill $SERVER_PID 2>/dev/null || true
           exit 1
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install Playwright (Chromium)
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VUE_APP_API_BASE_URL: http://127.0.0.1:3000/api
+        run: npm run build
+      - name: Playwright smoke
+        env:
+          MONGODB_URI: mongodb://localhost:27017/mathexam_ci_e2e
+          SESSION_SECRET: ci-e2e-secret
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+        run: |
+          node backend/server.js &
+          BACK_PID=$!
+          npx --yes serve@14 -s frontend/dist -l 8080 &
+          FE_PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/api/health >/dev/null && curl -sf http://127.0.0.1:8080/login >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3000/api/health
+          curl -sf http://127.0.0.1:8080/login | head -c 200
+          PLAYWRIGHT_API_URL=http://127.0.0.1:3000/api npm --prefix e2e test
+          kill $BACK_PID $FE_PID 2>/dev/null || true
+      - name: Upload e2e screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: docs/screenshots/*.png
+          if-no-files-found: ignore

@@ -8,7 +8,8 @@
     "start:frontend": "cd frontend && npm run serve",
     "start:electron": "nodemon electron/main.js",
     "start:dev": "npm-run-all --parallel start:backend start:frontend",
-    "test": "npm --prefix backend test"
+    "test": "npm --prefix backend test",
+    "test:e2e": "npm --prefix e2e test"
   },
   "keywords": [],
   "author": "",

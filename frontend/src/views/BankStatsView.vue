@@ -1,19 +1,16 @@
 <template>
   <div class="container py-4">
-<<<<<<< HEAD
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
       <div>
         <h1 class="h3 mb-1"><i class="bi bi-bar-chart"></i> 题库统计</h1>
-        <p class="text-muted mb-0">题目分布与蓝图缺口概览。</p>
+        <p class="text-muted mb-0">
+          题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致；CSV 含缺口 listQuery 列）。
+        </p>
       </div>
       <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!stats" @click="exportCsv">
         导出 CSV
       </button>
     </div>
-=======
-    <h1 class="h3 mb-3"><i class="bi bi-bar-chart"></i> 题库统计</h1>
-    <p class="text-muted">当前题库题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致，固定蓝图 randomSeed、不放宽）。</p>
->>>>>>> origin/main
 
     <div v-if="loading" class="text-muted">加载中…</div>
     <template v-else-if="stats">
@@ -152,7 +149,6 @@ export default {
     this.load();
   },
   methods: {
-<<<<<<< HEAD
     barPct(value, max) {
       return Math.min(100, Math.round((Number(value) / Number(max)) * 100));
     },
@@ -168,13 +164,12 @@ export default {
       } catch (err) {
         alert(err.response?.data?.error || '导出失败');
       }
-=======
+    },
     formatGapMeta(g) {
       const parts = [];
       if (g.neededDifficulty) parts.push(`难度 ${g.neededDifficulty}`);
       if (g.scoreEach != null) parts.push(`分值≈${g.scoreEach}`);
       return parts.join(' · ') || '—';
->>>>>>> origin/main
     },
     async load() {
       this.loading = true;

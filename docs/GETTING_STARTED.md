@@ -26,11 +26,11 @@ API (optional):
 
 ## Screenshots
 
-![LaTeX import flow](./screenshots/onboarding-import.svg)
+![LaTeX import flow](./screenshots/onboarding-import.png)
 
-![Exam wizard coverage](./screenshots/onboarding-wizard.svg)
+![Exam wizard coverage](./screenshots/onboarding-wizard.png)
 
-> For a live UI capture, run `npm run dev` (see [DEV_API.md](./DEV_API.md)) and repeat the demo path above.
+Screenshots are captured by the Playwright smoke test (`npm --prefix e2e test` with backend + frontend running; see CI `e2e-smoke` job).
 
 ## Related docs
 
