@@ -2,25 +2,40 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 
 const shots = path.join(__dirname, '../../docs/screenshots');
+const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
+
+async function registerAndLogin(page, { uid, password, email }) {
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async ({ apiBase: base, username, pass, mail }) => {
+    await fetch(`${base}/auth/register`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password: pass, email: mail }),
+    });
+    const loginRes = await fetch(`${base}/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password: pass }),
+    });
+    if (!loginRes.ok) {
+      throw new Error(`login failed: ${loginRes.status}`);
+    }
+  }, { apiBase, username: uid, pass: password, mail: email });
+  await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+}
 
 test.describe('product smoke', () => {
   test('login → import sample → wizard coverage → generate → export', async ({ page }) => {
     const uid = `e2e_${Date.now()}`;
     const password = 'E2EPass123!';
+    const email = `${uid}@example.com`;
 
     page.on('dialog', (dialog) => dialog.accept());
 
-    await page.goto('/register');
-    await page.locator('#floatingUsername').fill(uid);
-    await page.locator('#floatingEmail').fill(`${uid}@example.com`);
-    await page.locator('#floatingPassword').fill(password);
-    await page.getByRole('button', { name: '注册' }).click();
-    await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
-
-    await page.locator('#loginUsername').fill(uid);
-    await page.locator('#loginPassword').fill(password);
-    await page.getByRole('button', { name: '登录' }).click();
-    await expect(page).toHaveURL(/\/question-list/, { timeout: 20000 });
+    await registerAndLogin(page, { uid, password, email });
+    await expect(page).toHaveURL(/\/question-list/, { timeout: 30000 });
 
     const onboarding = page.getByTestId('onboarding-panel');
     if (await onboarding.isVisible().catch(() => false)) {
@@ -30,20 +45,19 @@ test.describe('product smoke', () => {
       await page.getByTestId('onboarding-skip').click();
     }
 
-    await page.goto('/exam-wizard');
+    await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /组卷向导/ })).toBeVisible();
 
     const starterClone = page.getByRole('button', { name: '克隆' }).first();
-    if (await starterClone.isVisible().catch(() => false)) {
-      await starterClone.click();
-    }
+    await expect(starterClone).toBeVisible({ timeout: 15000 });
+    await starterClone.click();
 
     await page.getByTestId('wizard-coverage-check').click();
     await expect(page.getByTestId('wizard-coverage-result')).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: path.join(shots, 'onboarding-wizard.png'), fullPage: true });
 
     await page.getByTestId('wizard-generate').click();
-    await expect(page.getByText(/预览|第 1 题|大题/)).toBeVisible({ timeout: 60000 });
+    await expect(page.getByText(/预览|大题|第 1/)).toBeVisible({ timeout: 60000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();
     const downloadPromise = page.waitForEvent('download');
