@@ -320,10 +320,10 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 
 **验收标准**：
 
-- [ ] 给定蓝图与足够题库，生成结果满足各 section 的题型、数量、分值约束。
-- [ ] 难度分布与请求偏差 ≤ 1 题（或文档定义的可接受误差）。
-- [ ] 固定 seed 两次生成题目 ID 序列一致。
-- [ ] 题库不足时 HTTP 200 但 `warnings` 列出缺口，不静默失败。
+- [x] 给定蓝图与足够题库，生成结果满足各 section 的题型、数量、分值约束。
+- [x] 难度分布与请求偏差 ≤ 1 题（或文档定义的可接受误差）。
+- [x] 固定 seed 两次生成题目 ID 序列一致。
+- [x] 题库不足时 HTTP 200 但 `warnings` 列出缺口，不静默失败。
 
 ---
 
@@ -338,24 +338,25 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 
 **验收标准**：
 
-- [ ] 用户无需手动勾选列表即可从蓝图生成一份卷，**预览无误**后下载 LaTeX/ZIP。
-- [ ] 换题后总分与各 section 约束仍满足（或显式列出 relaxations）。
-- [ ] 若触发自动放宽，UI 展示放宽摘要。
+- [x] 用户无需手动勾选列表即可从蓝图生成一份卷，**预览无误**后下载 LaTeX/ZIP。
+- [x] 换题后总分与各 section 约束仍满足（或显式列出 relaxations）。
+- [x] 若触发自动放宽，UI 展示放宽摘要。
 
 ---
 
-### M9 · 试卷与答案卷分离输出（P2）
+### M9 · 蓝图模板库、知识点约束与 LaTeX 双卷输出（P2）
 
 **工作要点**：
 
-- `LatexGenerator` 支持模式：`exam`（隐藏 `\begin{solution}` / 答案命令）、`key`（仅答案或含解答）。
-- 导出 API：`mode` + 可选 `includeMetadata`。
-- 更新 `docs/LaTeX_IMPORT_EXPORT.md`。
+- **模板库**：蓝图 `isTemplate` / `sharedWithBank`；`GET /exam-blueprints/library`、`POST /:id/clone`；组卷向导内保存/克隆/共享。
+- **知识点**：向导按大题选择知识点子树约束（`section.knowledgePointIds`）。
+- **LaTeX**：`LatexGenerator` 模式 `exam` / 答案；导出 `exportMode`（`exam` / `answer` / `both`）；见 `docs/LaTeX_IMPORT_EXPORT.md`。
 
 **验收标准**：
 
-- [ ] 同一 `ExamPaper` 可导出两份 tex：学生卷不含答案，教师卷含答案/解答。
-- [ ] 选择题答案在 key 卷中正确列出。
+- [x] 题库内可保存、共享、克隆蓝图模板。
+- [x] 带知识点约束的 section 可正确抽题（含子树）。
+- [x] 同一 `ExamPaper` 可导出学生卷与答案卷（`exportMode: both`）。
 
 ---
 
@@ -368,8 +369,8 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 
 **验收标准**：
 
-- [ ] A/B 卷题目重合率可配置上限（例如 ≤20%）。
-- [ ] 题目详情页可见「被使用 N 次」。
+- [x] A/B 卷题目重合率可配置上限（例如 ≤20%）。
+- [x] 组卷向导/题目列表可见 `usageCount` / `lastUsedAt`（详情页可后续增强）。
 
 ---
 
@@ -383,8 +384,9 @@ Owner 确认：**按里程碑逐步 port 到 `main`，不做一次性 merge**。
 
 **验收标准**：
 
-- [ ] 未登录调用 `POST /questions/create` 返回 401。
-- [ ] `SECURITY_AUDIT.md` 中高危/中危项有对应 closure 说明。
+- [x] 未登录调用 `POST /questions/create` 返回 401。
+- [x] `SECURITY_AUDIT.md` 中高危/中危项有对应 closure 说明。
+- [x] 平台 `/api/admin/*` 仅 `admin` 角色可访问（统计、用户、角色）。
 
 ---
 

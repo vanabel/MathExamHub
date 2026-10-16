@@ -254,6 +254,31 @@ async function run() {
     assert.ok(swap.data.replacement?._id);
     assert.notEqual(String(swap.data.replacement._id), String(target._id));
 
+    console.log('· relaxation reporting');
+    const fillCount = rows.filter((q) => q.type === '填空题').length;
+    const relaxSaved = await client.request('POST', '/api/exam-blueprints', {
+      body: {
+        title: '场景放宽测试',
+        randomSeed: 31337,
+        allowRelaxation: true,
+        sections: [{
+          type: '填空题',
+          count: Math.max(fillCount + 5, 12),
+          scoreEach: fillScore,
+          difficultyMix: { 易: 0, 中: 0, 难: 0 },
+        }],
+      },
+    });
+    assert.equal(relaxSaved.status, 201);
+    const relaxGen = await client.request('POST', '/api/exams/generate', {
+      body: { blueprintId: relaxSaved.data._id },
+    });
+    assert.equal(relaxGen.status, 200, JSON.stringify(relaxGen.data));
+    assert.ok(
+      (relaxGen.data.relaxations || []).length > 0,
+      `expected relaxations: ${JSON.stringify(relaxGen.data)}`,
+    );
+
     console.log('· A/B variants');
     const ab = await client.request('POST', '/api/exams/generate-variants', {
       body: { blueprintId, maxVariantOverlapPct: 0.2 },
@@ -263,6 +288,30 @@ async function run() {
     assert.ok(ab.data.variants?.B?.paperId);
     assert.ok(typeof ab.data.overlapRatio === 'number');
     assert.ok(ab.data.overlapRatio <= 0.2 || (ab.data.warnings || []).length > 0);
+
+    console.log('· strict A/B overlap (large pool, no overlap warning)');
+    for (let i = 0; i < 30; i += 1) {
+      const extra = await client.request('POST', '/api/questions/create', {
+        body: {
+          questionText: `场景扩池填空 ${i}-${Date.now()}`,
+          type: '填空题',
+          totalScore: fillScore,
+          difficulty: '中',
+          subject: '高等代数',
+          correctAnswer: '略',
+        },
+      });
+      assert.ok(extra.status === 201 || extra.status === 200);
+    }
+    const abStrict = await client.request('POST', '/api/exams/generate-variants', {
+      body: { blueprintId, maxVariantOverlapPct: 0.2, seedA: 88001, seedB: 99001 },
+    });
+    assert.equal(abStrict.status, 200, JSON.stringify(abStrict.data));
+    assert.ok(abStrict.data.overlapRatio <= 0.2, JSON.stringify(abStrict.data));
+    const overlapWarn = (abStrict.data.warnings || []).some(
+      (w) => String(w).includes('重合率') && String(w).includes('高于'),
+    );
+    assert.equal(overlapWarn, false, JSON.stringify(abStrict.data.warnings));
 
     console.log('· export ZIP');
     const exportRes = await client.request('POST', '/api/questions/export/latex', {
