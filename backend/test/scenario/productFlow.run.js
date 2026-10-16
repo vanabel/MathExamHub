@@ -22,7 +22,7 @@ function listRows(data) {
 function buildFourSectionBlueprint(rows) {
   const byType = {};
   for (const q of rows) {
-    if (!byType[q.type]) byType[q] = q;
+    if (!byType[q.type]) byType[q.type] = q;
   }
   const sections = [];
   for (const group of TYPE_PLAN) {
@@ -139,6 +139,8 @@ async function run() {
     }
     list = await client.request('GET', '/api/questions/list');
     rows = listRows(list.data);
+    const missingTypes = requiredCreates.filter((t) => !rows.some((q) => q.type === t));
+    assert.equal(missingTypes.length, 0, `after ensure missing: ${missingTypes.join(', ')}`);
 
     console.log('· four-section blueprint generate');
     const blueprintBody = buildFourSectionBlueprint(rows);
