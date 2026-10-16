@@ -160,8 +160,61 @@ async function run() {
       rows = listRows(list.data);
     }
 
-    console.log('· four-section blueprint generate');
+    console.log('· knowledge-point tree + section constraint');
+    const kpRes = await client.request('POST', '/api/knowledge-points/', {
+      body: { name: '场景章节', subject: '高等代数' },
+    });
+    assert.equal(kpRes.status, 201, JSON.stringify(kpRes.data));
+    const kpId = kpRes.data._id;
+    const fillForKp = rows.find((q) => q.type === '填空题');
+    assert.ok(fillForKp);
+    const tagKp = await client.request('PUT', `/api/questions/${fillForKp._id}/edit`, {
+      body: { knowledgePointIds: [kpId] },
+    });
+    assert.equal(tagKp.status, 200);
+    const kpOnlyBlueprint = {
+      title: 'KP 约束卷',
+      totalScore: 4,
+      randomSeed: 777,
+      allowRelaxation: true,
+      sections: [{
+        type: '填空题',
+        count: 1,
+        scoreEach: fillScore,
+        difficultyMix: { 易: 0, 中: 0, 难: 0 },
+        knowledgePointIds: [kpId],
+      }],
+    };
+    const kpSaved = await client.request('POST', '/api/exam-blueprints', { body: kpOnlyBlueprint });
+    assert.equal(kpSaved.status, 201);
+    const kpGen = await client.request('POST', '/api/exams/generate', {
+      body: { blueprintId: kpSaved.data._id },
+    });
+    assert.equal(kpGen.status, 200, JSON.stringify(kpGen.data));
+    assert.equal(kpGen.data.questionIds?.length, 1);
+    assert.equal(String(kpGen.data.questions[0]._id), String(fillForKp._id));
+
+    console.log('· blueprint template library clone');
     const blueprintBody = buildFourSectionBlueprint(rows);
+    const tpl = await client.request('POST', '/api/exam-blueprints', {
+      body: {
+        ...blueprintBody,
+        title: '场景四题型模板',
+        isTemplate: true,
+        sharedWithBank: true,
+      },
+    });
+    assert.equal(tpl.status, 201);
+    const library = await client.request('GET', '/api/exam-blueprints/library');
+    assert.equal(library.status, 200);
+    assert.ok(library.data.some((b) => String(b._id) === String(tpl.data._id)));
+    const cloned = await client.request('POST', `/api/exam-blueprints/${tpl.data._id}/clone`, {
+      body: { title: '从模板克隆' },
+    });
+    assert.equal(cloned.status, 201);
+    assert.equal(cloned.data.clonedFromId, tpl.data._id);
+
+    console.log('· four-section blueprint generate');
     const saved = await client.request('POST', '/api/exam-blueprints', { body: blueprintBody });
     assert.equal(saved.status, 201);
     const blueprintId = saved.data._id;

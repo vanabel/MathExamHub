@@ -34,6 +34,13 @@ const examBlueprintSchema = new mongoose.Schema({
   allowRelaxation: { type: Boolean, default: true },
   /** A/B 卷题目重合率上限（0–1），默认 20% */
   maxVariantOverlapPct: { type: Number, default: 0.2, min: 0, max: 1 },
+  /** 题库内模板库条目（可克隆、可共享给同库成员） */
+  isTemplate: { type: Boolean, default: false },
+  sharedWithBank: { type: Boolean, default: false },
+  clonedFromId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ExamBlueprint',
+  },
   latexExamMetadata: {
     type: latexExamMetadataSchema,
     default: undefined,

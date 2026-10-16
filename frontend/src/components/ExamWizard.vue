@@ -116,23 +116,61 @@
                       <input v-model.number="section.difficultyMix.难" type="number" min="0" class="form-control" placeholder="难" />
                     </div>
                   </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1">知识点约束（可选，含子树）</label>
+                    <knowledge-point-picker
+                      v-model="section.knowledgePointIds"
+                      :subject="blueprint.subject"
+                    />
+                  </div>
                 </div>
               </div>
               <button type="button" class="btn btn-outline-primary btn-sm" @click="addSection">
                 <i class="bi bi-plus-lg"></i> 添加大题
               </button>
             </div>
-            <div class="card-footer d-flex gap-2 flex-wrap">
+            <div class="card-footer d-flex gap-2 flex-wrap align-items-center">
               <button type="button" class="btn btn-secondary" :disabled="savingBlueprint" @click="saveBlueprint">
                 {{ savingBlueprint ? '保存中…' : '保存蓝图' }}
               </button>
               <button type="button" class="btn btn-primary" :disabled="generating" @click="generateExam">
                 {{ generating ? '生成中…' : (generateAbPair ? '生成 A/B 卷' : '生成试卷') }}
               </button>
+              <div class="form-check ms-md-2">
+                <input id="saveTpl" v-model="saveAsTemplate" class="form-check-input" type="checkbox" />
+                <label class="form-check-label small" for="saveTpl">保存到模板库</label>
+              </div>
+              <div v-if="saveAsTemplate" class="form-check">
+                <input id="shareTpl" v-model="shareWithBank" class="form-check-input" type="checkbox" />
+                <label class="form-check-label small" for="shareTpl">共享给题库成员</label>
+              </div>
             </div>
           </div>
         </div>
         <div class="col-lg-5">
+          <div class="card shadow-sm mb-3">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <span class="fw-semibold">蓝图模板库</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="loadTemplateLibrary">刷新</button>
+            </div>
+            <ul class="list-group list-group-flush small">
+              <li v-if="!templateLibrary.length" class="list-group-item text-muted">暂无模板，保存蓝图时可勾选「保存到模板库」。</li>
+              <li
+                v-for="tpl in templateLibrary"
+                :key="tpl._id"
+                class="list-group-item d-flex justify-content-between align-items-start gap-2"
+              >
+                <div>
+                  <strong>{{ tpl.title }}</strong>
+                  <span v-if="tpl.sharedWithBank" class="badge bg-success ms-1">已共享</span>
+                  <div class="text-muted">{{ tpl.sections?.length || 0 }} 个大题</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary shrink-0" @click="cloneTemplate(tpl._id)">
+                  克隆
+                </button>
+              </li>
+            </ul>
+          </div>
           <div v-if="relaxations.length || warnings.length || shortfalls.length" class="card border-warning shadow-sm mb-3">
             <div class="card-header bg-warning-subtle text-warning-emphasis">
               <i class="bi bi-exclamation-triangle"></i> 放宽与警告
@@ -242,6 +280,7 @@
 <script>
 import axios from 'axios';
 import { processQuestionTextToHTML } from '../utils/latexProcessor';
+import KnowledgePointPicker from './KnowledgePointPicker.vue';
 
 const defaultSection = () => ({
   type: '填空题',
@@ -253,6 +292,7 @@ const defaultSection = () => ({
 
 export default {
   name: 'ExamWizard',
+  components: { KnowledgePointPicker },
   data() {
     return {
       step: 1,
@@ -284,10 +324,14 @@ export default {
       generating: false,
       exporting: false,
       swapSeed: 100,
+      templateLibrary: [],
+      saveAsTemplate: false,
+      shareWithBank: false,
     };
   },
   mounted() {
     this.loadBlueprintList();
+    this.loadTemplateLibrary();
   },
   methods: {
     processQuestionTextToHTML,
@@ -318,15 +362,49 @@ export default {
     loadBlueprint() {
       if (!this.selectedBlueprintId) {
         this.savedBlueprintId = null;
+        this.saveAsTemplate = false;
+        this.shareWithBank = false;
         return;
       }
       const bp = this.blueprints.find((b) => b._id === this.selectedBlueprintId);
       if (bp) {
         this.blueprint = JSON.parse(JSON.stringify(bp));
+        this.normalizeSectionKnowledgeIds();
         this.savedBlueprintId = bp._id;
         if (typeof bp.maxVariantOverlapPct === 'number') {
           this.maxOverlapPctUi = Math.round(bp.maxVariantOverlapPct * 100);
         }
+        this.saveAsTemplate = Boolean(bp.isTemplate);
+        this.shareWithBank = Boolean(bp.sharedWithBank);
+      }
+    },
+    normalizeSectionKnowledgeIds() {
+      for (const sec of this.blueprint.sections || []) {
+        if (!sec.knowledgePointIds) sec.knowledgePointIds = [];
+        sec.knowledgePointIds = sec.knowledgePointIds.map(String);
+      }
+    },
+    async loadTemplateLibrary() {
+      try {
+        const { data } = await axios.get('/exam-blueprints/library');
+        this.templateLibrary = data;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    async cloneTemplate(templateId) {
+      try {
+        const { data } = await axios.post(`/exam-blueprints/${templateId}/clone`, {});
+        this.savedBlueprintId = data._id;
+        this.selectedBlueprintId = data._id;
+        this.blueprint = JSON.parse(JSON.stringify(data));
+        this.normalizeSectionKnowledgeIds();
+        this.saveAsTemplate = false;
+        this.shareWithBank = false;
+        await this.loadBlueprintList();
+        alert('已从模板克隆蓝图，可继续编辑或组卷。');
+      } catch (e) {
+        alert(e.response?.data?.error || '克隆失败');
       }
     },
     async saveBlueprint() {
@@ -335,7 +413,10 @@ export default {
         const payload = {
           ...this.blueprint,
           maxVariantOverlapPct: Math.min(1, Math.max(0, this.maxOverlapPctUi / 100)),
+          isTemplate: this.saveAsTemplate,
+          sharedWithBank: this.saveAsTemplate && this.shareWithBank,
         };
+        this.normalizeSectionKnowledgeIds();
         if (this.savedBlueprintId) {
           const { data } = await axios.put(`/exam-blueprints/${this.savedBlueprintId}`, payload);
           this.blueprint = data;
@@ -345,6 +426,7 @@ export default {
           this.selectedBlueprintId = data._id;
           await this.loadBlueprintList();
         }
+        await this.loadTemplateLibrary();
       } catch (e) {
         alert(e.response?.data?.error || '保存蓝图失败');
       } finally {
