@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { Blob } = require('buffer');
+const { File } = require('node:buffer');
 const mongoose = require('mongoose');
 const { ScenarioClient, startServer } = require('./httpClient');
 const { LatexParser } = require('../../utils/latexParser');
