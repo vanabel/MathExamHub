@@ -9,7 +9,13 @@
       <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary w-100" @click="loadTree">刷新</button>
       </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-outline-secondary w-100" :disabled="!canWrite || drafting" @click="draftTreeWithLlm">
+          {{ drafting ? '生成中…' : 'LLM 草稿知识点树' }}
+        </button>
+      </div>
     </div>
+    <p v-if="draftMessage" class="small text-muted">{{ draftMessage }}</p>
 
     <div class="card mb-4">
       <div class="card-header">新增节点</div>
@@ -51,6 +57,8 @@ export default {
       newName: '',
       newParentId: '',
       canWrite: true,
+      drafting: false,
+      draftMessage: '',
     };
   },
   mounted() {
@@ -77,6 +85,27 @@ export default {
     async removeNode(id) {
       await axios.delete(`/knowledge-points/${id}`);
       await this.loadTree();
+    },
+    async draftTreeWithLlm() {
+      this.drafting = true;
+      this.draftMessage = '';
+      try {
+        const { data } = await axios.post('/knowledge-points/llm-draft-tree', {
+          subject: this.subject || undefined,
+        });
+        const blob = new Blob([JSON.stringify(data.draft, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kp-draft-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.draftMessage = `已下载草稿（${data.draft?.nodes?.length || 0} 个节点），请审核后再手动创建。`;
+      } catch (e) {
+        this.draftMessage = e.response?.data?.error || '草稿生成失败';
+      } finally {
+        this.drafting = false;
+      }
     },
   },
 };

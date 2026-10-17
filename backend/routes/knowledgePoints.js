@@ -4,6 +4,9 @@ const Question = require('../models/Question');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const { buildKnowledgePointPath } = require('../utils/knowledgePointPath');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
+const platformSettingsService = require('../services/platformSettingsService');
+const { settingsForLlmAssist } = require('../services/llmProviderResolve');
+const { draftKnowledgePointTree } = require('../services/llmDraftKpTreeService');
 const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 
@@ -11,6 +14,21 @@ const router = express.Router();
 
 router.use(requireAuth);
 router.use(bankContext);
+
+router.post('/llm-draft-tree', requireBankWrite, async (req, res) => {
+  try {
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const settings = settingsForLlmAssist(platformSettings);
+    const draft = await draftKnowledgePointTree(req.bankId, settings, {
+      subject: req.body?.subject || req.query?.subject,
+      maxQuestions: req.body?.maxQuestions,
+    });
+    res.json({ dryRun: true, draft });
+  } catch (error) {
+    console.error('llm-draft-tree failed', error);
+    res.status(500).json({ error: error.message || '草稿知识点树生成失败' });
+  }
+});
 
 router.get('/tree', async (req, res) => {
   try {

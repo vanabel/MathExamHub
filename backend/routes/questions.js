@@ -21,6 +21,10 @@ const { assessQuestionQuality } = require('../utils/questionQuality');
 const { extractImagesFromStem } = require('../utils/questionImages');
 const platformSettingsService = require('../services/platformSettingsService');
 const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelService');
+const {
+  buildKpTagSuggestionsForQuestions,
+  applyKpTagUpdates,
+} = require('../services/llmKpTagService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 
@@ -226,6 +230,85 @@ router.get('/quality/export.csv', requireBankWrite, async (req, res) => {
   } catch (error) {
     console.error('quality CSV export failed', error);
     res.status(500).json({ error: '导出失败' });
+  }
+});
+
+router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
+  try {
+    const dryRun = req.body?.apply !== true && req.query.apply !== 'true';
+    const replace = req.body?.replace === true || req.query.replace === 'true';
+    const concurrency = req.body?.concurrency ?? req.query.concurrency;
+
+    let questions;
+    if (Array.isArray(req.body?.questionIds) && req.body.questionIds.length) {
+      questions = await Question.find(activeQuestionFilter({
+        bankId: req.bankId,
+        _id: { $in: req.body.questionIds },
+      }))
+        .select('_id questionText type subject difficulty totalScore correctAnswer solution options knowledgePointIds')
+        .lean();
+    } else {
+      const query = buildQuestionListFilter({
+        bankId: req.bankId,
+        query: req.body?.filters || req.query || {},
+      });
+      questions = await Question.find(query)
+        .select('_id questionText type subject difficulty totalScore correctAnswer solution options knowledgePointIds')
+        .lean();
+    }
+
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const suggestions = await buildKpTagSuggestionsForQuestions(
+      questions,
+      req.bankId,
+      platformSettings,
+      { concurrency },
+    );
+    const wouldAdd = suggestions.filter((s) => s.wouldAddKnowledgePointIds?.length);
+
+    if (!dryRun) {
+      const updates = (req.body?.updates?.length ? req.body.updates : suggestions)
+        .map((row) => ({
+          questionId: row.questionId,
+          knowledgePointIds: row.knowledgePointIds
+            ?? row.applyKnowledgePointIds
+            ?? row.wouldAddKnowledgePointIds
+            ?? row.suggestedKnowledgePointIds,
+        }));
+      const { modified } = await applyKpTagUpdates(req.bankId, updates, { replace });
+      return res.json({
+        dryRun: false,
+        total: suggestions.length,
+        wouldAdd: wouldAdd.length,
+        modified,
+        suggestions,
+      });
+    }
+
+    res.json({
+      dryRun: true,
+      total: suggestions.length,
+      wouldAdd: wouldAdd.length,
+      suggestions,
+    });
+  } catch (error) {
+    console.error('llm-tag-knowledge-points failed', error);
+    res.status(500).json({ error: '知识点 LLM 建议失败' });
+  }
+});
+
+router.post('/llm-apply-knowledge-points', requireBankWrite, async (req, res) => {
+  try {
+    const replace = req.body?.replace === true;
+    const updates = req.body?.updates;
+    if (!Array.isArray(updates) || !updates.length) {
+      return res.status(400).json({ error: 'updates 数组必填' });
+    }
+    const { modified } = await applyKpTagUpdates(req.bankId, updates, { replace });
+    res.json({ modified, replace });
+  } catch (error) {
+    console.error('llm-apply-knowledge-points failed', error);
+    res.status(500).json({ error: '应用知识点失败' });
   }
 });
 
