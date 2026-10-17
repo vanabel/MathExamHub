@@ -319,7 +319,7 @@
                 </div>
                 <div
                   class="question-preview"
-                  v-html="processQuestionTextToHTML(item.questionText, item.originalLaTeX)"
+                  v-html="processQuestionTextToHTML(item.questionText, item.originalLaTeX, { hasOptions: !!(item.options && Object.keys(item.options).length), mode: 'question' })"
                 ></div>
               </div>
             </div>

@@ -1373,6 +1373,7 @@ export default {
 .option-list {
   padding-left: 1.5rem;
   margin-top: 0.5rem;
+  list-style: upper-alpha;
 }
 
 .option-item {

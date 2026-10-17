@@ -1272,7 +1272,20 @@ class LatexGenerator {
     };
 
     const preambleExtras = (metadata.preambleLines || []).join('\n');
-    const preambleBlock = preambleExtras ? `${preambleExtras}\n` : '';
+    const defaultMacroLines = [
+      '\\providecommand{\\bu}{\\mathbf{u}}',
+      '\\providecommand{\\bv}{\\mathbf{v}}',
+      '\\providecommand{\\bw}{\\mathbf{w}}',
+      '\\providecommand{\\bo}{\\mathbf{0}}',
+      '\\providecommand{\\be}{\\mathbf{e}}',
+      '\\providecommand{\\br}{\\mathbf{r}}',
+      '\\providecommand{\\bt}{\\mathbf{t}}',
+      '\\providecommand{\\bn}{\\mathbf{n}}',
+      '\\providecommand{\\bb}{\\mathbf{b}}',
+      '\\providecommand{\\I}{\\mathrm{I}}',
+      '\\providecommand{\\II}{\\mathrm{I\\!I}}',
+    ].join('\n');
+    const preambleBlock = [defaultMacroLines, preambleExtras].filter(Boolean).join('\n') + (defaultMacroLines || preambleExtras ? '\n' : '');
 
     return `% !TEX program = xelatex
 % 编译：将同目录下的 mathexam.sty 与本文一并交给 XeLaTeX

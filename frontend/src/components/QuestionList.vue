@@ -137,7 +137,7 @@
               <div class="question-content mb-3">
                 <div
                   class="question-text-content"
-                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
+                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
                 ></div>
               </div>
 
@@ -251,6 +251,11 @@ export default {
   methods: {
     processQuestionTextToHTML,
     processAnswerTextToHTML,
+    questionRenderOptions(question) {
+      const opts = question && question.options;
+      const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      return { hasOptions, mode: 'question' };
+    },
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
     },
@@ -535,6 +540,7 @@ export default {
 .option-list {
   margin: 0;
   padding-left: 1.5rem;
+  list-style: upper-alpha;
 }
 
 .option-item {

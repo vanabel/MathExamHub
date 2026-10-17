@@ -5,6 +5,201 @@
 
 import axios from 'axios';
 
+/** In JS String.replace, "$$" is one literal "$"; use "$$$$" for "$$". */
+const DISPLAY_DOLLAR = '$$$$';
+
+/**
+ * Convert \\[...\\] and \\(...\\) to $$ / $ delimiters (MathJax tex2jax style).
+ */
+export function convertLatexMathDelimiters(text) {
+  if (!text) return '';
+  let processed = text.replace(/\\\[([\s\S]*?)\\\]/g, (_, content) => `$$${content}$$`);
+  processed = processed.replace(/\\\(/g, '$');
+  processed = processed.replace(/\\\)/g, '$');
+  return processed;
+}
+
+/** Collapse stray single $ adjacent to display $$ pairs after delimiter conversion. */
+function mergeStrayDisplayDollars(processed) {
+  return processed
+    .replace(/\$\$\s+\$/g, DISPLAY_DOLLAR)
+    .replace(/\$\s+\$\$/g, DISPLAY_DOLLAR);
+}
+
+/**
+ * Invoke fn on each substring that lies outside math delimiters ($...$, $$...$$).
+ */
+function mapOutsideMath(text, fn) {
+  if (!text) return '';
+  const parts = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith('$$', i)) {
+      const end = findClosingDoubleDollar(text, i + 2);
+      if (end < 0) break;
+      parts.push({ type: 'math', content: text.slice(i, end) });
+      i = end;
+      continue;
+    }
+    if (text[i] === '$' && text[i - 1] !== '\\') {
+      const end = findClosingSingleDollar(text, i + 1);
+      if (end < 0) {
+        parts.push({ type: 'text', content: text.slice(i) });
+        break;
+      }
+      parts.push({ type: 'math', content: text.slice(i, end) });
+      i = end;
+      continue;
+    }
+    const nextDd = text.indexOf('$$', i);
+    const nextSd = text.indexOf('$', i);
+    let next = text.length;
+    if (nextDd >= 0) next = Math.min(next, nextDd);
+    if (nextSd >= 0) next = Math.min(next, nextSd);
+    if (next > i) {
+      parts.push({ type: 'text', content: text.slice(i, next) });
+    }
+    i = next === i ? i + 1 : next;
+  }
+  return parts
+    .map((p) => (p.type === 'math' ? p.content : fn(p.content)))
+    .join('');
+}
+
+function findClosingDoubleDollar(text, from) {
+  for (let j = from; j < text.length - 1; j++) {
+    if (text[j] === '\\' && text[j + 1] === '$') {
+      j++;
+      continue;
+    }
+    if (text.startsWith('$$', j)) return j + 2;
+  }
+  return -1;
+}
+
+function findClosingSingleDollar(text, from) {
+  for (let j = from; j < text.length; j++) {
+    if (text[j] === '\\' && j + 1 < text.length) {
+      j++;
+      continue;
+    }
+    if (text[j] === '$' && !text.startsWith('$$', j)) return j + 1;
+  }
+  return -1;
+}
+
+function replaceTextCommand(text, command, htmlTag) {
+  const open = `\\${command}{`;
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    const idx = text.indexOf(open, i);
+    if (idx < 0) {
+      result += text.slice(i);
+      break;
+    }
+    result += text.slice(i, idx);
+    const braceStart = idx + open.length - 1;
+    const inner = matchNestedBraces(text, braceStart);
+    if (inner === null) {
+      result += text.slice(idx, idx + open.length);
+      i = idx + open.length;
+      continue;
+    }
+    const end = braceStart + inner.length + 2;
+    result += `<${htmlTag}>${inner}</${htmlTag}>`;
+    i = end;
+  }
+  return result;
+}
+
+function applyTextModeFormatting(text) {
+  return mapOutsideMath(text, (segment) => {
+    let s = replaceTextCommand(segment, 'emph', 'em');
+    s = replaceTextCommand(s, 'textbf', 'strong');
+    return s;
+  });
+}
+
+/**
+ * Replace \\eqref{label} with numbered refs or Chinese fallback (never raw \\eqref / (???)).
+ */
+function processEqref(text) {
+  if (!text || !/\\eqref\{/.test(text)) return text;
+  const labelToNum = new Map();
+  let eqNum = 0;
+  text.replace(/\\begin\{equation\*?\}([\s\S]*?)\\end\{equation\*?\}/g, (_, body) => {
+    const labelMatch = body.match(/\\label\{([^}]+)\}/);
+    if (labelMatch) {
+      eqNum += 1;
+      labelToNum.set(labelMatch[1], eqNum);
+    }
+    return _;
+  });
+  return text.replace(/\\eqref\{([^}]+)\}/g, (match, label) => {
+    const num = labelToNum.get(label);
+    if (num != null) return `$\\text{(${num})}$`;
+    return '上式';
+  });
+}
+
+function rangeContains(ranges, index) {
+  return ranges.some((r) => index >= r.start && index < r.end);
+}
+
+/** Collect contiguous math spans ($$, $, and standalone ams envs not nested in $$). */
+function collectMathRanges(processed) {
+  const mathRanges = [];
+
+  let i = 0;
+  while (i < processed.length) {
+    if (processed.startsWith('$$', i)) {
+      const end = findClosingDoubleDollar(processed, i + 2);
+      if (end < 0) break;
+      mathRanges.push({ start: i, end, type: 'block' });
+      i = end;
+      continue;
+    }
+    i++;
+  }
+
+  const envRegex = /\\begin\{(align|alignat|aligned|equation|eqnarray|gather|multline|split)\*?\}/g;
+  let envMatch;
+  while ((envMatch = envRegex.exec(processed)) !== null) {
+    if (rangeContains(mathRanges, envMatch.index)) continue;
+    const envName = envMatch[1];
+    const startIndex = envMatch.index;
+    const endPattern = new RegExp(`\\\\end\\{${envName}\\*?\\}`, 'g');
+    endPattern.lastIndex = startIndex + envMatch[0].length;
+    const endMatch = endPattern.exec(processed);
+    if (endMatch) {
+      const endIndex = endMatch.index + endMatch[0].length;
+      if (!rangeContains(mathRanges, startIndex)) {
+        mathRanges.push({ start: startIndex, end: endIndex, type: 'env' });
+      }
+    }
+  }
+
+  for (let pos = 0; pos < processed.length; pos++) {
+    if (processed.startsWith('$$', pos)) continue;
+    if (processed[pos] !== '$') continue;
+    if (rangeContains(mathRanges, pos)) continue;
+    const end = findClosingSingleDollar(processed, pos + 1);
+    if (end > pos + 1) {
+      mathRanges.push({ start: pos, end, type: 'inline' });
+      pos = end - 1;
+    }
+  }
+
+  mathRanges.sort((a, b) => a.start - b.start);
+  const merged = [];
+  for (const r of mathRanges) {
+    if (merged.length && r.start < merged[merged.length - 1].end) continue;
+    merged.push(r);
+  }
+  return merged;
+}
+
 /**
  * 检查字符串是否在数学公式环境中（$...$, $$...$$, \[...\], \(...\), \begin{equation}...\end{equation}）
  */
@@ -224,6 +419,95 @@ function processEnumerate(text) {
 }
 
 /**
+ * Parse \\begin{itemize}…\\end{itemize} into HTML lists (answers / stems).
+ */
+function processItemize(text) {
+  if (!text) return '';
+
+  function parseItemize(content, startPos) {
+    const beginRegex = /\\begin\{itemize\}/g;
+    beginRegex.lastIndex = startPos;
+    const beginMatch = beginRegex.exec(content);
+    if (!beginMatch) return null;
+
+    const itemizeStart = beginMatch.index;
+    const beginPattern = '\\begin{itemize}';
+    const beginLen = beginPattern.length;
+    let depth = 1;
+    let i = itemizeStart + beginLen;
+    const contentStart = i;
+
+    while (i < content.length && depth > 0) {
+      if (content.substring(i, i + beginLen) === beginPattern) {
+        depth++;
+        i += beginLen;
+        continue;
+      }
+      const endPattern = '\\end{itemize}';
+      if (content.substring(i, i + endPattern.length) === endPattern) {
+        depth--;
+        if (depth === 0) {
+          return {
+            start: itemizeStart,
+            end: i + endPattern.length,
+            content: content.substring(contentStart, i),
+          };
+        }
+        i += endPattern.length;
+        continue;
+      }
+      i++;
+    }
+    return null;
+  }
+
+  const replacements = [];
+  let pos = 0;
+
+  while (pos < text.length) {
+    const block = parseItemize(text, pos);
+    if (!block) break;
+
+    const itemRegex = /\\item\s*/g;
+    const itemMatches = [];
+    let itemMatch;
+    while ((itemMatch = itemRegex.exec(block.content)) !== null) {
+      itemMatches.push({ index: itemMatch.index, length: itemMatch[0].length });
+    }
+
+    const items = [];
+    for (let k = 0; k < itemMatches.length; k++) {
+      const itemStart = itemMatches[k].index + itemMatches[k].length;
+      const itemEnd = k < itemMatches.length - 1 ? itemMatches[k + 1].index : block.content.length;
+      const itemContent = block.content.substring(itemStart, itemEnd).trim();
+      if (itemContent) items.push(itemContent);
+    }
+
+    if (items.length > 0) {
+      const htmlList =
+        '<ul class="latex-itemize">' +
+        items
+          .map((item) => {
+            const processedItem = processItemize(item);
+            return `<li>${processedItem || item}</li>`;
+          })
+          .join('') +
+        '</ul>';
+      replacements.push({ start: block.start, end: block.end, replacement: htmlList });
+    }
+
+    pos = block.end;
+  }
+
+  let processed = text;
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const r = replacements[i];
+    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
+  }
+  return processed;
+}
+
+/**
  * mathexam 判断题 / 选择题选项环境 → HTML（MathJax 无法直接渲染的部分）
  */
 function processMathexamEnvironments(text) {
@@ -260,8 +544,10 @@ function processMathexamEnvironments(text) {
  * @param {string} originalLaTeX - 原始 LaTeX 代码（可选，用于提取 \score 等命令）
  * @returns {string} 处理后的 HTML
  */
-export function processQuestionTextToHTML(text, originalLaTeX = null) {
+export function processQuestionTextToHTML(text, originalLaTeX = null, options = {}) {
   if (!text) return '';
+
+  const { hasOptions = false, mode = 'question' } = options;
 
   // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）
   // 如果文本包含原始的 LaTeX 命令而不是 <image> 标签，需要先转换
@@ -387,8 +673,9 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
     return `<a href="#fig:${labelPart}">${displayText}</a>`;
   });
 
+  processed = applyTextModeFormatting(processed);
   processed = processMathexamEnvironments(processed);
-  if (originalLaTeX && !processed.includes('mathexam-abcd')) {
+  if (originalLaTeX && !hasOptions && !processed.includes('mathexam-abcd')) {
     const abcdMatch = originalLaTeX.match(/\\begin\{abcd\}[\s\S]*?\\end\{abcd\}/);
     if (abcdMatch) {
       processed = `${processed}\n${processMathexamEnvironments(abcdMatch[0])}`;
@@ -397,6 +684,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
 
   // 然后处理 enumerate 环境（转换为 HTML）
   processed = processEnumerate(processed);
+  processed = processItemize(processed);
   
   // 然后处理其他 LaTeX 命令，但需要避免处理 HTML 标签内的内容
   // 使用正则表达式分割 HTML 标签和文本内容
@@ -487,7 +775,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
       return content;
     } else {
       // 处理文本中的 LaTeX 命令
-      let processedPart = processQuestionText(part.content);
+      let processedPart = processQuestionText(part.content, { mode });
       // 处理数学环境中的 score 标记
       // 将 \text{<score-in-math>5</score-in-math>} 替换为点填充 HTML
       processedPart = processedPart.replace(/\\text\{<score-in-math>([^<]+)<\/score-in-math>\}/g, (match, content) => {
@@ -512,9 +800,10 @@ export function processQuestionTextToHTML(text, originalLaTeX = null) {
  * @param {string} text - 原始文本
  * @returns {string} 处理后的文本
  */
-export function processQuestionText(text) {
+export function processQuestionText(text, options = {}) {
   if (!text) return '';
 
+  const { mode = 'question' } = options;
   let processed = text;
 
   // 0. 先处理 \score{5} 命令（必须在数学公式转换之前处理）
@@ -565,35 +854,29 @@ export function processQuestionText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
-  // 1. 处理 \pickout{A} -> $\text{(A)}$（支持嵌套花括号）
-  // 使用 \text{} 明确告诉 MathJax 这是文本，不是数学公式
+  // 1. 处理 \pickout{A}：题干预览隐藏答案，教师/答案模式可显示
   const pickoutRegex = /\\pickout\{/g;
   const pickoutReplacements = [];
-  pickoutRegex.lastIndex = 0; // 重置正则表达式
-  
-  match = null; // 重置 match 变量
+  pickoutRegex.lastIndex = 0;
+
+  match = null;
   while ((match = pickoutRegex.exec(processed)) !== null) {
     const startIndex = match.index;
-    const braceStart = startIndex + 8; // '\\pickout'.length = 8
+    const braceStart = startIndex + 8;
     if (braceStart < processed.length && processed[braceStart] === '{') {
       const content = matchNestedBraces(processed, braceStart);
       if (content !== null) {
-        // 检查是否已经在数学环境中
         const inMath = isInMathEnvironment(processed, startIndex);
-        if (!inMath) {
-          pickoutReplacements.push({
-            start: startIndex,
-            end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
-            replacement: `$\\text{(${content})}$`
-          });
-        } else {
-          // 如果已经在数学环境中，只使用 \text{}
-          pickoutReplacements.push({
-            start: startIndex,
-            end: braceStart + content.length + 2,
-            replacement: `\\text{(${content})}`
-          });
-        }
+        const showAnswer = mode === 'answer';
+        const display = showAnswer ? content : '　　';
+        const replacement = inMath
+          ? `\\text{(${display})}`
+          : `$\\text{(${display})}$`;
+        pickoutReplacements.push({
+          start: startIndex,
+          end: braceStart + content.length + 2,
+          replacement,
+        });
       }
     }
   }
@@ -604,22 +887,9 @@ export function processQuestionText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
-  // 2. 处理 \( ... \) 行内数学公式 -> $ ... $
-  processed = processed.replace(/\\\(/g, '$');
-  processed = processed.replace(/\\\)/g, '$');
-
-  // 3. 处理 \[ ... \] 数学公式 -> $$ ... $$
-  processed = processed.replace(/\\\[/g, '$$');
-  processed = processed.replace(/\\\]/g, '$$');
-  
-  // 清理多余的 $ 符号：$ $ -> $（两个相邻的单个 $ 合并为一个）
-  processed = processed.replace(/\$\s+\$/g, '$');
-  
-  // 清理 $$ $ -> $$（块级公式后的单个 $）
-  processed = processed.replace(/\$\$\s+\$/g, '$$');
-  
-  // 清理 $ $$ -> $$（单个 $ 后跟块级公式）
-  processed = processed.replace(/\$\s+\$\$/g, '$$');
+  // 2–3. 数学定界符
+  processed = convertLatexMathDelimiters(processed);
+  processed = mergeStrayDisplayDollars(processed);
 
   // 4. 处理 \fillin{...}，移除内容中的 $，然后确保在数学环境中
   const fillinRegex = /\\fillin\{/g;
@@ -671,11 +941,11 @@ export function processQuestionText(text) {
           cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
         }
         
-        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        const fillBody = mode === 'question' ? '' : cleanContent;
         replacements.push({
           start: startIndex,
-          end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
-          replacement: inMath ? `\\fillin{${cleanContent}}` : `$\\fillin{${cleanContent}}$`
+          end: braceStart + content.length + 2,
+          replacement: inMath ? `\\fillin{${fillBody}}` : `$\\fillin{${fillBody}}$`,
         });
       }
     }
@@ -736,11 +1006,11 @@ export function processQuestionText(text) {
           cleanContent = contentTrimmed.substring(2, contentTrimmed.length - 2);
         }
         
-        // 如果命令已经在数学环境中，直接使用清理后的内容；否则添加 $
+        const fillBody = mode === 'question' ? '' : cleanContent;
         filloutReplacements.push({
           start: startIndex,
-          end: braceStart + content.length + 2, // +2 因为要包含 { 和 }
-          replacement: inMath ? `\\fillout{${cleanContent}}` : `$\\fillout{${cleanContent}}$`
+          end: braceStart + content.length + 2,
+          replacement: inMath ? `\\fillout{${fillBody}}` : `$\\fillout{${fillBody}}$`,
         });
       }
     }
@@ -938,17 +1208,7 @@ export function processAnswerText(text) {
     processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
   }
 
-  // 处理 \( ... \) -> $ ... $
-  processed = processed.replace(/\\\(/g, '$');
-  processed = processed.replace(/\\\)/g, '$');
-
-  // 处理 \[ ... \] -> $$ ... $$
-  // 需要匹配完整的 \[...\] 块，避免破坏嵌套结构
-  // 使用非贪婪匹配，但要处理嵌套的情况
-  // 注意：需要处理可能包含换行符的情况
-  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => {
-    return `$$${content}$$`;
-  });
+  processed = convertLatexMathDelimiters(processed);
 
   // 注意：答案不需要添加括号，保持原样
   // 题目文本中的 \pickout{A} 会在 processQuestionText 中转换为 (A)
@@ -974,11 +1234,16 @@ export function processAnswerText(text) {
   
   // 检查是否包含块级数学环境（MathJax 原生支持，不需要转换）
   // 支持的块级环境：align, alignat, aligned, equation, eqnarray, gather, multline, split
-  const blockMathEnvs = ['align', 'alignat', 'aligned', 'equation', 'eqnarray', 'gather', 'multline', 'split'];
+  const blockMathEnvs = [
+    'align', 'alignat', 'aligned', 'equation', 'eqnarray', 'gather', 'multline', 'split',
+    'pmatrix', 'bmatrix', 'vmatrix', 'matrix', 'cases', 'smallmatrix',
+  ];
   const hasBlockMathEnv = blockMathEnvs.some(env => {
     return processed.includes(`\\begin{${env}`) || processed.includes(`\\begin{${env}*`);
   });
-  
+  const hasListEnv = /\\begin\{(enumerate|itemize)\}/.test(processed);
+  const hasHtmlTags = /<[a-z][^>]*>/i.test(processed);
+
   // 检查文本中是否包含 $$ 或单个 $（即使不是整个文本）
   // 如果文本中包含任何 $ 符号，说明已经有数学公式标记，不需要再添加
   const containsDoubleDollar = processed.includes('$$');
@@ -995,48 +1260,30 @@ export function processAnswerText(text) {
   // 注意：如果文本中包含任何 $ 符号或块级数学环境，说明已经有数学公式，不需要再添加
   // 重要：只要包含任何 $ 符号（包括 $$ 或单个 $）或块级数学公式模式，就认为已经在数学环境中，不要添加额外的 $
   // 注意：containsSingleDollar 可能会误判（因为文本中可能有单个 $），所以优先检查块级公式模式
-  const isInMathEnv = isBlockMath || isInlineMath || hasUnprocessedBrackets || hasUnconvertedBrackets || hasBlockMathEnv || hasBlockMathPattern || containsDoubleDollar || containsSingleDollar;
-  
-  // 如果不在数学环境中，检查是否包含数学符号
-  // 但是，如果答案已经包含任何 $ 符号（包括单个 $）或块级数学公式，不要添加额外的 $
-  // 这是最后的检查，确保不会添加多余的 $
-  if (!isInMathEnv) {
-    // 再次检查是否包含块级数学公式模式（作为双重保险）
-    // 如果包含 $$...$$ 模式，即使 isInMathEnv 为 false，也不要添加 $...$
-    const hasBlockMathPatternFinal = /\$\$[\s\S]*?\$\$/.test(processed);
-    
-    if (!hasBlockMathPatternFinal) {
-      // 检查是否包含数学符号：负号、分数、指数、LaTeX 命令等
-      // 注意：在字符类 [] 中，某些字符不需要转义
-      const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
-      
-      if (hasMathSymbols) {
-        // 包装为行内数学公式
+  const isInMathEnv =
+    isBlockMath ||
+    isInlineMath ||
+    hasUnprocessedBrackets ||
+    hasUnconvertedBrackets ||
+    hasBlockMathEnv ||
+    hasBlockMathPattern ||
+    containsDoubleDollar ||
+    containsSingleDollar ||
+    hasListEnv ||
+    hasHtmlTags;
+
+  if (!containsDoubleDollar && !containsSingleDollar && !isBlockMath && !isInlineMath && !hasHtmlTags) {
+    const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
+    if (hasMathSymbols) {
+      if (hasBlockMathEnv || /^\s*\\begin\{/.test(trimmed)) {
+        processed = `$$${processed}$$`;
+      } else {
         processed = `$${processed}$`;
       }
     }
   }
-  
-  // 最后的安全检查：清理多余的 $ 符号
-  // 清理 $ $ -> $（两个相邻的单个 $ 合并为一个）
-  processed = processed.replace(/\$\s+\$/g, '$');
-  
-  // 清理 $$ $ -> $$（块级公式后的单个 $）
-  processed = processed.replace(/\$\$\s+\$/g, '$$');
-  
-  // 清理 $ $$ -> $$（单个 $ 后跟块级公式）
-  processed = processed.replace(/\$\s+\$\$/g, '$$');
-  
-  // 清理文本结尾的 $$ $ -> $$
-  const trimmedFinal = processed.trim();
-  if (trimmedFinal.endsWith('$$ $')) {
-    processed = processed.replace(/\$\$\s+\$$/g, '$$');
-  }
-  
-  // 清理文本开头的 $ $ -> $
-  if (trimmedFinal.startsWith('$ $')) {
-    processed = processed.replace(/^\$\s+\$/g, '$');
-  }
+
+  processed = mergeStrayDisplayDollars(processed);
 
   return processed;
 }
@@ -1061,32 +1308,12 @@ export function processAnswerTextToHTML(text) {
 
   let processed = text;
 
-  // 先处理 LaTeX 命令（类似 processAnswerText）
-  // 处理 \pickout{A} -> A
-  const pickoutRegex = /\\pickout\{/g;
-  const pickoutReplacements = [];
-  pickoutRegex.lastIndex = 0;
-  let match;
-  
-  while ((match = pickoutRegex.exec(processed)) !== null) {
-    const startIndex = match.index;
-    const braceStart = startIndex + 8;
-    if (braceStart < processed.length && processed[braceStart] === '{') {
-      const content = matchNestedBraces(processed, braceStart);
-      if (content !== null) {
-        pickoutReplacements.push({
-          start: startIndex,
-          end: braceStart + content.length + 2,
-          replacement: content
-        });
-      }
-    }
-  }
-  
-  for (let i = pickoutReplacements.length - 1; i >= 0; i--) {
-    const r = pickoutReplacements[i];
-    processed = processed.substring(0, r.start) + r.replacement + processed.substring(r.end);
-  }
+  processed = processMathexamEnvironments(processed);
+  processed = processEqref(processed);
+  processed = applyTextModeFormatting(processed);
+  processed = processAnswerText(processed);
+  processed = processEnumerate(processed);
+  processed = processItemize(processed);
 
   // 先处理 \begin{rmk}...\end{rmk} 环境（必须在数学公式处理之前）
   // 这样可以确保 rmk 环境不会被 MathJax 误认为是数学公式
@@ -1102,103 +1329,21 @@ export function processAnswerTextToHTML(text) {
     return `<br><strong>注</strong>. ${rmkText}<br>`;
   });
 
-  // 先处理 "注：" 转换为 "<strong>注</strong>."（必须在数学公式处理之前）
-  // 这样可以确保 "注：" 不会被 MathJax 误认为是数学公式的一部分
-  // 先转换换行符为 <br>，以便统一处理
-  processed = processed.replace(/\n/g, '<br>');
-  // 处理字符串开头的 "注："
-  processed = processed.replace(/^\s*注：/g, '<strong>注</strong>.');
-  // 处理 <br> 标签后的 "注："
-  processed = processed.replace(/(<br>\s*)注：/g, '$1<strong>注</strong>.');
-  
-  // 处理数学公式：\( ... \) 和 \[ ... \] -> $ ... $ 和 $$ ... $$
-  processed = processed.replace(/\\\(/g, '$');
-  processed = processed.replace(/\\\)/g, '$');
-  processed = processed.replace(/\\\[/g, '$$');
-  processed = processed.replace(/\\\]/g, '$$');
+  processed = processed.replace(/^\s*注：/gm, '<strong>注</strong>.');
+  processed = mergeStrayDisplayDollars(processed);
 
-  // 将文本分割为数学公式和普通文本部分
-  // 需要识别 $...$、$$...$$ 以及 \begin{align*}...\end{align*} 等数学环境
   const parts = [];
   let lastIndex = 0;
-  
-  // 收集所有数学内容的位置
-  const mathRanges = [];
-  
-  // 1. 先匹配 \begin{...}...\end{...} 环境
-  const envRegex = /\\begin\{(align|alignat|aligned|equation|eqnarray|gather|multline|split)\*?\}/g;
-  let envMatch;
-  while ((envMatch = envRegex.exec(processed)) !== null) {
-    const envName = envMatch[1];
-    const startIndex = envMatch.index;
-    // 找到对应的 \end{envName}
-    const endPattern = new RegExp(`\\\\end\\{${envName}\\*?\\}`, 'g');
-    endPattern.lastIndex = startIndex + envMatch[0].length;
-    const endMatch = endPattern.exec(processed);
-    if (endMatch) {
-      const endIndex = endMatch.index + endMatch[0].length;
-      mathRanges.push({
-        start: startIndex,
-        end: endIndex,
-        type: 'env',
-        content: processed.substring(startIndex, endIndex)
-      });
-    }
-  }
-  
-  // 2. 匹配 $$...$$ 块级数学公式
-  const doubleDollarRegex = /\$\$[^$]*\$\$/g;
-  let ddMatch;
-  while ((ddMatch = doubleDollarRegex.exec(processed)) !== null) {
-    // 检查是否已经在环境内
-    const isInEnv = mathRanges.some(range => 
-      ddMatch.index >= range.start && ddMatch.index < range.end
-    );
-    if (!isInEnv) {
-      mathRanges.push({
-        start: ddMatch.index,
-        end: ddMatch.index + ddMatch[0].length,
-        type: 'block',
-        content: ddMatch[0]
-      });
-    }
-  }
-  
-  // 3. 匹配 $...$ 行内数学公式
-  const singleDollarRegex = /\$[^$]*\$/g;
-  let sdMatch;
-  while ((sdMatch = singleDollarRegex.exec(processed)) !== null) {
-    // 检查是否已经在环境内或块级公式内
-    const isInEnvOrBlock = mathRanges.some(range => 
-      sdMatch.index >= range.start && sdMatch.index < range.end
-    );
-    // 检查是否在 $$...$$ 内
-    const beforeText = processed.substring(0, sdMatch.index);
-    const ddCount = (beforeText.match(/\$\$/g) || []).length;
-    const isInDoubleDollar = ddCount % 2 === 1;
-    
-    if (!isInEnvOrBlock && !isInDoubleDollar) {
-      mathRanges.push({
-        start: sdMatch.index,
-        end: sdMatch.index + sdMatch[0].length,
-        type: 'inline',
-        content: sdMatch[0]
-      });
-    }
-  }
-  
-  // 按开始位置排序
-  mathRanges.sort((a, b) => a.start - b.start);
-  
-  // 根据数学范围分割文本
+  const mathRanges = collectMathRanges(processed);
+
   for (const mathRange of mathRanges) {
-    // 添加数学公式前的文本
     if (mathRange.start > lastIndex) {
-      const textBefore = processed.substring(lastIndex, mathRange.start);
-      parts.push({ type: 'text', content: textBefore });
+      parts.push({ type: 'text', content: processed.substring(lastIndex, mathRange.start) });
     }
-    // 添加数学公式
-    parts.push({ type: 'math', content: mathRange.content });
+    parts.push({
+      type: 'math',
+      content: processed.substring(mathRange.start, mathRange.end),
+    });
     lastIndex = mathRange.end;
   }
   
@@ -1247,8 +1392,8 @@ export function processAnswerTextToHTML(text) {
       // 数学公式需要用 <span> 包装，以便 MathJax 能识别
       return `<span class="math-formula">${mathContent}</span>`;
     } else {
-      // 文本部分：处理 \score{...} 为 HTML 点填充效果
-      let textContent = part.content;
+      let textContent = part.content.replace(/\n/g, '<br>');
+      textContent = textContent.replace(/(<br>\s*)注：/g, '$1<strong>注</strong>.');
       
       // 尝试匹配文本中的 \score{...} 或 score{...}
       let textScoreRegex = /\\score\{([^}]+)\}/g;
@@ -1297,4 +1442,6 @@ export function processAnswerTextToHTML(text) {
   
   return result;
 }
+
+export const renderAnswerHTML = processAnswerTextToHTML;
 
