@@ -2,7 +2,7 @@ const KnowledgePoint = require('../models/KnowledgePoint');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const { suggestQuestionMetadata } = require('./llmAssistService');
 const { settingsForLlmAssist } = require('./llmProviderResolve');
-const { mapWithConcurrency } = require('./mapWithConcurrency');
+const { mapWithConcurrency } = require('./latexImportLlmHelper');
 
 async function buildRelabelSuggestionsForQuestions(questions, bankId, platformSettings) {
   const kps = await KnowledgePoint.find({ bankId }).lean();
