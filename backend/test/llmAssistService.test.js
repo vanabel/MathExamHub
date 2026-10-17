@@ -5,9 +5,27 @@ const {
   validateSuggestion,
   buildLlmUserPayload,
   buildQuestionMetadataInput,
+  buildKpCatalog,
 } = require('../services/llmAssistService');
 
 describe('llmAssistService payload', () => {
+  it('buildKpCatalog includes objective and description for LLM context', () => {
+    const catalog = buildKpCatalog([
+      {
+        _id: 'kp1',
+        path: '/a/b',
+        objective: '理解向量',
+        description: '自由向量的定义与运算',
+        tags: ['重点'],
+        cognitiveLevel: '理解',
+        category: '概念性',
+      },
+    ]);
+    assert.equal(catalog[0].objective, '理解向量');
+    assert.match(catalog[0].description, /自由向量/);
+    assert.deepEqual(catalog[0].tags, ['重点']);
+  });
+
   it('includes answer, solution, scores, and options in LLM user JSON', () => {
     const input = buildQuestionMetadataInput(
       {

@@ -87,6 +87,11 @@ function buildKpCatalog(knowledgePoints) {
   return (knowledgePoints || []).map((k) => ({
     id: String(k._id),
     path: k.path || k.name || '',
+    objective: k.objective ? truncateText(k.objective, 300) : undefined,
+    description: k.description ? truncateText(k.description, 300) : undefined,
+    tags: (k.tags && k.tags.length) ? k.tags : undefined,
+    cognitiveLevel: k.cognitiveLevel || undefined,
+    category: k.category || undefined,
   }));
 }
 

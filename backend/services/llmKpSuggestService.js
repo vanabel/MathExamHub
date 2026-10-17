@@ -81,7 +81,8 @@ async function suggestKnowledgePointsWithChatApi(input, settings) {
 
   const kpCatalog = buildKpCatalog(input.knowledgePoints);
   const system = [
-    '你是数学题库助教。根据题目内容，从给定知识点树（id + path）中选择 1–3 个最相关节点。',
+    '你是数学题库助教。根据题目内容，从给定知识点目录（含 path、教学目标 objective、说明 description、标签 tags、认知维度与分类）中选择 1–3 个最相关节点。',
+    '优先依据 objective/description 与题干、解答的语义匹配，path 仅作层级参考。',
     '只输出 JSON：{"suggestions":[{"knowledgePointId":"目录中的id","confidence":0.0-1.0,"reason":"简短理由"},...],"rationale":"可选整体说明"}',
     'knowledgePointId 必须来自目录；confidence 表示匹配把握；若无合适节点则 suggestions 为空数组。',
   ].join('\n');
