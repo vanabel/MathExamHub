@@ -8,6 +8,53 @@ import axios from 'axios';
 /** In JS String.replace, "$$" is one literal "$"; use "$$$$" for "$$". */
 const DISPLAY_DOLLAR = '$$$$';
 
+function escapeHtmlAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+function stepScoreBadgeHtml(points) {
+  const n = String(points).trim();
+  return `<span class="step-score-line"><span class="step-score-badge">(${escapeHtmlAttr(n)}分)</span></span>`;
+}
+
+function backendUploadsBase() {
+  const base = axios.defaults.baseURL || '/api';
+  return `${String(base).replace(/\/$/, '')}/uploads`;
+}
+
+/**
+ * Render structured question.images below the stem (list / detail / preview).
+ */
+export function renderQuestionImagesHtml(images) {
+  if (!images || !images.length) return '';
+  const base = backendUploadsBase();
+  const blocks = images.map((img, index) => {
+    const url = String(img?.url || '').trim();
+    if (!url) return '';
+    const fileUrl = `${base}/${encodeURIComponent(url)}`;
+    const isPdf = /\.pdf$/i.test(url);
+    const label = img.label ? String(img.label).replace(/^fig:/, '') : '';
+    const caption = img.caption ? String(img.caption).trim() : '';
+    const widthStyle = img.width ? `max-width:${escapeHtmlAttr(img.width)};` : 'max-width:100%;';
+    let media = '';
+    if (isPdf) {
+      const uid = `pdf-${label || index}-${Date.now()}`;
+      media = `<div class="pdf-container" data-pdf-url="${escapeHtmlAttr(fileUrl)}" data-pdf-id="${uid}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:10px;background:#f5f5f5;margin:10px 0;"><canvas id="pdf-canvas-${uid}" class="pdf-canvas" style="max-width:100%;display:block;margin:0 auto;"></canvas></div>`;
+    } else {
+      media = `<img src="${escapeHtmlAttr(fileUrl)}" alt="${escapeHtmlAttr(caption || label || '图片')}" class="latex-figure question-structured-image" style="${widthStyle}height:auto;display:block;margin:0.75rem auto;" />`;
+    }
+    const capHtml = caption
+      ? `<div class="question-image-caption small text-muted text-center mt-1">${escapeHtmlAttr(caption)}</div>`
+      : '';
+    return `<figure class="question-structured-figure"${label ? ` id="fig:${escapeHtmlAttr(label)}"` : ''}>${media}${capHtml}</figure>`;
+  }).filter(Boolean);
+  if (!blocks.length) return '';
+  return `<div class="question-structured-images">${blocks.join('')}</div>`;
+}
+
 /**
  * Convert \\[...\\] and \\(...\\) to $$ / $ delimiters (MathJax tex2jax style).
  */
@@ -1358,7 +1405,7 @@ export function processAnswerTextToHTML(text) {
         const m = scoreMatches[i];
         // 在数学公式中，使用 LaTeX 的点填充 + $(分数')$
         // 注意：在数学环境中，使用 \text{} 包装分数，避免与数学符号冲突
-        const replacement = `\\cdots\\cdots\\text{(${m.content}')}`;
+        const replacement = `\\score{${m.content}}`;
         mathContent = mathContent.substring(0, m.start) + replacement + mathContent.substring(m.end);
       }
       
@@ -1405,7 +1452,7 @@ export function processAnswerTextToHTML(text) {
         const m = textScoreMatches[i];
         // 在文本中，使用 HTML 点填充效果（不换行，只在同一行添加点填充）
         // 使用 inline 或 inline-block 保持在同一行
-        const replacement = `<span class="score-fill" style="display: inline-block; width: auto; white-space: nowrap; margin-left: 0.5em; vertical-align: middle;"><span class="score-dots" style="display: inline-block; width: 3em; overflow: hidden; vertical-align: middle; border-bottom: 1px dotted #000; margin-right: 0.3em; height: 1.2em;"></span><span style="display: inline-block; white-space: normal; vertical-align: middle;">$$(${m.content}')$$</span></span>`;
+        const replacement = stepScoreBadgeHtml(m.content);
         textContent = textContent.substring(0, m.start) + replacement + textContent.substring(m.end);
       }
       

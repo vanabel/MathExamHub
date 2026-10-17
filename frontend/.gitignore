@@ -22,3 +22,4 @@ pnpm-debug.log*
 *.sln
 *.sw?
 frontend/tests/.tmp-*.mjs
+frontend/tests/.tmp-latexProcessor.mjs

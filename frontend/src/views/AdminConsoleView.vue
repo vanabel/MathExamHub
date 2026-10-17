@@ -43,6 +43,7 @@
             <label class="form-label small">Provider</label>
             <select v-model="settings.llmProvider" class="form-select form-select-sm">
               <option value="mock">mock（离线）</option>
+              <option value="deepseek">DeepSeek（OpenAI 兼容）</option>
               <option value="openai_compatible">OpenAI 兼容 API</option>
             </select>
           </div>

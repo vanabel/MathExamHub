@@ -1,5 +1,6 @@
 const { getPlatformSettings } = require('./platformSettingsService');
 const { suggestQuestionMetadata } = require('./llmAssistService');
+const { settingsForLlmAssist } = require('./llmProviderResolve');
 
 const LLM_PREVIEW_MAX_QUESTIONS = Number(process.env.LLM_PREVIEW_MAX_QUESTIONS) || 20;
 const LLM_PREVIEW_CONCURRENCY = Number(process.env.LLM_PREVIEW_CONCURRENCY) || 3;
@@ -24,16 +25,17 @@ async function mapWithConcurrency(items, limit, fn) {
 async function attachLlmSuggestions(questions, bankId, opts = {}) {
   const suggestFn = opts.suggestQuestionMetadata || suggestQuestionMetadata;
 
-  const settings = opts.settings ?? await getPlatformSettings();
+  const platformSettings = opts.settings ?? await getPlatformSettings();
+  const settings = settingsForLlmAssist(platformSettings);
   const maxFromSettings = settings.llmPreviewMaxQuestions ?? LLM_PREVIEW_MAX_QUESTIONS;
   const concurrencyFromSettings = settings.llmPreviewConcurrency ?? LLM_PREVIEW_CONCURRENCY;
   const effectiveMax = opts.maxQuestions ?? maxFromSettings;
   const effectiveConcurrency = opts.concurrency ?? concurrencyFromSettings;
   const total = questions?.length || 0;
-  if (!settings.llmAssistEnabled || !total) {
+  if (!platformSettings.llmAssistEnabled || !total) {
     return {
       llmSuggestions: [],
-      settings,
+      settings: platformSettings,
       knowledgePoints: [],
       llmPreviewCap: effectiveMax,
       llmPreviewProcessed: 0,

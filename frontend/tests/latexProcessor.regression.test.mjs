@@ -42,6 +42,7 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
       case 'display-math-in-answer': {
         assert.match(ans, /\$\$[\s\S]+?\$\$/);
         assert.doesNotMatch(ans, /(?<!\$)\$(?!\$)[\s\S]*\\gamma'/);
+        assert.match(ans, /step-score-badge|\(1分\)|\\score\{1\}/);
         break;
       }
       case 'display-math-in-stem-enumerate': {
@@ -62,6 +63,13 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
         assert.match(stem, /[\(（]\s*　　\s*[\)）]/);
         assert.doesNotMatch(stem, /mathexam-abcd/);
         assert.match(stripTags(ans), /^C$/m);
+        break;
+      }
+      case 'choice-dup-tetrahedron': {
+        assert.doesNotMatch(stem, /[\(（]\s*D\s*[\)）]/);
+        assert.doesNotMatch(stem, /mathexam-abcd/);
+        assert.doesNotMatch(stem, /<ol class="latex-enumerate"/);
+        assert.match(stripTags(ans), /^D$/m);
         break;
       }
       case 'true-judgment':
@@ -116,4 +124,5 @@ test('index.html MathJax2 macros match mathjaxMacros.json', () => {
     assert.match(indexHtml, new RegExp(`\\b${key}:`), `index.html missing macro ${key}`);
   }
   assert.match(indexHtml, /equationNumbers:\s*\{\s*autoNumber:\s*'AMS'\s*\}/);
+  assert.match(indexHtml, /linebreaks:\s*\{\s*automatic:\s*true/);
 });

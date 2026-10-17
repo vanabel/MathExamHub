@@ -5,7 +5,7 @@ const platformSettingsSchema = new mongoose.Schema({
   llmAssistEnabled: { type: Boolean, default: false },
   llmProvider: {
     type: String,
-    enum: ['mock', 'openai_compatible'],
+    enum: ['mock', 'openai_compatible', 'deepseek'],
     default: 'mock',
   },
   llmApiBaseUrl: { type: String, default: 'https://api.openai.com/v1', trim: true },

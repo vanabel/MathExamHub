@@ -56,6 +56,24 @@
    ]
   },
   {
+   "name": "choice-dup-tetrahedron",
+   "type": "单选题",
+   "questionText": "四面体各面重心为顶点的四面体的体积是原四面体的",
+   "options": {
+    "A": "$1/4$;",
+    "B": "$1/6$;",
+    "C": "$1/9$;",
+    "D": "$1/27$."
+   },
+   "correctAnswer": "D",
+   "originalLaTeX": "四面体各面重心为顶点的四面体的体积是原四面体的\\pickout{D}\r\n    \\begin{abcd}\r\n      \\item $1/4$;\r\n      \\item $1/6$;\r\n      \\item $1/9$;\r\n      \\item $1/27$.\r\n    \\end{abcd}",
+   "expect": [
+    "no (D) leaked into stem preview",
+    "no duplicate abcd when options exist",
+    "no numbered 1-4 duplicate option list"
+   ]
+  },
+  {
    "name": "true-judgment",
    "type": "判断题",
    "questionText": "$E^3$中的正则参数曲线如果曲率$\\kappa>0$, 那么$\\tau=0$当且仅当该曲线是平面曲线.",

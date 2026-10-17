@@ -321,6 +321,11 @@
                   class="question-preview"
                   v-html="processQuestionTextToHTML(item.questionText, item.originalLaTeX, { hasOptions: !!(item.options && Object.keys(item.options).length), mode: 'question' })"
                 ></div>
+                <div
+                  v-if="item.images && item.images.length"
+                  class="question-preview-images mt-2"
+                  v-html="renderQuestionImagesHtml(item.images)"
+                ></div>
               </div>
             </div>
           </div>
@@ -354,7 +359,7 @@
 
 <script>
 import axios from 'axios';
-import { processQuestionTextToHTML } from '../utils/latexProcessor';
+import { processQuestionTextToHTML, renderQuestionImagesHtml } from '../utils/latexProcessor';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 
@@ -422,6 +427,7 @@ export default {
   },
   methods: {
     processQuestionTextToHTML,
+    renderQuestionImagesHtml,
     formatLastUsed(iso) {
       if (!iso) return '';
       const d = new Date(iso);
