@@ -1,12 +1,12 @@
 const PlatformSettings = require('../models/PlatformSettings');
-const { DEEPSEEK_DEFAULT_BASE, DEEPSEEK_DEFAULT_MODEL } = require('./llmProviderResolve');
+const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
 
 function toPublicSettings(doc) {
   return {
     llmAssistEnabled: !!doc.llmAssistEnabled,
     llmProvider: doc.llmProvider || 'mock',
     llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
-    llmModel: doc.llmModel || 'gpt-4o-mini',
+    llmModel: doc.llmModel || DEFAULT_LLM_MODEL,
     llmTimeoutMs: doc.llmTimeoutMs ?? 12000,
     llmPreviewMaxQuestions: doc.llmPreviewMaxQuestions ?? 20,
     llmPreviewConcurrency: doc.llmPreviewConcurrency ?? 3,
@@ -21,13 +21,11 @@ async function getPlatformSettings() {
     doc = (await PlatformSettings.create({ key: 'global' })).toObject();
     doc.llmApiKey = undefined;
   }
-  const provider = doc.llmProvider || 'mock';
-  let llmApiKey = doc.llmApiKey || '';
-  if (!llmApiKey && provider === 'deepseek') {
-    llmApiKey = process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY || '';
-  } else if (!llmApiKey) {
-    llmApiKey = process.env.OPENAI_API_KEY || process.env.SILICONFLOW_API_KEY || process.env.LLM_API_KEY || '';
-  }
+  const llmApiKey = doc.llmApiKey
+    || process.env.SILICONFLOW_API_KEY
+    || process.env.OPENAI_API_KEY
+    || process.env.LLM_API_KEY
+    || '';
   return {
     ...toPublicSettings(doc),
     llmApiKey,
@@ -41,7 +39,6 @@ async function getPlatformSettingsPublic() {
 }
 
 async function updatePlatformSettings(patch) {
-  const existing = await PlatformSettings.findOne({ key: 'global' }).lean();
   const update = { updatedAt: new Date() };
   if (typeof patch.llmAssistEnabled === 'boolean') {
     update.llmAssistEnabled = patch.llmAssistEnabled;
@@ -49,18 +46,9 @@ async function updatePlatformSettings(patch) {
   if (
     patch.llmProvider === 'mock'
     || patch.llmProvider === 'openai_compatible'
-    || patch.llmProvider === 'deepseek'
     || patch.llmProvider === 'openai'
   ) {
     update.llmProvider = patch.llmProvider === 'openai' ? 'openai_compatible' : patch.llmProvider;
-    if (patch.llmProvider === 'deepseek') {
-      if (!patch.llmApiBaseUrl && !(existing && existing.llmApiBaseUrl)) {
-        update.llmApiBaseUrl = DEEPSEEK_DEFAULT_BASE;
-      }
-      if (!patch.llmModel && !(existing && existing.llmModel)) {
-        update.llmModel = DEEPSEEK_DEFAULT_MODEL;
-      }
-    }
   }
   if (typeof patch.llmApiBaseUrl === 'string' && patch.llmApiBaseUrl.trim()) {
     update.llmApiBaseUrl = patch.llmApiBaseUrl.trim().replace(/\/$/, '');

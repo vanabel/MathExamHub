@@ -1,15 +1,22 @@
 /**
- * Resolve platform LLM settings to OpenAI-compatible chat API parameters.
+ * Resolve platform LLM settings to OpenAI-compatible chat API parameters (SiliconFlow, etc.).
  */
 
-const DEEPSEEK_DEFAULT_BASE = 'https://api.deepseek.com/v1';
-const DEEPSEEK_DEFAULT_MODEL = 'deepseek-flash';
+const DEFAULT_LLM_MODEL = 'deepseek-ai/DeepSeek-V4.1-Flash';
+const DEFAULT_OPENAI_COMPAT_BASE = 'https://api.openai.com/v1';
 
 function normalizeBaseUrl(url) {
   let base = String(url || '').trim().replace(/\/$/, '');
-  if (!base) return DEEPSEEK_DEFAULT_BASE;
+  if (!base) return DEFAULT_OPENAI_COMPAT_BASE;
   if (!/\/v1$/i.test(base)) base += '/v1';
   return base;
+}
+
+function resolveDefaultModel(settings) {
+  return settings?.llmModel
+    || process.env.LLM_MODEL
+    || process.env.SILICONFLOW_MODEL
+    || DEFAULT_LLM_MODEL;
 }
 
 function resolveLlmChatConfig(settings) {
@@ -18,31 +25,17 @@ function resolveLlmChatConfig(settings) {
     return { provider: 'mock' };
   }
 
-  if (provider === 'deepseek') {
-    const apiKey = settings?.llmApiKey
-      || process.env.DEEPSEEK_API_KEY
-      || process.env.LLM_API_KEY
-      || '';
-    return {
-      provider: 'openai_compatible',
-      apiKey,
-      baseUrl: normalizeBaseUrl(
-        settings?.llmApiBaseUrl || process.env.LLM_API_BASE_URL || DEEPSEEK_DEFAULT_BASE,
-      ),
-      model: settings?.llmModel || process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
-      timeoutMs: settings?.llmTimeoutMs ?? 12000,
-    };
-  }
-
   return {
     provider: 'openai_compatible',
     apiKey: settings?.llmApiKey
-      || process.env.OPENAI_API_KEY
       || process.env.SILICONFLOW_API_KEY
+      || process.env.OPENAI_API_KEY
       || process.env.LLM_API_KEY
       || '',
-    baseUrl: normalizeBaseUrl(settings?.llmApiBaseUrl || process.env.LLM_API_BASE_URL || 'https://api.openai.com/v1'),
-    model: settings?.llmModel || process.env.LLM_MODEL || 'gpt-4o-mini',
+    baseUrl: normalizeBaseUrl(
+      settings?.llmApiBaseUrl || process.env.LLM_API_BASE_URL || DEFAULT_OPENAI_COMPAT_BASE,
+    ),
+    model: resolveDefaultModel(settings),
     timeoutMs: settings?.llmTimeoutMs ?? 12000,
   };
 }
@@ -65,6 +58,6 @@ function settingsForLlmAssist(platformSettings) {
 module.exports = {
   resolveLlmChatConfig,
   settingsForLlmAssist,
-  DEEPSEEK_DEFAULT_BASE,
-  DEEPSEEK_DEFAULT_MODEL,
+  DEFAULT_LLM_MODEL,
+  DEFAULT_OPENAI_COMPAT_BASE,
 };

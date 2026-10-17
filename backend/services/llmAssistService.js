@@ -1,5 +1,6 @@
 const { normalizeDifficulty, DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { chatCompletionJson } = require('./llmChatClient');
+const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
 
 async function suggestQuestionMetadata(input, settings) {
   const provider = settings?.llmProvider || 'mock';
@@ -47,7 +48,7 @@ function validateSuggestion(raw, kpCatalog) {
 async function suggestWithChatApi(input, settings) {
   const apiKey = settings.llmApiKey;
   const baseUrl = settings.llmApiBaseUrl || 'https://api.openai.com/v1';
-  const model = settings.llmModel || 'gpt-4o-mini';
+  const model = settings.llmModel || process.env.LLM_MODEL || process.env.SILICONFLOW_MODEL || DEFAULT_LLM_MODEL;
   if (!apiKey) {
     throw new Error('LLM API key not configured');
   }

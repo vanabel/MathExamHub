@@ -43,8 +43,7 @@
             <label class="form-label small">Provider</label>
             <select v-model="settings.llmProvider" class="form-select form-select-sm">
               <option value="mock">mock（离线）</option>
-              <option value="deepseek">DeepSeek（OpenAI 兼容）</option>
-              <option value="openai_compatible">OpenAI 兼容 API</option>
+              <option value="openai_compatible">OpenAI 兼容 API（如 SiliconFlow）</option>
             </select>
           </div>
           <div class="col-md-4">
@@ -53,7 +52,7 @@
           </div>
           <div class="col-md-4">
             <label class="form-label small">Model</label>
-            <input v-model="settings.llmModel" class="form-control form-control-sm" placeholder="gpt-4o-mini" />
+            <input v-model="settings.llmModel" class="form-control form-control-sm" placeholder="deepseek-ai/DeepSeek-V4.1-Flash" />
           </div>
           <div class="col-md-4">
             <label class="form-label small">API Key {{ settings.hasApiKey ? '（已配置，留空则不修改）' : '' }}</label>
@@ -141,7 +140,7 @@ export default {
         llmAssistEnabled: false,
         llmProvider: 'mock',
         llmApiBaseUrl: 'https://api.openai.com/v1',
-        llmModel: 'gpt-4o-mini',
+        llmModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
         hasApiKey: false,
       },
       llmApiKeyInput: '',
