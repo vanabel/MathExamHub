@@ -15,6 +15,12 @@ const questionSchema = new mongoose.Schema({
   correctAnswer: { type: mongoose.Schema.Types.Mixed },
   /** Optional worked solution / explanation (LaTeX), separate from short correctAnswer (e.g. choice letter). */
   solution: { type: String },
+  images: [{
+    url: { type: String, trim: true },
+    caption: { type: String, default: '', trim: true },
+    label: { type: String, default: '', trim: true },
+    width: { type: String, default: '', trim: true },
+  }],
   totalScore: { type: Number, required: true },
   difficulty: {
     type: String,

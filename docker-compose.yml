@@ -32,7 +32,7 @@ services:
       - LLM_API_PROVIDER=${LLM_API_PROVIDER:-openai}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
-      - SILICONFLOW_MODEL=${SILICONFLOW_MODEL:-deepseek-ai/DeepSeek-V3}
+      - SILICONFLOW_MODEL=${SILICONFLOW_MODEL:-deepseek-ai/DeepSeek-V4.1-Flash}
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:8b}
     volumes:

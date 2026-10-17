@@ -1,5 +1,5 @@
 /**
- * OpenAI-compatible chat completions (OpenAI / SiliconFlow / DeepSeek etc.)
+ * OpenAI-compatible chat completions (OpenAI / SiliconFlow etc.)
  * @param {object} opts
  * @param {string} opts.baseUrl e.g. https://api.openai.com/v1
  * @param {string} opts.apiKey

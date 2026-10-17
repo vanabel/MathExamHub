@@ -212,11 +212,11 @@
                   </div>
                   <p class="mb-2 small">{{ item.questionText }}</p>
                   <template v-if="item.type === '单选题' || item.type === '多选题'">
-                    <ol class="small mb-0" style="list-style-type: upper-alpha; padding-left: 1.2rem;">
-                      <li v-for="(option, index) in (item.options || [])" :key="index">
-                        {{ option }}
-                      </li>
-                    </ol>
+                    <ChoiceOptionsList :options="item.options || {}" class="small">
+                      <template #default="{ entry }">
+                        {{ entry.text }}
+                      </template>
+                    </ChoiceOptionsList>
                   </template>
                   <div class="mt-2">
                     <small class="text-muted">双击删除</small>
@@ -233,9 +233,11 @@
 
 <script>
 import axios from "axios";
+import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 
 export default {
   name: "QuestionAdd",
+  components: { ChoiceOptionsList },
   data() {
     return {
       questionType: "单选题",

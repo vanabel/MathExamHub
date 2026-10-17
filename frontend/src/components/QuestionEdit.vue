@@ -125,6 +125,39 @@
               </div>
             </div>
 
+            <div class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0"><i class="bi bi-image"></i> 题干配图</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" @click="addImageRow">
+                  添加图片
+                </button>
+              </div>
+              <div v-if="!questionImages.length" class="text-muted small">无配图（可从 LaTeX 导入或在此填写 uploads 文件名）</div>
+              <div v-for="(img, idx) in questionImages" :key="idx" class="border rounded p-3 mb-2">
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <label class="form-label small">URL / 文件名</label>
+                    <input v-model="img.url" class="form-control form-control-sm" required />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small">标签 (fig:)</label>
+                    <input v-model="img.label" class="form-control form-control-sm" placeholder="3" />
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label small">宽度</label>
+                    <input v-model="img.width" class="form-control form-control-sm" placeholder="0.6\\textwidth" />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small">说明</label>
+                    <input v-model="img.caption" class="form-control form-control-sm" />
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2" @click="removeImageRow(idx)">
+                  删除
+                </button>
+              </div>
+            </div>
+
             <!-- 选项（选择题） -->
             <div
               v-if="questionType === '单选题' || questionType === '多选题'"
@@ -191,6 +224,7 @@ export default {
       questionText: "",
       questionAnswer: "",
       questionSolution: "",
+      questionImages: [],
       usageCount: null,
       lastUsedAt: null,
       loading: false,
@@ -221,10 +255,19 @@ export default {
         if (response.data.options) this.options = response.data.options;
         if (response.data.usageCount != null) this.usageCount = response.data.usageCount;
         if (response.data.lastUsedAt) this.lastUsedAt = response.data.lastUsedAt;
+        if (Array.isArray(response.data.images)) {
+          this.questionImages = response.data.images.map((img) => ({ ...img }));
+        }
       } catch (error) {
         console.error("获取试题信息失败:", error);
         alert("获取题目信息失败，请稍后重试");
       }
+    },
+    addImageRow() {
+      this.questionImages.push({ url: "", caption: "", label: "", width: "" });
+    },
+    removeImageRow(index) {
+      this.questionImages.splice(index, 1);
     },
     async editQuestion() {
       this.loading = true;
@@ -248,6 +291,7 @@ export default {
         ) {
           payload.options = this.options;
         }
+        payload.images = this.questionImages.filter((img) => img && String(img.url || "").trim());
 
         await axios.put(`/questions/${questionId}/edit`, payload, {
           headers: {

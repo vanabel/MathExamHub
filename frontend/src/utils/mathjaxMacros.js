@@ -7,7 +7,7 @@ export const MATHJAX_MACROS = {
   fillin: ['\\underline{\\phantom{|}#1\\phantom{|}}', 1],
   fillout: ['\\underline{\\phantom{|}#1\\phantom{|}}', 1],
   pickout: ['\\text{(#1)}', 1],
-  score: ['\\cdots\\cdots(#1\\,\\text{分})', 1],
+  score: ['\\qquad\\text{(#1分)}', 1],
   true: '\\checkmark',
   false: '\\text{\\sffamily x}',
   bu: '\\mathbf{u}',

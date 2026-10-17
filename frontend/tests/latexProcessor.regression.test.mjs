@@ -26,13 +26,23 @@ function stripTags(html) {
 
 test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML', async () => {
   const P = await loadProcessor();
+  const { shouldUseChoiceOptionLabels } = await import(
+    pathToFileURL(path.join(root, 'src/utils/choiceOptions.js')).href
+  );
+
   for (const c of fixtures.cases) {
-    const opts = c.options
-      ? { hasOptions: true, mode: 'question' }
-      : {
-          hasOptions: !!(c.options && Object.keys(c.options).length),
-          mode: 'question',
-        };
+    const hasOptions = !!(c.options && Object.keys(c.options).length);
+    const opts = {
+      hasOptions,
+      mode: 'question',
+      questionType: c.type || '',
+      choiceOptionLabels: shouldUseChoiceOptionLabels({
+        questionType: c.type,
+        hasOptions,
+        questionText: c.questionText,
+        originalLaTeX: c.originalLaTeX,
+      }),
+    };
     const stem = P.processQuestionTextToHTML(c.questionText, c.originalLaTeX, opts);
     const ans = P.processAnswerTextToHTML(
       Array.isArray(c.correctAnswer) ? c.correctAnswer : c.correctAnswer,
@@ -42,6 +52,7 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
       case 'display-math-in-answer': {
         assert.match(ans, /\$\$[\s\S]+?\$\$/);
         assert.doesNotMatch(ans, /(?<!\$)\$(?!\$)[\s\S]*\\gamma'/);
+        assert.match(ans, /step-score-badge|\(1分\)|\\score\{1\}/);
         break;
       }
       case 'display-math-in-stem-enumerate': {
@@ -62,6 +73,29 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
         assert.match(stem, /[\(（]\s*　　\s*[\)）]/);
         assert.doesNotMatch(stem, /mathexam-abcd/);
         assert.match(stripTags(ans), /^C$/m);
+        break;
+      }
+      case 'choice-dup-tetrahedron': {
+        assert.doesNotMatch(stem, /[\(（]\s*D\s*[\)）]/);
+        assert.doesNotMatch(stem, /mathexam-abcd/);
+        assert.doesNotMatch(stem, /<ol class="latex-enumerate"/);
+        assert.match(stripTags(ans), /^D$/m);
+        break;
+      }
+      case 'choice-abcd-stem': {
+        assert.match(stem, /\(A\)/);
+        assert.match(stem, /\(D\)/);
+        assert.match(stem, /mathexam-abcd-label/);
+        break;
+      }
+      case 'choice-enumerate-stem': {
+        assert.match(stem, /\(A\)/);
+        assert.match(stem, /\(B\)/);
+        assert.match(stem, /\(C\)/);
+        assert.match(stem, /\(D\)/);
+        assert.match(stem, /choice-option-label|mathexam-abcd-label/);
+        assert.doesNotMatch(stem, /<ol class="latex-enumerate"/);
+        assert.doesNotMatch(stem, /list-style:\s*upper-alpha/i);
         break;
       }
       case 'true-judgment':
@@ -116,4 +150,5 @@ test('index.html MathJax2 macros match mathjaxMacros.json', () => {
     assert.match(indexHtml, new RegExp(`\\b${key}:`), `index.html missing macro ${key}`);
   }
   assert.match(indexHtml, /equationNumbers:\s*\{\s*autoNumber:\s*'AMS'\s*\}/);
+  assert.match(indexHtml, /linebreaks:\s*\{\s*automatic:\s*true/);
 });

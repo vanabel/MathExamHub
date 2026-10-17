@@ -68,4 +68,27 @@ describe('llmAssistService openai_compatible', () => {
     assert.deepEqual(out.knowledgePointIds, ['kp1']);
     assert.equal(out.source, 'llm');
   });
+
+  it('surfaces LLM failure with heuristic fallback and llmError', async () => {
+    global.fetch = async () => {
+      throw new Error('network down');
+    };
+    const out = await suggestQuestionMetadata(
+      {
+        questionText: '证明勾股定理',
+        type: '证明题',
+        subject: '几何',
+        knowledgePoints: [{ _id: 'abc', path: '几何/勾股' }],
+      },
+      {
+        llmProvider: 'openai_compatible',
+        llmApiKey: 'sk-x',
+        llmApiBaseUrl: 'https://api.test/v1',
+        llmModel: 'test-model',
+      },
+    );
+    assert.equal(out.source, 'heuristic');
+    assert.match(out.llmError, /network down/);
+    assert.equal(out.difficulty, '难');
+  });
 });

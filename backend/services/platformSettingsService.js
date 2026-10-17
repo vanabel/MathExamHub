@@ -1,11 +1,12 @@
 const PlatformSettings = require('../models/PlatformSettings');
+const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
 
 function toPublicSettings(doc) {
   return {
     llmAssistEnabled: !!doc.llmAssistEnabled,
     llmProvider: doc.llmProvider || 'mock',
     llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
-    llmModel: doc.llmModel || 'gpt-4o-mini',
+    llmModel: doc.llmModel || DEFAULT_LLM_MODEL,
     llmTimeoutMs: doc.llmTimeoutMs ?? 12000,
     llmPreviewMaxQuestions: doc.llmPreviewMaxQuestions ?? 20,
     llmPreviewConcurrency: doc.llmPreviewConcurrency ?? 3,
@@ -20,9 +21,14 @@ async function getPlatformSettings() {
     doc = (await PlatformSettings.create({ key: 'global' })).toObject();
     doc.llmApiKey = undefined;
   }
+  const llmApiKey = doc.llmApiKey
+    || process.env.SILICONFLOW_API_KEY
+    || process.env.OPENAI_API_KEY
+    || process.env.LLM_API_KEY
+    || '';
   return {
     ...toPublicSettings(doc),
-    llmApiKey: doc.llmApiKey || process.env.OPENAI_API_KEY || process.env.SILICONFLOW_API_KEY || '',
+    llmApiKey,
   };
 }
 
@@ -37,7 +43,11 @@ async function updatePlatformSettings(patch) {
   if (typeof patch.llmAssistEnabled === 'boolean') {
     update.llmAssistEnabled = patch.llmAssistEnabled;
   }
-  if (patch.llmProvider === 'mock' || patch.llmProvider === 'openai_compatible' || patch.llmProvider === 'openai') {
+  if (
+    patch.llmProvider === 'mock'
+    || patch.llmProvider === 'openai_compatible'
+    || patch.llmProvider === 'openai'
+  ) {
     update.llmProvider = patch.llmProvider === 'openai' ? 'openai_compatible' : patch.llmProvider;
   }
   if (typeof patch.llmApiBaseUrl === 'string' && patch.llmApiBaseUrl.trim()) {

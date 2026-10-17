@@ -859,6 +859,7 @@ class LatexParser {
         correctAnswer: '',
         options: {},
         solution: '',
+        images: [],
         subject: this.extractSubject(this.fullContent || content),
         originalLaTeX: originalProblemContent, // 保存原始的 LaTeX 代码（未处理的）
         partType,
@@ -987,8 +988,12 @@ class LatexParser {
     }
     text = result;
 
-    // 清理题目文本，保留数学公式
+    // 清理题目文本，保留数学公式；结构化图片字段
     question.questionText = this.cleanText(text).trim();
+    const { extractImagesFromStem } = require('./questionImages');
+    const extracted = extractImagesFromStem(question.questionText, question.images);
+    question.questionText = extracted.stem;
+    question.images = extracted.images;
   }
 
   /**
@@ -1406,6 +1411,11 @@ ${preambleBlock}
     const hasFill = /\\fill(in|out)\{/.test(bodySource);
     const hasTrueFalse = /\\true\b/.test(bodySource) || /\\false\b/.test(bodySource);
 
+    if (!question.originalLaTeX) {
+      const imageLatex = this.generateImagesLaTeX(question.images);
+      if (imageLatex) latex += imageLatex;
+    }
+
     if (question.originalLaTeX) {
       latex += `    ${question.originalLaTeX}\n`;
     } else {
@@ -1463,6 +1473,38 @@ ${preambleBlock}
 
     latex += '  \\end{problem}\n';
     return latex;
+  }
+
+  /**
+   * Structured question.images → LaTeX (mathexam figure / center placement).
+   */
+  generateImagesLaTeX(images) {
+    if (!images || !images.length) return '';
+    let out = '';
+    for (const raw of images) {
+      const img = raw && typeof raw === 'object' ? raw : { url: raw };
+      const url = String(img.url || '').trim();
+      if (!url) continue;
+      let originalName = url;
+      if (url.includes('-')) {
+        const figMatch = url.match(/fig(\d+)/i);
+        if (figMatch) originalName = `fig${figMatch[1]}`;
+        else {
+          const parts = url.split('-');
+          originalName = parts[parts.length - 1];
+        }
+      }
+      originalName = originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      const widthOpt = img.width ? `[width=${img.width}]` : '';
+      const labelPart = (img.label || '').replace(/^fig:/, '');
+      const caption = img.caption ? img.caption : ' ';
+      if (labelPart) {
+        out += `    \\begin{figure}[htpb]\n      \\centering\n      \\includegraphics${widthOpt}{${originalName}}\n      \\caption{${caption}}\n      \\label{fig:${labelPart}}\n    \\end{figure}\n`;
+      } else {
+        out += `    \\begin{center}\n      \\includegraphics${widthOpt}{${originalName}}\n    \\end{center}\n`;
+      }
+    }
+    return out;
   }
 
   /**

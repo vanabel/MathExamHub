@@ -287,16 +287,16 @@
                         <!-- 预览模式 -->
                         <div v-if="previewMode" class="question-preview-content mathexam-preview">
                           <div 
-                            v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
+                            v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
                             class="question-text-content mb-2 mathexam-question-body"
                           ></div>
                           <!-- 选项（如果是选择题） -->
                           <div v-if="question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)" class="question-options mb-2">
-                            <ol class="option-list mb-0 small">
-                              <li v-for="(option, optIndex) in question.options" :key="optIndex" class="option-item">
-                                <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
-                              </li>
-                            </ol>
+                            <ChoiceOptionsList :options="question.options" class="small">
+                              <template #default="{ entry }">
+                                <vue-mathjax :formula="entry.text" :options="mathjaxOptions"></vue-mathjax>
+                              </template>
+                            </ChoiceOptionsList>
                           </div>
                           <!-- 答案 -->
                           <div class="question-answer mb-0" v-if="question.correctAnswer">
@@ -499,11 +499,14 @@ import axios from "axios";
 import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
+import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 
 export default {
   name: "LatexImport",
   components: {
     "vue-mathjax": VueMathjaxNext,
+    ChoiceOptionsList,
   },
   data() {
     return {
@@ -542,6 +545,21 @@ export default {
     },
   },
   methods: {
+    questionPreviewOpts(question) {
+      const opts = question?.options;
+      const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      return {
+        hasOptions,
+        mode: 'question',
+        questionType: question?.type || '',
+        choiceOptionLabels: shouldUseChoiceOptionLabels({
+          questionType: question?.type,
+          hasOptions,
+          questionText: question?.questionText,
+          originalLaTeX: question?.originalLaTeX,
+        }),
+      };
+    },
     typesetPreview() {
       if (window.MathJax && window.MathJax.Hub) {
         const previewRoot = this.$el.querySelector('.preview-area');

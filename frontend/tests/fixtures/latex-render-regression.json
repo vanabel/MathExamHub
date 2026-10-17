@@ -56,6 +56,24 @@
    ]
   },
   {
+   "name": "choice-dup-tetrahedron",
+   "type": "单选题",
+   "questionText": "四面体各面重心为顶点的四面体的体积是原四面体的",
+   "options": {
+    "A": "$1/4$;",
+    "B": "$1/6$;",
+    "C": "$1/9$;",
+    "D": "$1/27$."
+   },
+   "correctAnswer": "D",
+   "originalLaTeX": "四面体各面重心为顶点的四面体的体积是原四面体的\\pickout{D}\r\n    \\begin{abcd}\r\n      \\item $1/4$;\r\n      \\item $1/6$;\r\n      \\item $1/9$;\r\n      \\item $1/27$.\r\n    \\end{abcd}",
+   "expect": [
+    "no (D) leaked into stem preview",
+    "no duplicate abcd when options exist",
+    "no numbered 1-4 duplicate option list"
+   ]
+  },
+  {
    "name": "true-judgment",
    "type": "判断题",
    "questionText": "$E^3$中的正则参数曲线如果曲率$\\kappa>0$, 那么$\\tau=0$当且仅当该曲线是平面曲线.",
@@ -158,6 +176,32 @@
    "originalLaTeX": "假设$\\Sigma$是$E^3$中的正则曲面. 证明: 如果$\\Sigma$的切平面都位于同一侧, 那么$\\Sigma$的Gauss曲率$K\\geq0$.",
    "expect": [
    "\\II \\I defined; \\emph -> <em>"
+   ]
+  },
+  {
+   "name": "choice-abcd-stem",
+   "type": "单选题",
+   "questionText": "下列正确的是？",
+   "correctAnswer": "B",
+   "originalLaTeX": "下列正确的是？\\begin{abcd}\\item 甲\\item 乙\\item 丙\\item 丁\\end{abcd}",
+   "expect": [
+    "abcd items labeled (A)(B)(C)(D)"
+   ]
+  },
+  {
+   "name": "choice-enumerate-stem",
+   "type": "单选题",
+   "questionText": "下列正确的是？\\begin{enumerate}\\item 甲\\item 乙\\item 丙\\item 丁\\end{enumerate}",
+   "options": {
+    "A": "甲",
+    "B": "乙",
+    "C": "丙",
+    "D": "丁"
+   },
+   "correctAnswer": "A",
+   "originalLaTeX": "下列正确的是？\\begin{enumerate}\\item 甲\\item 乙\\item 丙\\item 丁\\end{enumerate}",
+   "expect": [
+    "enumerate in 单选题 stem uses A-D labels, not 1-4"
    ]
   },
   {

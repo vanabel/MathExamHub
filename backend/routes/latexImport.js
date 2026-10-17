@@ -12,6 +12,8 @@ const QuestionBank = require('../models/QuestionBank');
 const KnowledgePoint = require('../models/KnowledgePoint');
 const platformSettingsService = require('../services/platformSettingsService');
 const { suggestQuestionMetadata } = require('../services/llmAssistService');
+const { settingsForLlmAssist } = require('../services/llmProviderResolve');
+const { extractImagesFromStem } = require('../utils/questionImages');
 const latexImportLlmHelper = require('../services/latexImportLlmHelper');
 const {
   attachLlmSuggestions: defaultAttachLlmSuggestions,
@@ -263,7 +265,7 @@ function registerLatexImportRoutes(router, opts = {}) {
                   subject: q.subject || '解析几何',
                   knowledgePoints: kpNodes,
                 },
-                platformSettings,
+                settingsForLlmAssist(platformSettings),
               );
               if (suggestion) {
                 difficulty = suggestion.difficulty;
@@ -271,9 +273,11 @@ function registerLatexImportRoutes(router, opts = {}) {
                 llmAssistApplied += 1;
               }
             }
+            const stemPack = extractImagesFromStem(q.questionText, q.images || []);
             const doc = new Question({
               bankId: req.bankId,
-              questionText: q.questionText,
+              questionText: stemPack.stem,
+              images: stemPack.images,
               type: q.type,
               totalScore: q.totalScore || 0,
               correctAnswer: q.correctAnswer ?? '',

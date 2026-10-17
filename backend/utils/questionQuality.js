@@ -1,4 +1,5 @@
 const { DIFFICULTY_VALUES } = require('../constants/difficulty');
+const { stepScoreMismatch } = require('./stepScoreUtils');
 
 function isEmptyAnswer(val) {
   if (val == null) return true;
@@ -21,6 +22,9 @@ function assessQuestionQuality(q) {
   if (!q.knowledgePointIds || !q.knowledgePointIds.length) issues.push('missing_kp');
   if (missingSolution(q.originalLaTeX) && ['解答题', '计算题', '证明题'].includes(q.type)) {
     issues.push('missing_solution');
+  }
+  if (stepScoreMismatch(q)) {
+    issues.push('step_score_mismatch');
   }
   return issues;
 }

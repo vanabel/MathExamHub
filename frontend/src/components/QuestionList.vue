@@ -130,6 +130,11 @@
                 </div>
                 <span class="badge bg-secondary">{{ question.type }}</span>
                 <span class="badge bg-info ms-2">{{ question.totalScore }} 分</span>
+                <span
+                  v-if="question.qualityIssues && question.qualityIssues.includes('step_score_mismatch')"
+                  class="badge bg-warning text-dark ms-1"
+                  title="逐步 \\score 之和与总分不一致"
+                >步骤分不一致</span>
                 <span v-if="question.usageCount" class="badge bg-light text-dark ms-1">已用 {{ question.usageCount }} 次</span>
               </div>
 
@@ -139,15 +144,20 @@
                   class="question-text-content"
                   v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
                 ></div>
+                <div
+                  v-if="question.images && question.images.length"
+                  class="question-images mt-2"
+                  v-html="renderQuestionImagesHtml(question.images)"
+                ></div>
               </div>
 
               <!-- 选项（如果是选择题） -->
               <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-3">
-                <ol class="option-list">
-                  <li v-for="(option, index) in question.options" :key="index" class="option-item">
-                    <div v-html="processQuestionTextToHTML(option)"></div>
-                  </li>
-                </ol>
+                <ChoiceOptionsList :options="question.options">
+                  <template #default="{ entry }">
+                    <div v-html="processQuestionTextToHTML(entry.text)"></div>
+                  </template>
+                </ChoiceOptionsList>
               </div>
 
               <!-- 答案 -->
@@ -191,7 +201,13 @@
 
 <script>
 import axios from "axios";
-import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
+import {
+  processQuestionTextToHTML,
+  processAnswerTextToHTML,
+  renderQuestionImagesHtml,
+} from "../utils/latexProcessor";
+import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
@@ -199,6 +215,7 @@ import {
 
 export default {
   name: "QuestionList",
+  components: { ChoiceOptionsList },
   data() {
     return {
       questions: [],
@@ -255,10 +272,21 @@ export default {
   methods: {
     processQuestionTextToHTML,
     processAnswerTextToHTML,
+    renderQuestionImagesHtml,
     questionRenderOptions(question) {
       const opts = question && question.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
-      return { hasOptions, mode: 'question' };
+      return {
+        hasOptions,
+        mode: 'question',
+        questionType: question?.type || '',
+        choiceOptionLabels: shouldUseChoiceOptionLabels({
+          questionType: question?.type,
+          hasOptions,
+          questionText: question?.questionText,
+          originalLaTeX: question?.originalLaTeX,
+        }),
+      };
     },
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
@@ -399,6 +427,7 @@ export default {
         if (this.minScoreFilter !== "" && this.minScoreFilter != null) params.minScore = this.minScoreFilter;
         if (this.maxScoreFilter !== "" && this.maxScoreFilter != null) params.maxScore = this.maxScoreFilter;
         if (this.searchQuery.trim()) params.q = this.searchQuery.trim();
+        params.includeQuality = "true";
         const response = await axios.get("/questions/list", { params });
         const data = response.data;
         if (Array.isArray(data)) {
@@ -539,12 +568,6 @@ export default {
   padding: 1rem;
   border-radius: 8px;
   margin-top: 1rem;
-}
-
-.option-list {
-  margin: 0;
-  padding-left: 1.5rem;
-  list-style: upper-alpha;
 }
 
 .option-item {

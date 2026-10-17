@@ -18,6 +18,9 @@ const {
   parseListSort,
 } = require('../utils/questionListQuery');
 const { assessQuestionQuality } = require('../utils/questionQuality');
+const { extractImagesFromStem } = require('../utils/questionImages');
+const platformSettingsService = require('../services/platformSettingsService');
+const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 
@@ -41,7 +44,7 @@ router.post('/create-test-data', requireBankWrite, (req, res) => {
 
 router.post('/create', requireBankWrite, (req, res) => {
   const {
-    questionText, options, correctAnswer, solution, totalScore, type, difficulty, createdBy, subject,
+    questionText, options, correctAnswer, solution, images, totalScore, type, difficulty, createdBy, subject,
     originalLaTeX, knowledgePointIds, status, source,
   } = req.body;
 
@@ -50,12 +53,16 @@ router.post('/create', requireBankWrite, (req, res) => {
     additionalProperties.options = options;
   }
 
+  const solutionText = typeof solution === 'string' && solution.trim() ? solution.trim() : undefined;
+  const stemImages = extractImagesFromStem(questionText || '', Array.isArray(images) ? images : []);
+
   const newQuestion = new Question({
     bankId: req.bankId,
-    questionText,
+    questionText: stemImages.stem,
+    images: stemImages.images,
     ...additionalProperties,
     correctAnswer,
-    solution,
+    solution: solutionText,
     totalScore,
     type,
     difficulty,
@@ -114,6 +121,7 @@ router.get('/:_id/get', async (req, res) => {
       options: question.options || {},
       subject: question.subject,
       originalLaTeX: question.originalLaTeX,
+      images: question.images || [],
       knowledgePointIds: question.knowledgePointIds,
       contentHash: question.contentHash,
       status: question.status,
@@ -139,8 +147,8 @@ router.put('/:id/edit', requireBankWrite, async (req, res) => {
     }
 
     const fields = [
-      'questionText', 'options', 'correctAnswer', 'solution', 'totalScore', 'difficulty', 'type',
-      'subject', 'originalLaTeX', 'knowledgePointIds', 'status', 'source',
+      'options', 'correctAnswer', 'solution', 'totalScore', 'difficulty', 'type',
+      'subject', 'originalLaTeX', 'knowledgePointIds', 'status', 'source', 'images',
     ];
     for (const key of fields) {
       if (typeof req.body[key] !== 'undefined') {
@@ -150,6 +158,16 @@ router.put('/:id/edit', requireBankWrite, async (req, res) => {
           question[key] = req.body[key];
         }
       }
+    }
+    if (typeof req.body.questionText !== 'undefined') {
+      const extracted = extractImagesFromStem(
+        req.body.questionText,
+        Array.isArray(req.body.images) ? req.body.images : question.images,
+      );
+      question.questionText = extracted.stem;
+      question.images = extracted.images;
+    } else if (Array.isArray(req.body.images)) {
+      question.images = req.body.images;
     }
 
     const updatedQuestion = await question.save();
@@ -208,6 +226,43 @@ router.get('/quality/export.csv', requireBankWrite, async (req, res) => {
   } catch (error) {
     console.error('quality CSV export failed', error);
     res.status(500).json({ error: '导出失败' });
+  }
+});
+
+router.post('/llm-relabel-difficulty', requireBankWrite, async (req, res) => {
+  try {
+    const dryRun = req.body?.apply !== true && req.query.apply !== 'true';
+    const query = buildQuestionListFilter({
+      bankId: req.bankId,
+      query: req.body?.filters || req.query || {},
+    });
+    const questions = await Question.find(query)
+      .select('_id questionText type subject difficulty totalScore')
+      .lean();
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const suggestions = await buildRelabelSuggestionsForQuestions(
+      questions,
+      req.bankId,
+      platformSettings,
+    );
+    const changed = suggestions.filter(
+      (s) => s.suggestedDifficulty && s.suggestedDifficulty !== s.currentDifficulty,
+    );
+    if (!dryRun) {
+      let modified = 0;
+      for (const row of changed) {
+        const q = await Question.findOne(activeQuestionFilter({ _id: row.questionId, bankId: req.bankId }));
+        if (!q) continue;
+        q.difficulty = row.suggestedDifficulty;
+        await q.save();
+        modified += 1;
+      }
+      return res.json({ dryRun: false, total: suggestions.length, changed: changed.length, modified, suggestions });
+    }
+    res.json({ dryRun: true, total: suggestions.length, changed: changed.length, suggestions });
+  } catch (error) {
+    console.error('llm-relabel-difficulty failed', error);
+    res.status(500).json({ error: '难度重标建议失败' });
   }
 });
 
