@@ -28,7 +28,7 @@ for (const type of TYPES) {
     const diff = DIFFS[n % 3];
     const kpKey = kpKeys[n % kpKeys.length];
     const score = SCORE_BY_TYPE[type];
-    const stem = `${SUBJECT}示例 ${type} #${n}（${diff}）`;
+    const stem = `${SUBJECT}示例 ${type} 第${n}题（${diff}）`;
     const base = {
       type,
       difficulty: diff,

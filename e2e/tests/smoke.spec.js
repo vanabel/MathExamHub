@@ -1,5 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const { execSync } = require('child_process');
 
 const shots = path.join(__dirname, '../../docs/screenshots');
 const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
@@ -108,5 +111,29 @@ test.describe('product smoke', () => {
     await page.getByTestId('wizard-export-latex').click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.zip$/i);
+
+    const zipPath = path.join(os.tmpdir(), `mathexam-e2e-${Date.now()}.zip`);
+    await download.saveAs(zipPath);
+    expect(fs.statSync(zipPath).size).toBeGreaterThan(500);
+
+    await page.goto('/bank-stats', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /题库统计/ })).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('button', { name: '导出 CSV' })).toBeEnabled({ timeout: 30000 });
+    await page.getByRole('button', { name: '导出 CSV' }).click();
+    const csvText = await page.evaluate(async ({ base }) => {
+      const bankId = localStorage.getItem('currentBankId');
+      const res = await fetch(`${base}/questions/stats/dashboard.csv`, {
+        credentials: 'include',
+        headers: bankId ? { 'X-Bank-Id': bankId } : {},
+      });
+      if (!res.ok) throw new Error(`csv ${res.status}`);
+      return res.text();
+    }, { base: apiBase });
+    expect(csvText).toMatch(/filterMinScore|section,key,value/);
+
+    if (process.env.E2E_COMPILE_TEX !== '0') {
+      const helper = path.join(__dirname, '../helpers/compileDownloadedZip.js');
+      execSync(`node "${helper}" "${zipPath}"`, { stdio: 'inherit' });
+    }
   });
 });

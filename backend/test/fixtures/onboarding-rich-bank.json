@@ -37,7 +37,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 判断题 #1（中）",
+      "questionText": "高等代数示例 判断题 第1题（中）",
       "correctAnswer": "对"
     },
     {
@@ -48,7 +48,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 判断题 #2（难）",
+      "questionText": "高等代数示例 判断题 第2题（难）",
       "correctAnswer": "对"
     },
     {
@@ -59,7 +59,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 判断题 #3（易）",
+      "questionText": "高等代数示例 判断题 第3题（易）",
       "correctAnswer": "对"
     },
     {
@@ -70,7 +70,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 判断题 #4（中）",
+      "questionText": "高等代数示例 判断题 第4题（中）",
       "correctAnswer": "对"
     },
     {
@@ -81,7 +81,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 判断题 #5（难）",
+      "questionText": "高等代数示例 判断题 第5题（难）",
       "correctAnswer": "对"
     },
     {
@@ -92,7 +92,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 判断题 #6（易）",
+      "questionText": "高等代数示例 判断题 第6题（易）",
       "correctAnswer": "对"
     },
     {
@@ -103,7 +103,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 判断题 #7（中）",
+      "questionText": "高等代数示例 判断题 第7题（中）",
       "correctAnswer": "对"
     },
     {
@@ -114,7 +114,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 判断题 #8（难）",
+      "questionText": "高等代数示例 判断题 第8题（难）",
       "correctAnswer": "对"
     },
     {
@@ -125,7 +125,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 判断题 #9（易）",
+      "questionText": "高等代数示例 判断题 第9题（易）",
       "correctAnswer": "对"
     },
     {
@@ -136,7 +136,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 判断题 #10（中）",
+      "questionText": "高等代数示例 判断题 第10题（中）",
       "correctAnswer": "对"
     },
     {
@@ -147,7 +147,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 判断题 #11（难）",
+      "questionText": "高等代数示例 判断题 第11题（难）",
       "correctAnswer": "对"
     },
     {
@@ -158,7 +158,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 单选题 #12（易）",
+      "questionText": "高等代数示例 单选题 第12题（易）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -175,7 +175,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 单选题 #13（中）",
+      "questionText": "高等代数示例 单选题 第13题（中）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -192,7 +192,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 单选题 #14（难）",
+      "questionText": "高等代数示例 单选题 第14题（难）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -209,7 +209,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 单选题 #15（易）",
+      "questionText": "高等代数示例 单选题 第15题（易）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -226,7 +226,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 单选题 #16（中）",
+      "questionText": "高等代数示例 单选题 第16题（中）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -243,7 +243,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 单选题 #17（难）",
+      "questionText": "高等代数示例 单选题 第17题（难）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -260,7 +260,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 单选题 #18（易）",
+      "questionText": "高等代数示例 单选题 第18题（易）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -277,7 +277,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 单选题 #19（中）",
+      "questionText": "高等代数示例 单选题 第19题（中）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -294,7 +294,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 单选题 #20（难）",
+      "questionText": "高等代数示例 单选题 第20题（难）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -311,7 +311,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 单选题 #21（易）",
+      "questionText": "高等代数示例 单选题 第21题（易）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -328,7 +328,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 单选题 #22（中）",
+      "questionText": "高等代数示例 单选题 第22题（中）",
       "correctAnswer": "C",
       "options": {
         "A": "1",
@@ -345,7 +345,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 填空题 #23（难）",
+      "questionText": "高等代数示例 填空题 第23题（难）",
       "correctAnswer": "答案23"
     },
     {
@@ -356,7 +356,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 填空题 #24（易）",
+      "questionText": "高等代数示例 填空题 第24题（易）",
       "correctAnswer": "答案24"
     },
     {
@@ -367,7 +367,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 填空题 #25（中）",
+      "questionText": "高等代数示例 填空题 第25题（中）",
       "correctAnswer": "答案25"
     },
     {
@@ -378,7 +378,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 填空题 #26（难）",
+      "questionText": "高等代数示例 填空题 第26题（难）",
       "correctAnswer": "答案26"
     },
     {
@@ -389,7 +389,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 填空题 #27（易）",
+      "questionText": "高等代数示例 填空题 第27题（易）",
       "correctAnswer": "答案27"
     },
     {
@@ -400,7 +400,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 填空题 #28（中）",
+      "questionText": "高等代数示例 填空题 第28题（中）",
       "correctAnswer": "答案28"
     },
     {
@@ -411,7 +411,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 填空题 #29（难）",
+      "questionText": "高等代数示例 填空题 第29题（难）",
       "correctAnswer": "答案29"
     },
     {
@@ -422,7 +422,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 填空题 #30（易）",
+      "questionText": "高等代数示例 填空题 第30题（易）",
       "correctAnswer": "答案30"
     },
     {
@@ -433,7 +433,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 填空题 #31（中）",
+      "questionText": "高等代数示例 填空题 第31题（中）",
       "correctAnswer": "答案31"
     },
     {
@@ -444,7 +444,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 填空题 #32（难）",
+      "questionText": "高等代数示例 填空题 第32题（难）",
       "correctAnswer": "答案32"
     },
     {
@@ -455,7 +455,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 填空题 #33（易）",
+      "questionText": "高等代数示例 填空题 第33题（易）",
       "correctAnswer": "答案33"
     },
     {
@@ -466,7 +466,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 解答题 #34（中）",
+      "questionText": "高等代数示例 解答题 第34题（中）",
       "correctAnswer": "答案34"
     },
     {
@@ -477,7 +477,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 解答题 #35（难）",
+      "questionText": "高等代数示例 解答题 第35题（难）",
       "correctAnswer": "答案35"
     },
     {
@@ -488,7 +488,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 解答题 #36（易）",
+      "questionText": "高等代数示例 解答题 第36题（易）",
       "correctAnswer": "答案36"
     },
     {
@@ -499,7 +499,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 解答题 #37（中）",
+      "questionText": "高等代数示例 解答题 第37题（中）",
       "correctAnswer": "答案37"
     },
     {
@@ -510,7 +510,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 解答题 #38（难）",
+      "questionText": "高等代数示例 解答题 第38题（难）",
       "correctAnswer": "答案38"
     },
     {
@@ -521,7 +521,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 解答题 #39（易）",
+      "questionText": "高等代数示例 解答题 第39题（易）",
       "correctAnswer": "答案39"
     },
     {
@@ -532,7 +532,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 解答题 #40（中）",
+      "questionText": "高等代数示例 解答题 第40题（中）",
       "correctAnswer": "答案40"
     },
     {
@@ -543,7 +543,7 @@
       "knowledgePointKeys": [
         "matrix"
       ],
-      "questionText": "高等代数示例 解答题 #41（难）",
+      "questionText": "高等代数示例 解答题 第41题（难）",
       "correctAnswer": "答案41"
     },
     {
@@ -554,7 +554,7 @@
       "knowledgePointKeys": [
         "det"
       ],
-      "questionText": "高等代数示例 解答题 #42（易）",
+      "questionText": "高等代数示例 解答题 第42题（易）",
       "correctAnswer": "答案42"
     },
     {
@@ -565,7 +565,7 @@
       "knowledgePointKeys": [
         "vector"
       ],
-      "questionText": "高等代数示例 解答题 #43（中）",
+      "questionText": "高等代数示例 解答题 第43题（中）",
       "correctAnswer": "答案43"
     },
     {
@@ -576,7 +576,7 @@
       "knowledgePointKeys": [
         "linear"
       ],
-      "questionText": "高等代数示例 解答题 #44（难）",
+      "questionText": "高等代数示例 解答题 第44题（难）",
       "correctAnswer": "答案44"
     }
   ],
