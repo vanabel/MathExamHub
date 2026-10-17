@@ -26,6 +26,74 @@ function mergeStrayDisplayDollars(processed) {
     .replace(/\$\s+\$\$/g, DISPLAY_DOLLAR);
 }
 
+function imageTagFromIncludegraphicsFilename(filename) {
+  const trimmed = String(filename || '').trim();
+  if (!trimmed) return '';
+  const nameWithoutExt = trimmed.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+  const fileExt = trimmed.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
+  const fullFileName = trimmed.includes('.') ? trimmed : `${trimmed}.${fileExt}`;
+  return `<image href="${fullFileName}" id="fig:${nameWithoutExt}" />`;
+}
+
+/** figure / center / standalone \\includegraphics → custom <image> tags (before MathJax). */
+function convertLatexGraphicsToImageTags(text) {
+  if (!text) return '';
+  let processed = text;
+
+  processed = processed.replace(/\\begin\{figure\}(?:\[[^\]]*\])?([\s\S]*?)\\end\{figure\}/gs, (match, content) => {
+    const includegraphicsMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+    const labelMatch = content.match(/\\label\{([^}]+)\}/);
+    if (!includegraphicsMatch) return '';
+    const tag = imageTagFromIncludegraphicsFilename(includegraphicsMatch[1]);
+    if (labelMatch) {
+      const label = labelMatch[1].replace(/^fig:/, '');
+      return tag.replace(/id="[^"]*"/, `id="fig:${label}"`);
+    }
+    return tag;
+  });
+
+  processed = processed.replace(/\\begin\{center\}([\s\S]*?)\\end\{center\}/gs, (match, content) => {
+    const includegraphicsMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+    if (!includegraphicsMatch) return '';
+    return imageTagFromIncludegraphicsFilename(includegraphicsMatch[1]);
+  });
+
+  processed = processed.replace(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g, (match, filename) => (
+    imageTagFromIncludegraphicsFilename(filename)
+  ));
+
+  return processed;
+}
+
+function expandImageTagsToHtml(fragment) {
+  if (!fragment || !/<image\s/i.test(fragment)) return fragment;
+  const backendBaseURL = axios.defaults.baseURL || '/api';
+  const imageRegex = /<image\s+([^>]+)\s*\/?>/gi;
+  return fragment.replace(imageRegex, (match, attrs) => {
+    const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+    const idMatch = attrs.match(/id=["']([^"']+)["']/);
+    const href = hrefMatch ? hrefMatch[1] : '';
+    const id = idMatch ? idMatch[1] : '';
+    const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
+    const isPdf = href && /\.pdf$/i.test(href);
+    if (isPdf) {
+      let cleanId = (id || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+      return `
+            <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${cleanId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
+              <canvas id="pdf-canvas-${cleanId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
+              <div style="text-align: center; margin-top: 10px;">
+                <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">
+                  <i class="bi bi-download"></i> 下载/在新窗口打开 PDF
+                </a>
+              </div>
+            </div>
+          `;
+    }
+    const imgUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
+    return `<img src="${imgUrl}" id="${id}" alt="图片" class="latex-figure" style="max-width: 100%; height: auto;" />`;
+  });
+}
+
 /**
  * Invoke fn on each substring that lies outside math delimiters ($...$, $$...$$).
  */
@@ -630,39 +698,8 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
     processed = processed.substring(0, m.start) + replacement + processed.substring(m.end);
   }
   
-  // 处理 \begin{figure}...\end{figure} 环境
-  const figureRegex = /\\begin\{figure\}(?:\[[^\]]*\])?(.*?)\\end\{figure\}/gs;
-  processed = processed.replace(figureRegex, (match, content) => {
-    // 提取 \includegraphics{filename}
-    const includegraphicsMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
-    const labelMatch = content.match(/\\label\{([^}]+)\}/);
-    
-    if (includegraphicsMatch) {
-      const filename = includegraphicsMatch[1].trim();
-      // 去掉扩展名
-      const nameWithoutExt = filename.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
-      const label = labelMatch ? labelMatch[1].replace(/^fig:/, '') : nameWithoutExt;
-      
-      // 生成 <image> 标签
-      // 注意：这里我们使用原始文件名，实际的文件名应该在导入时已经处理
-      // 如果文件名不包含扩展名，尝试添加 .pdf（默认）
-      const fileExt = filename.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
-      const fullFileName = filename.includes('.') ? filename : `${filename}.${fileExt}`;
-      
-      return `<image href="${fullFileName}" id="fig:${label}" />`;
-    }
-    return match;
-  });
-  
-  // 处理单独的 \includegraphics 命令（不在 figure 环境中）
-  const includegraphicsRegex = /\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g;
-  processed = processed.replace(includegraphicsRegex, (match, filename) => {
-    const nameWithoutExt = filename.trim().replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
-    const fileExt = filename.match(/\.(png|jpg|jpeg|gif|pdf)$/i)?.[1] || 'pdf';
-    const fullFileName = filename.includes('.') ? filename : `${filename}.${fileExt}`;
-    return `<image href="${fullFileName}" id="fig:${nameWithoutExt}" />`;
-  });
-  
+  processed = convertLatexGraphicsToImageTags(processed);
+
   // 处理 \ref{fig:xxx} 命令
   const refRegex = /\\ref\{([^}]+)\}/g;
   processed = processed.replace(refRegex, (match, label) => {
@@ -730,49 +767,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
       // 处理自定义标签：<image> 和 <a>
       let content = part.content;
       
-      // 处理 <image> 标签，转换为 <img> 或 <embed> 标签（PDF 使用 embed）
-      const imageRegex = /<image\s+([^>]+)\s*\/?>/gi;
-      content = content.replace(imageRegex, (match, attrs) => {
-        // 解析属性
-        const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
-        const idMatch = attrs.match(/id=["']([^"']+)["']/);
-        const href = hrefMatch ? hrefMatch[1] : '';
-        const id = idMatch ? idMatch[1] : '';
-        
-        // 构建文件 URL（假设文件在 /uploads/ 目录下）
-        // 对文件名进行 URL 编码，确保中文字符正确处理
-        // 使用完整的后端 URL，因为 PDF.js 需要完整的 URL
-        const backendBaseURL = axios.defaults.baseURL || '/api';
-        const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
-        
-        // 检查是否是 PDF 文件
-        const isPdf = href && /\.pdf$/i.test(href);
-        
-        if (isPdf) {
-          // PDF 文件使用 PDF.js 渲染
-          // 创建一个容器，使用 data 属性标记，稍后在 Vue 组件中初始化
-          // 清理 ID，移除无效的 CSS 选择器字符（如冒号）
-          let cleanId = (id || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).replace(/[^a-zA-Z0-9_-]/g, '-');
-          const uniqueId = cleanId;
-          return `
-            <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${uniqueId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
-              <canvas id="pdf-canvas-${uniqueId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
-              <div style="text-align: center; margin-top: 10px;">
-                <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">
-                  <i class="bi bi-download"></i> 下载/在新窗口打开 PDF
-                </a>
-              </div>
-            </div>
-          `;
-        } else {
-          // 图片文件使用 <img> 标签
-          // 也使用完整的后端 URL，确保跨域访问正常
-          const imgUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
-          return `<img src="${imgUrl}" id="${id}" alt="图片" class="latex-figure" style="max-width: 100%; height: auto;" />`;
-        }
-      });
-      
-      return content;
+      return expandImageTagsToHtml(content);
     } else {
       // 处理文本中的 LaTeX 命令
       let processedPart = processQuestionText(part.content, { mode });
@@ -1229,9 +1224,6 @@ export function processAnswerText(text) {
   const endsWithDollar = trimmed.endsWith('$');
   const isInlineMath = startsWithDollar && endsWithDollar && !isBlockMath;
   
-  // 检查是否还包含未处理的 \[ 或 \]
-  const hasUnprocessedBrackets = processed.includes('\\[') || processed.includes('\\]');
-  
   // 检查是否包含块级数学环境（MathJax 原生支持，不需要转换）
   // 支持的块级环境：align, alignat, aligned, equation, eqnarray, gather, multline, split
   const blockMathEnvs = [
@@ -1241,7 +1233,6 @@ export function processAnswerText(text) {
   const hasBlockMathEnv = blockMathEnvs.some(env => {
     return processed.includes(`\\begin{${env}`) || processed.includes(`\\begin{${env}*`);
   });
-  const hasListEnv = /\\begin\{(enumerate|itemize)\}/.test(processed);
   const hasHtmlTags = /<[a-z][^>]*>/i.test(processed);
 
   // 检查文本中是否包含 $$ 或单个 $（即使不是整个文本）
@@ -1249,29 +1240,10 @@ export function processAnswerText(text) {
   const containsDoubleDollar = processed.includes('$$');
   const containsSingleDollar = processed.includes('$');
   
-  // 检查是否包含块级数学公式模式：$$...$$（即使不在开头和结尾）
-  // 使用正则表达式匹配 $$...$$ 模式（可能跨行）
-  const hasBlockMathPattern = /\$\$[\s\S]*?\$\$/.test(processed);
-  
-  // 检查是否包含未转换的 \[ 或 \]（虽然应该已经转换了，但作为安全检查）
-  const hasUnconvertedBrackets = processed.includes('\\[') || processed.includes('\\]');
-  
   // 如果文本中包含 $$ 或整个文本已经被 $ 包围，就不需要再添加
   // 注意：如果文本中包含任何 $ 符号或块级数学环境，说明已经有数学公式，不需要再添加
   // 重要：只要包含任何 $ 符号（包括 $$ 或单个 $）或块级数学公式模式，就认为已经在数学环境中，不要添加额外的 $
   // 注意：containsSingleDollar 可能会误判（因为文本中可能有单个 $），所以优先检查块级公式模式
-  const isInMathEnv =
-    isBlockMath ||
-    isInlineMath ||
-    hasUnprocessedBrackets ||
-    hasUnconvertedBrackets ||
-    hasBlockMathEnv ||
-    hasBlockMathPattern ||
-    containsDoubleDollar ||
-    containsSingleDollar ||
-    hasListEnv ||
-    hasHtmlTags;
-
   if (!containsDoubleDollar && !containsSingleDollar && !isBlockMath && !isInlineMath && !hasHtmlTags) {
     const hasMathSymbols = /[-+*/^_=<>()[\]\\]/.test(processed) || /\\[a-zA-Z]/.test(processed);
     if (hasMathSymbols) {
@@ -1308,6 +1280,7 @@ export function processAnswerTextToHTML(text) {
 
   let processed = text;
 
+  processed = convertLatexGraphicsToImageTags(processed);
   processed = processMathexamEnvironments(processed);
   processed = processEqref(processed);
   processed = applyTextModeFormatting(processed);
@@ -1439,8 +1412,8 @@ export function processAnswerTextToHTML(text) {
       return textContent;
     }
   }).join('');
-  
-  return result;
+
+  return expandImageTagsToHtml(result);
 }
 
 export const renderAnswerHTML = processAnswerTextToHTML;

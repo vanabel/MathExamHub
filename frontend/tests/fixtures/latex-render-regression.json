@@ -157,7 +157,17 @@
    "correctAnswer": "由题意知, 曲面是可以定向的(否则不能谈同一侧的概念). 取定曲面内侧一点$O$作为原点, 对$P\\in\\Sigma$, 考察$P$ 点处的高度函数\n  \\[\n    f(u,v)\\mathpunct{:}= \\br(u,v)\\cdot\\bn(P),\\score{5}\n  \\]\n  这里$\\bn(P)$是曲面在$P$处的\\emph{外法向量}.\n\n  由于在$P$附近, 曲面$\\Sigma$都位于切平面$T_P\\Sigma$的同一侧, 故知$f$ 在$P$ 处取得局部极大值. \\score{2} \n  而在$P$处, 利用Taylor展开容易反证得到\n  \\[\n    0\\leq\n    \\begin{pmatrix}\n      f_{uu}&f_{uv}\\\\\n      f_{vu}&f_{vv}\n      \\end{pmatrix}=\n      \\begin{pmatrix}\n      \\br_{uu}\\cdot\\bn(P)&\\br_{uv}\\cdot\\bn(P)\\\\\n      \\br_{vu}\\cdot\\bn(P)&\\br_{vv}\\cdot\\bn(P)\n      \\end{pmatrix}=\n      \\begin{pmatrix}\n      L&M\\\\\n      M&N\n    \\end{pmatrix}\n    \\mathpunct{:}=\\II(P).\\score{3}\n  \\]\n  最后, 由Gauss曲率是\n  \\[\n    K(P)=\\det\\left( \\II(P)\\I(P)^{-1} \\right)\\geq0,\\score{3}\n  \\]\n  这里\n  \\[\n    \\I(P)=\\begin{pmatrix}\n      E&F\\\\\n      F&G\n    \\end{pmatrix}\n  \\]\n  是曲面的第一基本型在自然基下的表示矩阵.  \\score{2}\n\\begin{rmk}\n  也可根据曲面的弯曲方向来说明法曲率都是大于等于零的, 进而由于主曲率是法曲率中的最大值和最小值因此也是大于等于零的. 最后利用Gauss曲率等于两个主曲率的乘积, 我们知道Gauss曲率大于等于零. \n\\end{rmk}",
    "originalLaTeX": "假设$\\Sigma$是$E^3$中的正则曲面. 证明: 如果$\\Sigma$的切平面都位于同一侧, 那么$\\Sigma$的Gauss曲率$K\\geq0$.",
    "expect": [
-    "\\II \\I defined; \\emph -> <em>"
+   "\\II \\I defined; \\emph -> <em>"
+   ]
+  },
+  {
+   "name": "answer-center-includegraphics",
+   "type": "作图题",
+   "questionText": "作出曲线示意图.",
+   "correctAnswer": "见下图\n\\begin{center}\n\\includegraphics{fig-sketch.png}\n\\end{center}",
+   "originalLaTeX": "作出曲线示意图.",
+   "expect": [
+    "center/includegraphics -> img placeholder, not MathJax center env"
    ]
   }
  ]

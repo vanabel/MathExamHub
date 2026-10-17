@@ -91,6 +91,11 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
       case 'eqref-equation-label':
         assert.doesNotMatch(stripTags(ans), /\\eqref/);
         break;
+      case 'answer-center-includegraphics':
+        assert.match(ans, /latex-figure|pdf-container/);
+        assert.doesNotMatch(ans, /\\begin\{center\}/);
+        assert.doesNotMatch(ans, /\\includegraphics/);
+        break;
       case 'dg-macros':
         assert.match(ans, /\$\$[\s\S]*\\br/u);
         break;
