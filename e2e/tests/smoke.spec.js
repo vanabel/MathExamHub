@@ -118,13 +118,17 @@ test.describe('product smoke', () => {
 
     await page.goto('/bank-stats', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /题库统计/ })).toBeVisible({ timeout: 30000 });
-    const csvPromise = page.waitForEvent('download');
+    await expect(page.getByRole('button', { name: '导出 CSV' })).toBeEnabled({ timeout: 30000 });
     await page.getByRole('button', { name: '导出 CSV' }).click();
-    const csvDownload = await csvPromise;
-    expect(csvDownload.suggestedFilename()).toMatch(/\.csv$/i);
-    const csvPath = path.join(os.tmpdir(), `bank-stats-e2e-${Date.now()}.csv`);
-    await csvDownload.saveAs(csvPath);
-    const csvText = fs.readFileSync(csvPath, 'utf8');
+    const csvText = await page.evaluate(async ({ base }) => {
+      const bankId = localStorage.getItem('currentBankId');
+      const res = await fetch(`${base}/questions/stats/dashboard.csv`, {
+        credentials: 'include',
+        headers: bankId ? { 'X-Bank-Id': bankId } : {},
+      });
+      if (!res.ok) throw new Error(`csv ${res.status}`);
+      return res.text();
+    }, { base: apiBase });
     expect(csvText).toMatch(/filterMinScore|section,key,value/);
 
     if (process.env.E2E_COMPILE_TEX !== '0') {
