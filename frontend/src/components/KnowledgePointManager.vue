@@ -8,7 +8,7 @@
         class="btn btn-outline-primary btn-sm"
         data-testid="kp-excel-import-link"
       >
-        <i class="bi bi-file-earmark-spreadsheet"></i> Excel 导入 / 导出
+        <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
       </router-link>
     </div>
     <div class="row g-3 mb-4">

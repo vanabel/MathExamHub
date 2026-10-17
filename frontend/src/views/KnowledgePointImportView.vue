@@ -5,20 +5,32 @@
         <li class="breadcrumb-item">
           <router-link to="/knowledge-points">章节 / 知识点</router-link>
         </li>
-        <li class="breadcrumb-item active">Excel 导入</li>
+        <li class="breadcrumb-item active">知识图谱工作流</li>
       </ol>
     </nav>
 
-    <h1 class="h4 mb-3"><i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱 Excel 导入</h1>
-    <p class="text-muted small">
-      工作表「课程知识点」：一级…七级知识点列（空单元格继承上级），以及前置/后置/关联、标签、认知维度等。
+    <h1 class="h4 mb-2"><i class="bi bi-diagram-3"></i> 知识图谱工作流</h1>
+    <p class="text-muted small mb-3">
+      上传 Excel → 预览合并知识点树 →（可选）对本题库该科目下未打标题目 LLM 建议知识点，审核后写入。
     </p>
 
-    <div class="card mb-3">
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <button type="button" class="nav-link" :class="{ active: step === 1 }" @click="step = 1">1. Excel 导入</button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" :class="{ active: step === 2 }" :disabled="!treeReady" @click="step = 2">
+          2. LLM 打标
+        </button>
+      </li>
+    </ul>
+
+    <div v-show="step === 1" class="card mb-3">
+      <div class="card-header">步骤 1：导入 / 合并知识点树</div>
       <div class="card-body row g-3">
         <div class="col-md-4">
-          <label class="form-label">科目（可覆盖 Excel 标题推断）</label>
-          <input v-model="subject" class="form-control" placeholder="解析几何" />
+          <label class="form-label">科目</label>
+          <input v-model="subject" class="form-control" placeholder="解析几何" @change="loadKpTree" />
         </div>
         <div class="col-md-8">
           <label class="form-label">Excel 文件 (.xls / .xlsx)</label>
@@ -47,7 +59,7 @@
             :disabled="!file || applyLoading || !preview"
             @click="runApply"
           >
-            {{ applyLoading ? '导入中…' : '确认合并导入' }}
+            {{ applyLoading ? '合并中…' : '确认合并到题库' }}
           </button>
           <button
             type="button"
@@ -55,7 +67,15 @@
             :disabled="!subject.trim() || exportLoading"
             @click="exportExcel"
           >
-            {{ exportLoading ? '导出中…' : '导出当前科目 Excel' }}
+            {{ exportLoading ? '导出中…' : '导出 Excel' }}
+          </button>
+          <button
+            v-if="treeReady"
+            type="button"
+            class="btn btn-success ms-auto"
+            @click="step = 2"
+          >
+            下一步：LLM 打标 →
           </button>
         </div>
       </div>
@@ -63,7 +83,7 @@
 
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <div v-if="preview" class="card mb-3">
+    <div v-if="preview && step === 1" class="card mb-3">
       <div class="card-header">预览 diff（{{ preview.subject }}）</div>
       <div class="card-body">
         <p class="mb-2">
@@ -88,22 +108,33 @@
       </div>
     </div>
 
-    <div v-if="applyResult" class="alert alert-success">
-      导入完成：新建 {{ applyResult.created }}，更新 {{ applyResult.updated }}。
+    <div v-if="applyResult && step === 1" class="alert alert-success">
+      合并完成：新建 {{ applyResult.created }}，更新 {{ applyResult.updated }}。
       <span v-if="applyResult.unresolvedRelations?.length">
         未解析关联名 {{ applyResult.unresolvedRelations.length }} 条（见控制台）。
       </span>
+    </div>
+
+    <div v-show="step === 2">
+      <kp-workflow-llm-review
+        :subject="subject"
+        :kp-tree="kpTree"
+        @applied="loadKpTree"
+      />
     </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import KpWorkflowLlmReview from '../components/KpWorkflowLlmReview.vue';
 
 export default {
   name: 'KnowledgePointImportView',
+  components: { KpWorkflowLlmReview },
   data() {
     return {
+      step: 1,
       subject: '解析几何',
       file: null,
       preview: null,
@@ -112,7 +143,16 @@ export default {
       exportLoading: false,
       applyResult: null,
       error: '',
+      kpTree: [],
     };
+  },
+  computed: {
+    treeReady() {
+      return this.kpTree.length > 0;
+    },
+  },
+  mounted() {
+    this.loadKpTree();
   },
   methods: {
     onFileChange(e) {
@@ -126,6 +166,17 @@ export default {
       fd.append('file', this.file);
       if (this.subject.trim()) fd.append('subject', this.subject.trim());
       return fd;
+    },
+    async loadKpTree() {
+      if (!this.subject.trim()) return;
+      try {
+        const { data } = await axios.get('/knowledge-points/tree', {
+          params: { subject: this.subject.trim() },
+        });
+        this.kpTree = data.nodes || [];
+      } catch {
+        this.kpTree = [];
+      }
     },
     async runPreview() {
       this.previewLoading = true;
@@ -155,6 +206,7 @@ export default {
           console.warn('Unresolved KP relation names', data.unresolvedRelations);
         }
         await this.runPreview();
+        await this.loadKpTree();
       } catch (e) {
         this.error = e.response?.data?.error || e.message || '导入失败';
       } finally {

@@ -24,6 +24,8 @@ const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelS
 const {
   buildKpTagSuggestionsForQuestions,
   applyKpTagUpdates,
+  parseTaggingOptions,
+  loadQuestionsForKpTag,
 } = require('../services/llmKpTagService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
@@ -238,42 +240,36 @@ router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
     const dryRun = req.body?.apply !== true && req.query.apply !== 'true';
     const replace = req.body?.replace === true || req.query.replace === 'true';
     const concurrency = req.body?.concurrency ?? req.query.concurrency;
+    const tagOpts = parseTaggingOptions(req.body || {});
+    const subject = req.body?.subject ? String(req.body.subject).trim() : undefined;
 
-    let questions;
-    if (Array.isArray(req.body?.questionIds) && req.body.questionIds.length) {
-      questions = await Question.find(activeQuestionFilter({
-        bankId: req.bankId,
-        _id: { $in: req.body.questionIds },
-      }))
-        .select('_id questionText type subject difficulty totalScore correctAnswer solution options knowledgePointIds')
-        .lean();
-    } else {
-      const query = buildQuestionListFilter({
-        bankId: req.bankId,
-        query: req.body?.filters || req.query || {},
-      });
-      questions = await Question.find(query)
-        .select('_id questionText type subject difficulty totalScore correctAnswer solution options knowledgePointIds')
-        .lean();
-    }
+    const questions = await loadQuestionsForKpTag(req.bankId, req.body, req.query);
 
     const platformSettings = await platformSettingsService.getPlatformSettings();
     const suggestions = await buildKpTagSuggestionsForQuestions(
       questions,
       req.bankId,
       platformSettings,
-      { concurrency },
+      {
+        concurrency,
+        subject,
+        maxKpsPerQuestion: tagOpts.maxKpsPerQuestion,
+        extraMinConfidence: tagOpts.extraMinConfidence,
+      },
     );
     const wouldAdd = suggestions.filter((s) => s.wouldAddKnowledgePointIds?.length);
 
     if (!dryRun) {
       const updates = (req.body?.updates?.length ? req.body.updates : suggestions)
+        .filter((row) => row.rejected !== true)
         .map((row) => ({
           questionId: row.questionId,
-          knowledgePointIds: row.knowledgePointIds
+          knowledgePointIds: row.acceptedKnowledgePointIds
+            ?? row.knowledgePointIds
             ?? row.applyKnowledgePointIds
             ?? row.wouldAddKnowledgePointIds
             ?? row.suggestedKnowledgePointIds,
+          suggestionMeta: row.acceptedSuggestions ?? row.suggestions,
         }));
       const { modified } = await applyKpTagUpdates(req.bankId, updates, { replace });
       return res.json({
@@ -282,6 +278,7 @@ router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
         wouldAdd: wouldAdd.length,
         modified,
         suggestions,
+        options: tagOpts,
       });
     }
 
@@ -290,6 +287,7 @@ router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
       total: suggestions.length,
       wouldAdd: wouldAdd.length,
       suggestions,
+      options: tagOpts,
     });
   } catch (error) {
     console.error('llm-tag-knowledge-points failed', error);
@@ -304,7 +302,14 @@ router.post('/llm-apply-knowledge-points', requireBankWrite, async (req, res) =>
     if (!Array.isArray(updates) || !updates.length) {
       return res.status(400).json({ error: 'updates 数组必填' });
     }
-    const { modified } = await applyKpTagUpdates(req.bankId, updates, { replace });
+    const normalized = updates.map((row) => ({
+      questionId: row.questionId,
+      knowledgePointIds: row.acceptedKnowledgePointIds ?? row.knowledgePointIds,
+      knowledgePointLinks: row.knowledgePointLinks,
+      suggestionMeta: row.acceptedSuggestions ?? row.suggestions,
+      source: row.source || 'llm',
+    }));
+    const { modified } = await applyKpTagUpdates(req.bankId, normalized, { replace });
     res.json({ modified, replace });
   } catch (error) {
     console.error('llm-apply-knowledge-points failed', error);

@@ -6,6 +6,7 @@ describe('llmKpTagService apply', () => {
     const Question = require('../models/Question');
     mock.method(Question, 'findOne', async () => ({
       knowledgePointIds: ['kp1'],
+      knowledgePointLinks: [{ knowledgePointId: 'kp1', source: 'manual' }],
       updatedAt: new Date(),
       async save() { this.saved = true; },
     }));
