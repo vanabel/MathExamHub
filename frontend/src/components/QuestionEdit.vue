@@ -109,8 +109,18 @@
                   id="questionAnswer"
                   v-model="questionAnswer"
                   class="form-control"
-                  rows="6"
+                  rows="4"
                   required
+                ></textarea>
+                <label for="questionSolution" class="form-label mt-3">
+                  <i class="bi bi-journal-text"></i> 解答过程（可选，LaTeX）
+                </label>
+                <textarea
+                  id="questionSolution"
+                  v-model="questionSolution"
+                  class="form-control"
+                  rows="4"
+                  placeholder="与答案分开保存；单选题答案可填选项字母，详细推导写在此处。"
                 ></textarea>
               </div>
             </div>
@@ -180,6 +190,7 @@ export default {
       },
       questionText: "",
       questionAnswer: "",
+      questionSolution: "",
       usageCount: null,
       lastUsedAt: null,
       loading: false,
@@ -201,6 +212,7 @@ export default {
 
         this.questionText = response.data.questionText;
         this.questionAnswer = response.data.questionAnswer;
+        this.questionSolution = response.data.solution || "";
 
         // 如果后端返回了更多字段，可以在这里设置
         if (response.data.type) this.questionType = response.data.type;
@@ -223,6 +235,7 @@ export default {
         const payload = {
           questionText: this.questionText,
           correctAnswer: this.questionAnswer,
+          solution: this.questionSolution,
         };
 
         // 如果有其他字段，也添加到 payload

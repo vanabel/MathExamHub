@@ -13,6 +13,8 @@ const questionSchema = new mongoose.Schema({
     D: { type: String },
   },
   correctAnswer: { type: mongoose.Schema.Types.Mixed },
+  /** Optional worked solution / explanation (LaTeX), separate from short correctAnswer (e.g. choice letter). */
+  solution: { type: String },
   totalScore: { type: Number, required: true },
   difficulty: {
     type: String,

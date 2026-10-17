@@ -155,6 +155,10 @@
                 <strong>答案：</strong>
                 <div class="answer-text-content" v-html="renderAnswer(question.correctAnswer)"></div>
               </div>
+              <div v-if="question.solution" class="question-solution mt-2">
+                <strong>解答：</strong>
+                <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
+              </div>
 
               <!-- 操作按钮 -->
               <div class="question-actions mt-3 pt-3 border-top">
@@ -553,6 +557,14 @@ export default {
   padding: 0.75rem;
   border-radius: 8px;
   border-left: 3px solid #667eea;
+  font-size: 0.95rem;
+}
+
+.question-solution {
+  background: #f0fdf4;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #22c55e;
   font-size: 0.95rem;
 }
 

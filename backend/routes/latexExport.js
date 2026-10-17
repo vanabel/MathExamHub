@@ -56,7 +56,7 @@ function registerLatexExportRoutes(router) {
         questionText: q.questionText,
         correctAnswer: q.correctAnswer,
         options: q.options,
-        solution: q.correctAnswer,
+        solution: q.solution,
         subject: q.subject,
         originalLaTeX: q.originalLaTeX,
       }));

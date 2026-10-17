@@ -41,7 +41,7 @@ router.post('/create-test-data', requireBankWrite, (req, res) => {
 
 router.post('/create', requireBankWrite, (req, res) => {
   const {
-    questionText, options, correctAnswer, totalScore, type, difficulty, createdBy, subject,
+    questionText, options, correctAnswer, solution, totalScore, type, difficulty, createdBy, subject,
     originalLaTeX, knowledgePointIds, status, source,
   } = req.body;
 
@@ -55,6 +55,7 @@ router.post('/create', requireBankWrite, (req, res) => {
     questionText,
     ...additionalProperties,
     correctAnswer,
+    solution,
     totalScore,
     type,
     difficulty,
@@ -106,6 +107,7 @@ router.get('/:_id/get', async (req, res) => {
     res.status(200).json({
       questionText: question.questionText,
       questionAnswer: question.correctAnswer,
+      solution: question.solution,
       type: question.type,
       totalScore: question.totalScore,
       difficulty: question.difficulty,
@@ -137,12 +139,16 @@ router.put('/:id/edit', requireBankWrite, async (req, res) => {
     }
 
     const fields = [
-      'questionText', 'options', 'correctAnswer', 'totalScore', 'difficulty', 'type',
+      'questionText', 'options', 'correctAnswer', 'solution', 'totalScore', 'difficulty', 'type',
       'subject', 'originalLaTeX', 'knowledgePointIds', 'status', 'source',
     ];
     for (const key of fields) {
       if (typeof req.body[key] !== 'undefined') {
-        question[key] = req.body[key];
+        if (key === 'solution' && typeof req.body[key] === 'string' && !req.body[key].trim()) {
+          question.solution = undefined;
+        } else {
+          question[key] = req.body[key];
+        }
       }
     }
 
