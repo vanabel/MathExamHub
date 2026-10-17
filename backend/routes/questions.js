@@ -16,6 +16,7 @@ const {
   buildQuestionListFilter,
   parseListPagination,
   parseListSort,
+  computeQuestionListFacets,
 } = require('../utils/questionListQuery');
 const { assessQuestionQuality } = require('../utils/questionQuality');
 const { extractImagesFromStem } = require('../utils/questionImages');
@@ -307,15 +308,23 @@ async function runQuestionList(req, res) {
     });
 
     const sort = parseListSort(req.query);
-    const { explicit: hasPagination, limit, offset } = parseListPagination(req.query);
+    const {
+      explicit: hasPagination,
+      limit,
+      offset,
+      page,
+      pageSize,
+    } = parseListPagination(req.query);
+    const wantFacets = req.query.facets === 'true';
 
     let questionsQuery = Question.find(query).sort(sort);
     if (limit != null) {
       questionsQuery = questionsQuery.skip(offset).limit(limit);
     }
-    const [questions, total] = await Promise.all([
+    const [questions, total, facets] = await Promise.all([
       questionsQuery.exec(),
       hasPagination ? Question.countDocuments(query) : Promise.resolve(null),
+      wantFacets ? computeQuestionListFacets(Question, query) : Promise.resolve(null),
     ]);
 
     if (checkDuplicates === 'true') {
@@ -346,7 +355,10 @@ async function runQuestionList(req, res) {
         payload.total = total;
         payload.limit = limit;
         payload.offset = offset;
+        payload.page = page;
+        payload.pageSize = pageSize;
       }
+      if (facets) payload.facets = facets;
       return res.json(payload);
     }
 
@@ -360,12 +372,16 @@ async function runQuestionList(req, res) {
     };
 
     if (hasPagination) {
-      return res.json({
+      const payload = {
         questions: questions.map(mapQ),
         total,
         limit,
         offset,
-      });
+        page,
+        pageSize,
+      };
+      if (facets) payload.facets = facets;
+      return res.json(payload);
     }
 
     res.json(questions.map(mapQ));

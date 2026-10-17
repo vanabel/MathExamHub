@@ -13,46 +13,137 @@
               <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
             </p>
           </div>
-          <div class="d-flex gap-2 flex-wrap">
-            <div class="input-group" style="max-width: 300px;">
-              <span class="input-group-text bg-white">
-                <i class="bi bi-search"></i>
-              </span>
-              <input
-                type="text"
-                class="form-control"
-                v-model="searchQuery"
-                placeholder="搜索题目..."
-                @input="handleSearch"
-              />
-            </div>
-            <input
-              v-model="subjectFilter"
-              type="text"
-              class="form-control"
-              style="max-width: 140px"
-              placeholder="科目"
-              @change="onFilterChange"
-            />
-            <select v-model="typeFilter" class="form-select" style="max-width: 130px" @change="onFilterChange">
-              <option value="">全部题型</option>
-              <option v-for="t in questionTypes" :key="t" :value="t">{{ t }}</option>
-            </select>
-            <select v-model="difficultyFilter" class="form-select" style="max-width: 100px" @change="onFilterChange">
-              <option value="">难度</option>
-              <option value="易">易</option>
-              <option value="中">中</option>
-              <option value="难">难</option>
-            </select>
-            <select v-model="kpFilter" class="form-select" style="max-width: 220px" @change="onFilterChange">
-              <option value="">全部知识点</option>
-              <option v-for="kp in knowledgePoints" :key="kp._id" :value="kp._id">
-                {{ kp.path }}
-              </option>
-            </select>
+          <div class="d-flex gap-2 flex-wrap align-items-center">
             <router-link to="/question-add" class="btn btn-primary">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
+            <button
+              type="button"
+              class="btn btn-outline-secondary d-md-none"
+              data-testid="question-list-toggle-filters"
+              @click="filtersOpen = !filtersOpen"
+            >
+              <i class="bi bi-funnel"></i> 筛选
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="filter-panel mt-3 pt-3 border-top"
+          :class="{ 'd-none d-md-block': !filtersOpen, 'd-block': filtersOpen }"
+          data-testid="question-list-filters"
+        >
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label small mb-1">关键词</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  class="form-control"
+                  placeholder="搜索题目…"
+                  data-testid="question-list-search"
+                  @input="handleSearch"
+                />
+              </div>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">科目</label>
+              <input
+                v-model="subjectFilter"
+                type="text"
+                class="form-control form-control-sm"
+                list="question-subject-suggestions"
+                placeholder="科目"
+                data-testid="question-list-subject"
+                @change="onFilterChange"
+              />
+              <datalist id="question-subject-suggestions">
+                <option v-for="s in facetSubjects" :key="s.value" :value="s.value" />
+              </datalist>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">题型</label>
+              <select
+                v-model="typeFilter"
+                class="form-select form-select-sm"
+                data-testid="question-list-type"
+                @change="onFilterChange"
+              >
+                <option value="">全部题型</option>
+                <option v-for="t in questionTypes" :key="t" :value="t">
+                  {{ t }}{{ facetSuffix('type', t) }}
+                </option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label small mb-1">难度</label>
+              <select
+                v-model="difficultyFilter"
+                class="form-select form-select-sm"
+                data-testid="question-list-difficulty"
+                @change="onFilterChange"
+              >
+                <option value="">全部</option>
+                <option v-for="d in difficultyOptions" :key="d" :value="d">
+                  {{ d }}{{ facetSuffix('difficulty', d) }}
+                </option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4 col-lg-3">
+              <label class="form-label small mb-1">知识点（含子节点）</label>
+              <select
+                v-model="kpFilter"
+                class="form-select form-select-sm"
+                data-testid="question-list-kp"
+                @change="onFilterChange"
+              >
+                <option value="">全部知识点</option>
+                <option v-for="kp in kpTreeFlat" :key="kp._id" :value="kp._id">
+                  {{ kpTreeIndent(kp.depth) }}{{ kp.path || kp.name }}
+                </option>
+              </select>
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label small mb-1">分值</label>
+              <input
+                v-model="exactScoreFilter"
+                type="number"
+                min="0"
+                class="form-control form-control-sm"
+                placeholder="精确"
+                data-testid="question-list-score-exact"
+                @change="onScoreFilterChange"
+              />
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label small mb-1">分值 ≥</label>
+              <input
+                v-model="minScoreFilter"
+                type="number"
+                min="0"
+                class="form-control form-control-sm"
+                placeholder="最小"
+                @change="onScoreFilterChange"
+              />
+            </div>
+            <div class="col-4 col-md-2">
+              <label class="form-label small mb-1">分值 ≤</label>
+              <input
+                v-model="maxScoreFilter"
+                type="number"
+                min="0"
+                class="form-control form-control-sm"
+                placeholder="最大"
+                @change="onScoreFilterChange"
+              />
+            </div>
+            <div class="col-12 col-md-auto">
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearFilters">
+                清除筛选
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -94,21 +185,58 @@
         <i class="bi bi-info-circle"></i> 未找到匹配的题目，请尝试其他关键词
       </div>
 
-      <div v-if="totalCount > pageSize" class="d-flex justify-content-end gap-2 mb-3">
-        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="pageOffset <= 0" @click="prevPage">
-          上一页
-        </button>
-        <span class="align-self-center small text-muted">
-          {{ pageOffset + 1 }}–{{ Math.min(pageOffset + pageSize, totalCount) }} / {{ totalCount }}
-        </span>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-secondary"
-          :disabled="pageOffset + pageSize >= totalCount"
-          @click="nextPage"
-        >
-          下一页
-        </button>
+      <div
+        v-if="totalCount > 0"
+        class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pagination-bar"
+        data-testid="question-list-pagination"
+      >
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <label class="small text-muted mb-0">每页</label>
+          <select
+            v-model.number="pageSize"
+            class="form-select form-select-sm"
+            style="width: auto"
+            data-testid="question-list-page-size"
+            @change="onPageSizeChange"
+          >
+            <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
+          </select>
+          <span class="small text-muted">
+            第 {{ rangeStart }}–{{ rangeEnd }} 条，共 {{ totalCount }} 条
+          </span>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-testid="question-list-prev-page"
+            :disabled="currentPage <= 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            上一页
+          </button>
+          <span class="small text-muted">第 {{ currentPage }} / {{ totalPages }} 页</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-testid="question-list-next-page"
+            :disabled="currentPage >= totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            下一页
+          </button>
+          <div class="input-group input-group-sm" style="width: 7rem">
+            <input
+              v-model.number="pageJumpInput"
+              type="number"
+              min="1"
+              :max="totalPages"
+              class="form-control"
+              data-testid="question-list-page-jump"
+            />
+            <button type="button" class="btn btn-outline-secondary" @click="jumpToPage">跳转</button>
+          </div>
+        </div>
       </div>
 
       <!-- 题目列表 -->
@@ -212,6 +340,7 @@ import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
 } from "../utils/coverageGapBatch";
+import { flattenKnowledgePointTree, kpTreeIndent } from "../utils/knowledgePointTree";
 
 export default {
   name: "QuestionList",
@@ -219,7 +348,6 @@ export default {
   data() {
     return {
       questions: [],
-      allQuestions: [], // 保存所有题目用于搜索
       loading: true,
       searchQuery: "",
       knowledgePoints: [],
@@ -227,13 +355,20 @@ export default {
       subjectFilter: "",
       typeFilter: "",
       difficultyFilter: "",
+      exactScoreFilter: "",
       minScoreFilter: "",
       maxScoreFilter: "",
       questionTypes: ['判断题', '单选题', '多选题', '填空题', '简答题', '解答题', '计算题', '证明题', '作图题'],
+      difficultyOptions: ['易', '中', '难'],
+      pageSizeOptions: [10, 20, 50, 100],
       totalCount: 0,
-      pageSize: 50,
-      pageOffset: 0,
+      pageSize: 20,
+      currentPage: 1,
+      pageJumpInput: 1,
+      facets: { subject: [], type: [], difficulty: [] },
+      filtersOpen: false,
       searchTimer: null,
+      routeSyncToken: 0,
       gapBatchGaps: [],
       gapBatchIndex: 0,
       gapBatchSeed: null,
@@ -248,16 +383,43 @@ export default {
       if (!g) return '';
       return g.message || g.sectionType || '缺口';
     },
+    kpTreeFlat() {
+      return flattenKnowledgePointTree(this.knowledgePoints);
+    },
+    facetSubjects() {
+      return this.facets.subject || [];
+    },
+    totalPages() {
+      return Math.max(1, Math.ceil(this.totalCount / this.pageSize) || 1);
+    },
+    rangeStart() {
+      if (!this.totalCount) return 0;
+      return (this.currentPage - 1) * this.pageSize + 1;
+    },
+    rangeEnd() {
+      return Math.min(this.currentPage * this.pageSize, this.totalCount);
+    },
   },
   mounted() {
     this.initGapBatchFromRoute();
-    this.applyRouteQuery();
+    this.readFiltersFromRoute();
     this.loadKnowledgePoints();
-    this.getQuestionList();
+    this.pushFiltersToRoute();
   },
   watch: {
+    '$route.query': {
+      handler() {
+        if (this.routeSyncToken > 0) return;
+        this.readFiltersFromRoute();
+        this.fetchQuestionList();
+      },
+      deep: true,
+    },
     '$route.query.gapBatch'() {
       this.initGapBatchFromRoute();
+    },
+    currentPage(val) {
+      this.pageJumpInput = val;
     },
   },
   updated() {
@@ -340,31 +502,38 @@ export default {
       this.gapBatchIndex = 0;
       this.applyGapListQuery(this.gapBatchGaps[0]?.listQuery);
     },
+    kpTreeIndent,
+    facetSuffix(dimension, value) {
+      const rows = this.facets[dimension] || [];
+      const hit = rows.find((r) => r.value === value);
+      return hit ? ` (${hit.count})` : '';
+    },
     applyGapListQuery(listQuery) {
       if (!listQuery) return;
       this.typeFilter = listQuery.type ? String(listQuery.type) : '';
       this.difficultyFilter = listQuery.difficulty ? String(listQuery.difficulty) : '';
       this.kpFilter = listQuery.knowledgePointId ? String(listQuery.knowledgePointId) : '';
       this.subjectFilter = listQuery.subject ? String(listQuery.subject) : '';
+      this.exactScoreFilter = '';
       this.minScoreFilter = listQuery.minScore != null && listQuery.minScore !== ''
         ? Number(listQuery.minScore)
         : '';
       this.maxScoreFilter = listQuery.maxScore != null && listQuery.maxScore !== ''
         ? Number(listQuery.maxScore)
         : '';
-      this.pageOffset = 0;
+      this.currentPage = 1;
     },
     prevGapBatch() {
       if (this.gapBatchIndex <= 0) return;
       this.gapBatchIndex -= 1;
       this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
-      this.getQuestionList();
+      this.pushFiltersToRoute();
     },
     nextGapBatch() {
       if (this.gapBatchIndex >= this.gapBatchGaps.length - 1) return;
       this.gapBatchIndex += 1;
       this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
-      this.getQuestionList();
+      this.pushFiltersToRoute();
     },
     clearGapBatch() {
       this.gapBatchGaps = [];
@@ -375,18 +544,70 @@ export default {
       delete q.gapBatch;
       this.$router.replace({ query: q });
     },
-    applyRouteQuery() {
+    readFiltersFromRoute() {
       const q = this.$route.query || {};
       if (q.gapBatch === '1' && this.gapBatchGaps.length) {
         this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
         return;
       }
-      if (q.type) this.typeFilter = String(q.type);
-      if (q.difficulty) this.difficultyFilter = String(q.difficulty);
-      if (q.knowledgePointId) this.kpFilter = String(q.knowledgePointId);
-      if (q.subject) this.subjectFilter = String(q.subject);
-      if (q.minScore != null && q.minScore !== "") this.minScoreFilter = Number(q.minScore);
-      if (q.maxScore != null && q.maxScore !== "") this.maxScoreFilter = Number(q.maxScore);
+      this.searchQuery = q.q ? String(q.q) : '';
+      this.subjectFilter = q.subject ? String(q.subject) : '';
+      this.typeFilter = q.type ? String(q.type) : '';
+      this.difficultyFilter = q.difficulty ? String(q.difficulty) : '';
+      this.kpFilter = q.knowledgePointId ? String(q.knowledgePointId) : '';
+      this.exactScoreFilter = q.score != null && q.score !== '' ? Number(q.score) : '';
+      this.minScoreFilter = q.minScore != null && q.minScore !== '' ? Number(q.minScore) : '';
+      this.maxScoreFilter = q.maxScore != null && q.maxScore !== '' ? Number(q.maxScore) : '';
+      const ps = parseInt(q.pageSize, 10);
+      this.pageSize = this.pageSizeOptions.includes(ps) ? ps : 20;
+      this.currentPage = Math.max(parseInt(q.page, 10) || 1, 1);
+      this.pageJumpInput = this.currentPage;
+    },
+    buildRouteQuery() {
+      const q = {};
+      if (this.searchQuery.trim()) q.q = this.searchQuery.trim();
+      if (this.subjectFilter.trim()) q.subject = this.subjectFilter.trim();
+      if (this.typeFilter) q.type = this.typeFilter;
+      if (this.difficultyFilter) q.difficulty = this.difficultyFilter;
+      if (this.kpFilter) q.knowledgePointId = this.kpFilter;
+      if (this.exactScoreFilter !== '' && this.exactScoreFilter != null) {
+        q.score = String(this.exactScoreFilter);
+      } else {
+        if (this.minScoreFilter !== '' && this.minScoreFilter != null) q.minScore = String(this.minScoreFilter);
+        if (this.maxScoreFilter !== '' && this.maxScoreFilter != null) q.maxScore = String(this.maxScoreFilter);
+      }
+      q.page = String(this.currentPage);
+      q.pageSize = String(this.pageSize);
+      if (this.$route.query?.gapBatch === '1') q.gapBatch = '1';
+      return q;
+    },
+    pushFiltersToRoute() {
+      const next = this.buildRouteQuery();
+      const cur = this.$route.query || {};
+      const runFetch = () => this.fetchQuestionList();
+      if (JSON.stringify(next) === JSON.stringify(cur)) {
+        runFetch();
+        return;
+      }
+      this.routeSyncToken += 1;
+      this.$router.replace({ query: next }).finally(() => {
+        this.$nextTick(() => {
+          this.routeSyncToken = Math.max(0, this.routeSyncToken - 1);
+          runFetch();
+        });
+      });
+    },
+    clearFilters() {
+      this.searchQuery = '';
+      this.subjectFilter = '';
+      this.typeFilter = '';
+      this.difficultyFilter = '';
+      this.kpFilter = '';
+      this.exactScoreFilter = '';
+      this.minScoreFilter = '';
+      this.maxScoreFilter = '';
+      this.currentPage = 1;
+      this.pushFiltersToRoute();
     },
     async loadKnowledgePoints() {
       try {
@@ -397,59 +618,84 @@ export default {
       }
     },
     onFilterChange() {
-      this.pageOffset = 0;
-      this.getQuestionList();
+      this.currentPage = 1;
+      this.pushFiltersToRoute();
     },
-    prevPage() {
-      this.pageOffset = Math.max(0, this.pageOffset - this.pageSize);
-      this.getQuestionList();
-    },
-    nextPage() {
-      if (this.pageOffset + this.pageSize < this.totalCount) {
-        this.pageOffset += this.pageSize;
-        this.getQuestionList();
+    onScoreFilterChange() {
+      if (this.exactScoreFilter !== '' && this.exactScoreFilter != null) {
+        this.minScoreFilter = '';
+        this.maxScoreFilter = '';
       }
+      this.onFilterChange();
     },
-    async getQuestionList() {
+    onPageSizeChange() {
+      this.currentPage = 1;
+      this.pushFiltersToRoute();
+    },
+    goToPage(page) {
+      const p = Math.min(Math.max(page, 1), this.totalPages);
+      if (p === this.currentPage) return;
+      this.currentPage = p;
+      this.pushFiltersToRoute();
+    },
+    jumpToPage() {
+      const p = parseInt(this.pageJumpInput, 10);
+      if (Number.isNaN(p)) return;
+      this.goToPage(p);
+    },
+    listRequestParams() {
+      const params = {
+        page: this.currentPage,
+        pageSize: this.pageSize,
+        facets: 'true',
+        includeQuality: 'true',
+      };
+      if (this.kpFilter) {
+        params.knowledgePointId = this.kpFilter;
+        params.subtree = 'true';
+      }
+      if (this.subjectFilter.trim()) params.subject = this.subjectFilter.trim();
+      if (this.typeFilter) params.type = this.typeFilter;
+      if (this.difficultyFilter) params.difficulty = this.difficultyFilter;
+      if (this.exactScoreFilter !== '' && this.exactScoreFilter != null) {
+        params.score = this.exactScoreFilter;
+      } else {
+        if (this.minScoreFilter !== '' && this.minScoreFilter != null) params.minScore = this.minScoreFilter;
+        if (this.maxScoreFilter !== '' && this.maxScoreFilter != null) params.maxScore = this.maxScoreFilter;
+      }
+      if (this.searchQuery.trim()) params.q = this.searchQuery.trim();
+      return params;
+    },
+    async fetchQuestionList() {
       this.loading = true;
       try {
-        const params = {
-          limit: this.pageSize,
-          offset: this.pageOffset,
-        };
-        if (this.kpFilter) {
-          params.knowledgePointId = this.kpFilter;
-          params.subtree = "true";
-        }
-        if (this.subjectFilter.trim()) params.subject = this.subjectFilter.trim();
-        if (this.typeFilter) params.type = this.typeFilter;
-        if (this.difficultyFilter) params.difficulty = this.difficultyFilter;
-        if (this.minScoreFilter !== "" && this.minScoreFilter != null) params.minScore = this.minScoreFilter;
-        if (this.maxScoreFilter !== "" && this.maxScoreFilter != null) params.maxScore = this.maxScoreFilter;
-        if (this.searchQuery.trim()) params.q = this.searchQuery.trim();
-        params.includeQuality = "true";
-        const response = await axios.get("/questions/list", { params });
+        const response = await axios.get('/questions/list', { params: this.listRequestParams() });
         const data = response.data;
         if (Array.isArray(data)) {
-          this.allQuestions = data;
           this.questions = data;
           this.totalCount = data.length;
+          this.facets = { subject: [], type: [], difficulty: [] };
         } else {
-          this.allQuestions = data.questions || [];
           this.questions = data.questions || [];
           this.totalCount = data.total ?? this.questions.length;
+          if (data.page) this.currentPage = data.page;
+          if (data.facets) this.facets = data.facets;
+        }
+        if (this.currentPage > this.totalPages) {
+          this.currentPage = this.totalPages;
+          this.pushFiltersToRoute();
         }
       } catch (error) {
-        console.error("Failed to retrieve question list:", error);
+        console.error('Failed to retrieve question list:', error);
       } finally {
         this.loading = false;
       }
     },
     handleSearch() {
-      this.pageOffset = 0;
+      this.currentPage = 1;
       if (this.searchTimer) clearTimeout(this.searchTimer);
       this.searchTimer = setTimeout(() => {
-        this.getQuestionList();
+        this.pushFiltersToRoute();
       }, 350);
     },
     answerToText(content) {
@@ -482,9 +728,7 @@ export default {
 
       try {
         await axios.delete(`/questions/${id}/delete`);
-        // 同时更新 allQuestions 和 questions
-        this.allQuestions = this.allQuestions.filter((q) => q._id !== id);
-        this.questions = this.questions.filter((q) => q._id !== id);
+        await this.fetchQuestionList();
       } catch (error) {
         console.error("删除失败:", error);
         alert("删除失败，请稍后重试");
@@ -603,6 +847,19 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.filter-panel {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.pagination-bar {
+  background: white;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
 @media (max-width: 768px) {
   .question-list-container {
     padding: 1rem 0;
@@ -610,6 +867,10 @@ export default {
 
   .page-header {
     padding: 1.5rem;
+  }
+
+  .filter-panel {
+    padding: 0.75rem;
   }
 }
 </style>
