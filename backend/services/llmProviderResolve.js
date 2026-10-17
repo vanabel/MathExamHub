@@ -5,6 +5,9 @@
 const DEFAULT_LLM_MODEL = 'deepseek-ai/DeepSeek-V4.1-Flash';
 const DEFAULT_OPENAI_COMPAT_BASE = 'https://api.openai.com/v1';
 const DEFAULT_SILICONFLOW_BASE = 'https://api.siliconflow.cn/v1';
+const DEFAULT_LLM_TIMEOUT_MS = 120000;
+const MAX_LLM_TIMEOUT_MS = 300000;
+const MIN_LLM_TIMEOUT_MS = 3000;
 
 function normalizeBaseUrl(url) {
   let base = String(url || '').trim().replace(/\/$/, '');
@@ -51,6 +54,20 @@ function resolveDefaultBaseUrl(settings) {
   return DEFAULT_OPENAI_COMPAT_BASE;
 }
 
+function resolveLlmTimeoutMs(settings) {
+  const fromEnv = process.env.LLM_TIMEOUT_MS;
+  if (fromEnv != null && String(fromEnv).trim() !== '') {
+    const n = parseInt(String(fromEnv).trim(), 10);
+    if (!Number.isNaN(n)) {
+      return Math.min(MAX_LLM_TIMEOUT_MS, Math.max(MIN_LLM_TIMEOUT_MS, n));
+    }
+  }
+  if (settings?.llmTimeoutMs != null && !Number.isNaN(Number(settings.llmTimeoutMs))) {
+    return Math.min(MAX_LLM_TIMEOUT_MS, Math.max(MIN_LLM_TIMEOUT_MS, Number(settings.llmTimeoutMs)));
+  }
+  return DEFAULT_LLM_TIMEOUT_MS;
+}
+
 function resolveLlmChatConfig(settings = {}) {
   let provider = !isUnsetProvider(settings.llmProvider)
     ? settings.llmProvider
@@ -79,7 +96,7 @@ function resolveLlmChatConfig(settings = {}) {
     apiKey,
     baseUrl: normalizeBaseUrl(resolveDefaultBaseUrl(settings)),
     model: resolveDefaultModel(settings),
-    timeoutMs: settings.llmTimeoutMs ?? 12000,
+    timeoutMs: resolveLlmTimeoutMs(settings),
   };
 }
 
@@ -101,7 +118,10 @@ function settingsForLlmAssist(platformSettings) {
 module.exports = {
   resolveLlmChatConfig,
   settingsForLlmAssist,
+  resolveLlmTimeoutMs,
   DEFAULT_LLM_MODEL,
   DEFAULT_OPENAI_COMPAT_BASE,
   DEFAULT_SILICONFLOW_BASE,
+  DEFAULT_LLM_TIMEOUT_MS,
+  MAX_LLM_TIMEOUT_MS,
 };

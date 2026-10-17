@@ -67,8 +67,18 @@ function extractImagesFromStem(stem, existingImages = []) {
   };
 }
 
+function comparableImages(images) {
+  return (images || []).map(normalizeImageEntry).filter(Boolean);
+}
+
+function imagesEqualIgnoringIds(a, b) {
+  return JSON.stringify(comparableImages(a)) === JSON.stringify(comparableImages(b));
+}
+
 module.exports = {
   extractImagesFromStem,
   normalizeImageEntry,
   parseImageTagAttrs,
+  comparableImages,
+  imagesEqualIgnoringIds,
 };

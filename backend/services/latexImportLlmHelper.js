@@ -1,5 +1,5 @@
 const { getPlatformSettings } = require('./platformSettingsService');
-const { suggestQuestionMetadata } = require('./llmAssistService');
+const { suggestQuestionMetadata, buildQuestionMetadataInput } = require('./llmAssistService');
 const { settingsForLlmAssist } = require('./llmProviderResolve');
 
 const LLM_PREVIEW_MAX_QUESTIONS = Number(process.env.LLM_PREVIEW_MAX_QUESTIONS) || 20;
@@ -49,12 +49,13 @@ async function attachLlmSuggestions(questions, bankId, opts = {}) {
   }
   const slice = questions.slice(0, effectiveMax);
   const llmSuggestionsPartial = await mapWithConcurrency(slice, effectiveConcurrency, async (q) => suggestFn(
-    {
-      questionText: q.questionText,
-      type: q.type,
-      subject: q.subject || '解析几何',
-      knowledgePoints: kpNodes,
-    },
+    buildQuestionMetadataInput(
+      {
+        ...q,
+        subject: q.subject || '解析几何',
+      },
+      kpNodes,
+    ),
     settings,
   ));
   const llmSuggestions = [...llmSuggestionsPartial];

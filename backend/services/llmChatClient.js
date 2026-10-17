@@ -1,3 +1,5 @@
+const { DEFAULT_LLM_TIMEOUT_MS } = require('./llmProviderResolve');
+
 /**
  * OpenAI-compatible chat completions (OpenAI / SiliconFlow etc.)
  * @param {object} opts
@@ -11,7 +13,7 @@
 async function chatCompletionJson(opts) {
   const base = String(opts.baseUrl || '').replace(/\/$/, '');
   const url = `${base}/chat/completions`;
-  const timeoutMs = opts.timeoutMs ?? 12000;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

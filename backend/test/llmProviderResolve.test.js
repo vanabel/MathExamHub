@@ -5,6 +5,9 @@ const {
   settingsForLlmAssist,
   DEFAULT_LLM_MODEL,
   DEFAULT_SILICONFLOW_BASE,
+  DEFAULT_LLM_TIMEOUT_MS,
+  MAX_LLM_TIMEOUT_MS,
+  resolveLlmTimeoutMs,
 } = require('../services/llmProviderResolve');
 
 describe('llmProviderResolve', () => {
@@ -58,6 +61,24 @@ describe('llmProviderResolve', () => {
         if (prev[k] === undefined) delete process.env[k];
         else process.env[k] = prev[k];
       });
+    }
+  });
+
+  it('defaults LLM timeout to 120s and caps at 300s', () => {
+    assert.equal(DEFAULT_LLM_TIMEOUT_MS, 120000);
+    assert.equal(MAX_LLM_TIMEOUT_MS, 300000);
+    const cfg = resolveLlmChatConfig({ llmProvider: 'openai_compatible', llmApiKey: 'k' });
+    assert.equal(cfg.timeoutMs, 120000);
+  });
+
+  it('honors LLM_TIMEOUT_MS env override', () => {
+    const prev = process.env.LLM_TIMEOUT_MS;
+    process.env.LLM_TIMEOUT_MS = '180000';
+    try {
+      assert.equal(resolveLlmTimeoutMs({}), 180000);
+    } finally {
+      if (prev === undefined) delete process.env.LLM_TIMEOUT_MS;
+      else process.env.LLM_TIMEOUT_MS = prev;
     }
   });
 

@@ -11,7 +11,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const connectDB = require('../config/database');
 const Question = require('../models/Question');
-const { extractImagesFromStem } = require('../utils/questionImages');
+const { extractImagesFromStem, imagesEqualIgnoringIds } = require('../utils/questionImages');
 
 async function migrateStemHtmlImages({ apply }) {
   const cursor = Question.find({}).cursor();
@@ -24,7 +24,7 @@ async function migrateStemHtmlImages({ apply }) {
     const beforeStem = doc.questionText || '';
     const extracted = extractImagesFromStem(beforeStem, doc.images || []);
     const stemChanged = extracted.stem !== beforeStem.trim();
-    const imagesChanged = JSON.stringify(extracted.images) !== JSON.stringify(doc.images || []);
+    const imagesChanged = !imagesEqualIgnoringIds(extracted.images, doc.images || []);
     if (!stemChanged && !imagesChanged) continue;
     wouldChange += 1;
     if (apply) {
