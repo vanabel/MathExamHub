@@ -170,17 +170,17 @@
                       <!-- 预览模式：渲染 HTML -->
                       <div v-if="previewMode" class="question-preview-content">
                         <div 
-                          v-html="processQuestionTextToHTML(question.questionText)"
+                          v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
                           ref="questionContent"
                           class="question-text-content mb-2"
                         ></div>
                         <!-- 选项（如果是选择题） -->
                         <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-2">
-                          <ol class="option-list mb-0 small">
-                            <li v-for="(option, index) in question.options" :key="index" class="option-item">
-                              <vue-mathjax :formula="option" :options="mathjaxOptions"></vue-mathjax>
-                            </li>
-                          </ol>
+                          <ChoiceOptionsList :options="question.options" class="small">
+                            <template #default="{ entry }">
+                              <vue-mathjax :formula="entry.text" :options="mathjaxOptions"></vue-mathjax>
+                            </template>
+                          </ChoiceOptionsList>
                         </div>
                         <!-- 答案 -->
                         <div class="question-answer mb-0">
@@ -514,11 +514,14 @@ import axios from "axios";
 import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
+import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import { isChoiceQuestionType } from "../utils/choiceOptions";
 
 export default {
   name: "LatexExport",
   components: {
     "vue-mathjax": VueMathjaxNext,
+    ChoiceOptionsList,
   },
   data() {
     return {
@@ -653,6 +656,16 @@ export default {
     processQuestionText,
     processAnswerText,
     processQuestionTextToHTML,
+    questionPreviewOpts(question) {
+      const opts = question?.options;
+      const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      return {
+        hasOptions,
+        mode: 'question',
+        questionType: question?.type || '',
+        choiceOptionLabels: isChoiceQuestionType(question?.type),
+      };
+    },
     // 获取难度样式类
     getDifficultyClass(difficulty) {
       const classMap = {
@@ -1368,12 +1381,6 @@ export default {
 
 .question-text-content {
   line-height: 1.6;
-}
-
-.option-list {
-  padding-left: 1.5rem;
-  margin-top: 0.5rem;
-  list-style: upper-alpha;
 }
 
 .option-item {

@@ -53,9 +53,12 @@ test('math fragments from regression fixtures compile under MathJax 3 + shared m
   const { doc, adaptor } = buildRenderer();
 
   for (const c of fixtures.cases) {
+    const isChoice = c.type === '单选题' || c.type === '多选题';
     const stem = P.processQuestionTextToHTML(c.questionText, c.originalLaTeX, {
       hasOptions: !!(c.options && Object.keys(c.options).length),
       mode: 'question',
+      questionType: c.type || '',
+      choiceOptionLabels: isChoice,
     });
     const ans = P.processAnswerTextToHTML(c.correctAnswer);
     for (const { tex, display } of [...extractMathFragments(stem), ...extractMathFragments(ans)]) {

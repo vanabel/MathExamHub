@@ -319,8 +319,18 @@
                 </div>
                 <div
                   class="question-preview"
-                  v-html="processQuestionTextToHTML(item.questionText, item.originalLaTeX, { hasOptions: !!(item.options && Object.keys(item.options).length), mode: 'question' })"
+                  v-html="processQuestionTextToHTML(item.questionText, item.originalLaTeX, questionPreviewOpts(item))"
                 ></div>
+                <div
+                  v-if="isChoiceType(item.type) && item.options && Object.keys(item.options).length"
+                  class="question-preview-options mt-2"
+                >
+                  <ChoiceOptionsList :options="item.options">
+                    <template #default="{ entry }">
+                      <div v-html="processQuestionTextToHTML(entry.text)"></div>
+                    </template>
+                  </ChoiceOptionsList>
+                </div>
                 <div
                   v-if="item.images && item.images.length"
                   class="question-preview-images mt-2"
@@ -360,6 +370,8 @@
 <script>
 import axios from 'axios';
 import { processQuestionTextToHTML, renderQuestionImagesHtml } from '../utils/latexProcessor';
+import ChoiceOptionsList from './ChoiceOptionsList.vue';
+import { isChoiceQuestionType } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 
@@ -373,7 +385,7 @@ const defaultSection = () => ({
 
 export default {
   name: 'ExamWizard',
-  components: { KnowledgePointPicker },
+  components: { KnowledgePointPicker, ChoiceOptionsList },
   data() {
     return {
       step: 1,
@@ -428,6 +440,17 @@ export default {
   methods: {
     processQuestionTextToHTML,
     renderQuestionImagesHtml,
+    isChoiceType: isChoiceQuestionType,
+    questionPreviewOpts(item) {
+      const opts = item?.options;
+      const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      return {
+        hasOptions,
+        mode: 'question',
+        questionType: item?.type || '',
+        choiceOptionLabels: isChoiceQuestionType(item?.type),
+      };
+    },
     formatLastUsed(iso) {
       if (!iso) return '';
       const d = new Date(iso);

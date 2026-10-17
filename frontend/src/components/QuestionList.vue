@@ -153,11 +153,11 @@
 
               <!-- 选项（如果是选择题） -->
               <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-3">
-                <ol class="option-list">
-                  <li v-for="(option, index) in question.options" :key="index" class="option-item">
-                    <div v-html="processQuestionTextToHTML(option)"></div>
-                  </li>
-                </ol>
+                <ChoiceOptionsList :options="question.options">
+                  <template #default="{ entry }">
+                    <div v-html="processQuestionTextToHTML(entry.text)"></div>
+                  </template>
+                </ChoiceOptionsList>
               </div>
 
               <!-- 答案 -->
@@ -206,6 +206,8 @@ import {
   processAnswerTextToHTML,
   renderQuestionImagesHtml,
 } from "../utils/latexProcessor";
+import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import { isChoiceQuestionType } from "../utils/choiceOptions";
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
@@ -213,6 +215,7 @@ import {
 
 export default {
   name: "QuestionList",
+  components: { ChoiceOptionsList },
   data() {
     return {
       questions: [],
@@ -273,7 +276,12 @@ export default {
     questionRenderOptions(question) {
       const opts = question && question.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
-      return { hasOptions, mode: 'question' };
+      return {
+        hasOptions,
+        mode: 'question',
+        questionType: question?.type || '',
+        choiceOptionLabels: isChoiceQuestionType(question?.type),
+      };
     },
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
@@ -555,12 +563,6 @@ export default {
   padding: 1rem;
   border-radius: 8px;
   margin-top: 1rem;
-}
-
-.option-list {
-  margin: 0;
-  padding-left: 1.5rem;
-  list-style: upper-alpha;
 }
 
 .option-item {

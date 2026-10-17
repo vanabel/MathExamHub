@@ -27,12 +27,14 @@ function stripTags(html) {
 test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML', async () => {
   const P = await loadProcessor();
   for (const c of fixtures.cases) {
-    const opts = c.options
-      ? { hasOptions: true, mode: 'question' }
-      : {
-          hasOptions: !!(c.options && Object.keys(c.options).length),
-          mode: 'question',
-        };
+    const hasOptions = !!(c.options && Object.keys(c.options).length);
+    const isChoice = c.type === '单选题' || c.type === '多选题';
+    const opts = {
+      hasOptions,
+      mode: 'question',
+      questionType: c.type || '',
+      choiceOptionLabels: isChoice,
+    };
     const stem = P.processQuestionTextToHTML(c.questionText, c.originalLaTeX, opts);
     const ans = P.processAnswerTextToHTML(
       Array.isArray(c.correctAnswer) ? c.correctAnswer : c.correctAnswer,
@@ -70,6 +72,22 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
         assert.doesNotMatch(stem, /mathexam-abcd/);
         assert.doesNotMatch(stem, /<ol class="latex-enumerate"/);
         assert.match(stripTags(ans), /^D$/m);
+        break;
+      }
+      case 'choice-abcd-stem': {
+        assert.match(stem, /\(A\)/);
+        assert.match(stem, /\(D\)/);
+        assert.match(stem, /mathexam-abcd-label/);
+        break;
+      }
+      case 'choice-enumerate-stem': {
+        assert.match(stem, /\(A\)/);
+        assert.match(stem, /\(B\)/);
+        assert.match(stem, /\(C\)/);
+        assert.match(stem, /\(D\)/);
+        assert.match(stem, /choice-option-label|mathexam-abcd-label/);
+        assert.doesNotMatch(stem, /<ol class="latex-enumerate"/);
+        assert.doesNotMatch(stem, /list-style:\s*upper-alpha/i);
         break;
       }
       case 'true-judgment':

@@ -5,6 +5,12 @@
 
 import axios from 'axios';
 
+/** Must match choiceOptions.formatChoiceOptionLabel — "(A)" not "A." */
+function formatChoiceOptionLabel(letter) {
+  const ch = String(letter ?? '').trim().toUpperCase();
+  return ch ? `(${ch})` : '';
+}
+
 /** In JS String.replace, "$$" is one literal "$"; use "$$$$" for "$$". */
 const DISPLAY_DOLLAR = '$$$$';
 
@@ -403,14 +409,35 @@ function matchNestedBraces(text, startIndex) {
   return null;
 }
 
+const CHOICE_LIST_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+function shouldRenderChoiceListLabels(opts, itemCount) {
+  return opts.choiceOptionLabels && opts.depth === 0 && itemCount >= 2 && itemCount <= 8;
+}
+
+function buildChoiceListHtml(items, renderItem, childOpts) {
+  const htmlItems = items
+    .map((item, index) => {
+      const label = CHOICE_LIST_LABELS[index] || String.fromCharCode(65 + index);
+      const body = renderItem(item, childOpts) || item;
+      const displayLabel = formatChoiceOptionLabel(label);
+      return `<div class="mathexam-abcd-item latex-choice-option-item"><span class="mathexam-abcd-label choice-option-label">${displayLabel}</span> <span class="mathexam-abcd-body">${body}</span></div>`;
+    })
+    .join('');
+  return `<div class="mathexam-abcd latex-choice-options">${htmlItems}</div>`;
+}
+
 /**
  * 解析 enumerate 环境并转换为 HTML 列表
  * 支持嵌套的 enumerate 环境
  * @param {string} text - 包含 enumerate 环境的文本
+ * @param {{ choiceOptionLabels?: boolean, depth?: number }} opts
  * @returns {string} 转换后的文本（HTML 格式）
  */
-function processEnumerate(text) {
+function processEnumerate(text, opts = {}) {
   if (!text) return '';
+  const depth = opts.depth ?? 0;
+  const childOpts = { ...opts, depth: depth + 1 };
   
   // 匹配 \begin{enumerate}...\end{enumerate}，支持嵌套
   // 使用递归方式处理嵌套的 enumerate
@@ -502,17 +529,19 @@ function processEnumerate(text) {
       }
     }
     
-    // 生成 HTML 列表
     if (items.length > 0) {
-      const htmlList = '<ol class="latex-enumerate">' + 
-        items.map(item => {
-          // 递归处理嵌套的 enumerate
-          const processedItem = processEnumerate(item);
-          // 处理 item 中的数学公式（但保留 HTML 结构）
-          const finalItem = processedItem || item;
-          return `<li>${finalItem}</li>`;
-        }).join('') + 
-        '</ol>';
+      let htmlList;
+      if (shouldRenderChoiceListLabels({ ...opts, depth }, items.length)) {
+        htmlList = buildChoiceListHtml(items, (item) => processEnumerate(item, childOpts));
+      } else {
+        htmlList = '<ol class="latex-enumerate">'
+          + items.map((item) => {
+            const processedItem = processEnumerate(item, childOpts);
+            const finalItem = processedItem || item;
+            return `<li>${finalItem}</li>`;
+          }).join('')
+          + '</ol>';
+      }
       replacements.push({
         start: enumerate.start,
         end: enumerate.end,
@@ -536,8 +565,10 @@ function processEnumerate(text) {
 /**
  * Parse \\begin{itemize}…\\end{itemize} into HTML lists (answers / stems).
  */
-function processItemize(text) {
+function processItemize(text, opts = {}) {
   if (!text) return '';
+  const depth = opts.depth ?? 0;
+  const childOpts = { ...opts, depth: depth + 1 };
 
   function parseItemize(content, startPos) {
     const beginRegex = /\\begin\{itemize\}/g;
@@ -599,15 +630,17 @@ function processItemize(text) {
     }
 
     if (items.length > 0) {
-      const htmlList =
-        '<ul class="latex-itemize">' +
-        items
-          .map((item) => {
-            const processedItem = processItemize(item);
+      let htmlList;
+      if (shouldRenderChoiceListLabels({ ...opts, depth }, items.length)) {
+        htmlList = buildChoiceListHtml(items, (item) => processItemize(item, childOpts));
+      } else {
+        htmlList = '<ul class="latex-itemize">'
+          + items.map((item) => {
+            const processedItem = processItemize(item, childOpts);
             return `<li>${processedItem || item}</li>`;
-          })
-          .join('') +
-        '</ul>';
+          }).join('')
+          + '</ul>';
+      }
       replacements.push({ start: block.start, end: block.end, replacement: htmlList });
     }
 
@@ -644,7 +677,8 @@ function processMathexamEnvironments(text) {
     const htmlItems = items
       .map((item, index) => {
         const label = labels[index] || String.fromCharCode(65 + index);
-        return `<div class="mathexam-abcd-item"><span class="mathexam-abcd-label">(${label})</span> <span class="mathexam-abcd-body">${item}</span></div>`;
+        const displayLabel = formatChoiceOptionLabel(label);
+        return `<div class="mathexam-abcd-item"><span class="mathexam-abcd-label choice-option-label">${displayLabel}</span> <span class="mathexam-abcd-body">${item}</span></div>`;
       })
       .join('');
     return `<div class="mathexam-abcd">${htmlItems}</div>`;
@@ -662,7 +696,15 @@ function processMathexamEnvironments(text) {
 export function processQuestionTextToHTML(text, originalLaTeX = null, options = {}) {
   if (!text) return '';
 
-  const { hasOptions = false, mode = 'question' } = options;
+  const {
+    hasOptions = false,
+    mode = 'question',
+    choiceOptionLabels = false,
+    questionType = '',
+  } = options;
+  const useChoiceLabels = choiceOptionLabels
+    || (mode === 'question' && (questionType === '单选题' || questionType === '多选题'));
+  const listRenderOpts = { choiceOptionLabels: useChoiceLabels, depth: 0 };
 
   // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）
   // 如果文本包含原始的 LaTeX 命令而不是 <image> 标签，需要先转换
@@ -766,9 +808,8 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
     }
   }
 
-  // 然后处理 enumerate 环境（转换为 HTML）
-  processed = processEnumerate(processed);
-  processed = processItemize(processed);
+  processed = processEnumerate(processed, listRenderOpts);
+  processed = processItemize(processed, listRenderOpts);
   
   // 然后处理其他 LaTeX 命令，但需要避免处理 HTML 标签内的内容
   // 使用正则表达式分割 HTML 标签和文本内容

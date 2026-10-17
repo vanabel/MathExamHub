@@ -179,6 +179,32 @@
    ]
   },
   {
+   "name": "choice-abcd-stem",
+   "type": "单选题",
+   "questionText": "下列正确的是？",
+   "correctAnswer": "B",
+   "originalLaTeX": "下列正确的是？\\begin{abcd}\\item 甲\\item 乙\\item 丙\\item 丁\\end{abcd}",
+   "expect": [
+    "abcd items labeled (A)(B)(C)(D)"
+   ]
+  },
+  {
+   "name": "choice-enumerate-stem",
+   "type": "单选题",
+   "questionText": "下列正确的是？\\begin{enumerate}\\item 甲\\item 乙\\item 丙\\item 丁\\end{enumerate}",
+   "options": {
+    "A": "甲",
+    "B": "乙",
+    "C": "丙",
+    "D": "丁"
+   },
+   "correctAnswer": "A",
+   "originalLaTeX": "下列正确的是？\\begin{enumerate}\\item 甲\\item 乙\\item 丙\\item 丁\\end{enumerate}",
+   "expect": [
+    "enumerate in 单选题 stem uses A-D labels, not 1-4"
+   ]
+  },
+  {
    "name": "answer-center-includegraphics",
    "type": "作图题",
    "questionText": "作出曲线示意图.",
