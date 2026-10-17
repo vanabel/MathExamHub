@@ -1272,7 +1272,20 @@ class LatexGenerator {
     };
 
     const preambleExtras = (metadata.preambleLines || []).join('\n');
-    const preambleBlock = preambleExtras ? `${preambleExtras}\n` : '';
+    const defaultMacroLines = [
+      '\\providecommand{\\bu}{\\mathbf{u}}',
+      '\\providecommand{\\bv}{\\mathbf{v}}',
+      '\\providecommand{\\bw}{\\mathbf{w}}',
+      '\\providecommand{\\bo}{\\mathbf{0}}',
+      '\\providecommand{\\be}{\\mathbf{e}}',
+      '\\providecommand{\\br}{\\mathbf{r}}',
+      '\\providecommand{\\bt}{\\mathbf{t}}',
+      '\\providecommand{\\bn}{\\mathbf{n}}',
+      '\\providecommand{\\bb}{\\mathbf{b}}',
+      '\\providecommand{\\I}{\\mathrm{I}}',
+      '\\providecommand{\\II}{\\mathrm{I\\!I}}',
+    ].join('\n');
+    const preambleBlock = [defaultMacroLines, preambleExtras].filter(Boolean).join('\n') + (defaultMacroLines || preambleExtras ? '\n' : '');
 
     return `% !TEX program = xelatex
 % 编译：将同目录下的 mathexam.sty 与本文一并交给 XeLaTeX
@@ -1433,15 +1446,16 @@ ${preambleBlock}
       }
     }
 
-    const solutionBody = question.solution
+    const explicitSolution = question.solution && String(question.solution).trim();
+    const solutionBody = explicitSolution
       || (mode === 'answer' && question.correctAnswer && !hasSolution
+        && ['计算题', '解答题', '证明题', '简答题', '作图题'].includes(question.type)
         ? (Array.isArray(question.correctAnswer)
           ? question.correctAnswer.join('\n')
           : question.correctAnswer)
         : '');
 
-    if (solutionBody && !hasSolution
-      && ['计算题', '解答题', '证明题', '简答题', '作图题'].includes(question.type)) {
+    if (solutionBody && !hasSolution && mode === 'answer') {
       latex += '    \\begin{solution}\n';
       latex += `      ${solutionBody}\n`;
       latex += '    \\end{solution}\n';

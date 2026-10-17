@@ -1,0 +1,174 @@
+{
+ "source": "MathExamHub production audit 2026-10-17 (sanitized: only question content, no ids/users/banks)",
+ "cases": [
+  {
+   "name": "display-math-in-answer",
+   "type": "简答题",
+   "questionText": "试用$\\br(u,v)$上第一基本形式给出其上曲线$\\gamma(t)=\\br(u(t),v(t))$的弧长微元$ds$与曲面片的面积微元$dA$.",
+   "correctAnswer": "  我们知道在一般参数下, 弧长微元等于\n  \\[\n    ds=\\lvert \\gamma'(t) \\rvert dt.\\score{1}\n  \\]\n  注意到\n  \\[\n    \\gamma'(t)=\\br_u u'+\\br_vv'\\implies \\lvert \\gamma' \\rvert^2=E(u')^2+2Fu'v'+G(v')^2.\n  \\]\n  因此\n  \\[\n    ds=\\sqrt{E(u')^2+2Fu'v'+G(v')^2}dt.\\score{2}\n  \\]\n\n  而按照定义, 面积微元\n  \\[\n    dA=\\lvert \\br_u\\wedge\\br_v \\rvert du\\wedge dv=\\sqrt{EG-F^2}du\\wedge dv.\\score{2}\n  \\]\n  \\begin{rmk}\n    本题较多错在不知道弧长微元与面积微元的定义. 忘记了$dt$或者$dudv$(扣2分).\n  \\end{rmk}",
+   "originalLaTeX": "试用$\\br(u,v)$上第一基本形式给出其上曲线$\\gamma(t)=\\br(u(t),v(t))$的弧长微元$ds$与曲面片的面积微元$dA$.",
+   "expect": [
+    "answer keeps \\[..\\] as display math (renders as $$..$$ or \\[..\\], never single $..$)",
+    "\\score{n} still rendered"
+   ]
+  },
+  {
+   "name": "display-math-in-stem-enumerate",
+   "type": "证明题",
+   "questionText": "假设曲面$S \\mathpunct{:}\\br=\\br(u,v)$的单位法向量为$\\bn$. 定义曲面$\\tilde S \\mathpunct{:}\\tilde\\br(u,v)=\\br(u,v)+\\lambda\\bn(u,v)$为曲面$S$的\\emph{平行曲面}, 其中$\\lambda$为常数. 试证明:\r\n  \\begin{enumerate}\r\n    \\item 当$\\lambda$充分小时, $\\tilde S$是正则曲面;\r\n    \\item 如果$S$的Gauss曲率为$K$, 平均曲率为$H$, 那么$\\tilde S$的高斯曲率为\r\n      \\[\r\n        \\tilde K=\\frac{K}{1-2\\lambda H+\\lambda^2K}.\r\n      \\]\r\n  \\end{enumerate}",
+   "correctAnswer": "  直接计算知道\n      \\[\n        \\tilde\\br_u=\\br_u+\\lambda\\bn_u,\\quad \\tilde\\br_v=\\br_v+\\lambda\\bn_v.\n      \\]\n      则\n      \\[\n        \\begin{pmatrix}\n          -\\bn_u\\\\\n          -\\bn_v\n        \\end{pmatrix}=W\n        \\begin{pmatrix}\n          \\br_u\\\\\n          \\br_v\n        \\end{pmatrix}\n        \\implies\n       \\begin{pmatrix}\n          \\tilde\\br_u\\\\\n          \\tilde\\br_v\n        \\end{pmatrix}=(\\lambda E-W)\n        \\begin{pmatrix}\n          \\br_u\\\\\n          \\br_v\n        \\end{pmatrix}.\\score{2}\n      \\]\n  \\begin{enumerate}\n    \\item 为了证明$\\tilde S$为正则参数曲面, 只需验证\n      \\[\n        \\tilde\\br_u\\wedge\\tilde\\br_v\\neq0.\\score{2}\n      \\]\n      注意到\n      \\begin{equation}\\label{eq:normal}\n        \\tilde\\br_u\\wedge\\tilde\\br_v=\\det\\left(  E-\\lambda W \\right)\\br_u\\wedge\\br_v.\n      \\end{equation}\n      因为当$\\lambda$充分小时, $A \\mathpunct{:}= E-\\lambda W$仍是正定矩阵. 我们知道此时$\\det A=\\det (E-\\lambda W)>0$, 可见此时$\\tilde S$为正则曲面.\\score{3}\n    \\item 为了计算Gauss曲率, 我们只需求出曲面$\\tilde S$的Weingarten变换. 假设$\\tilde S$的法向量为$\\tilde \\bn$, 则从\\eqref{eq:normal}知道$\\tilde\\bn=\\bn$, 且\n      \\[\n        \\begin{pmatrix}\n          -\\tilde\\bn_u\\\\\n          -\\tilde\\bn_v\n        \\end{pmatrix}=\n        \\begin{pmatrix}\n          -\\bn_u\\\\\n          -\\bn_v\n        \\end{pmatrix}= W\n        \\begin{pmatrix}\n          \\br_u\\\\\n          \\br_v\n        \\end{pmatrix}=WA^{-1}\n        \\begin{pmatrix}\n          \\tilde\\br_u\\\\\n          \\tilde\\br_v\n        \\end{pmatrix}.\n      \\]\n      可见$\\tilde S$在自然基底下的Weingarten变换矩阵为$\\tilde W=WA^{-1}$. \n      从而\n      \\[\n        \\tilde K=\\det\\tilde W=\\det W/\\det A=K/\\det A.\\score{3}\n      \\]\n      最后, 若设$W$的两个特征值为$\\kappa_1,\\kappa_2$, 则$K=\\kappa_1\\kappa_2$, $2H=\\kappa_1+\\kappa_2$. 并且存在可逆矩阵$P$, 使得\n      \\[\n        P^{-1}WP=\\Lambda =\\mathpunct{:}\\mathrm{diag}(\\kappa_1,\\kappa_2).\n      \\]\n      因此\n      \\begin{align*}\n        \\det A&=\\det\\left(  E-\\lambda P\\Lambda P^{-1} \\right)=\\det\\left( P( E-\\lambda\\Lambda)P^{-1} \\right)=\\det( E-\\lambda\\Lambda)\\\\\n              &=(1-\\lambda \\kappa_1)(1-\\lambda\\kappa_2)=1-2H\\lambda+\\lambda^2K,\n      \\end{align*}\n      由此易见结论成立.\\score{5}\n  \\end{enumerate}\n",
+   "originalLaTeX": "假设曲面$S \\mathpunct{:}\\br=\\br(u,v)$的单位法向量为$\\bn$. 定义曲面$\\tilde S \\mathpunct{:}\\tilde\\br(u,v)=\\br(u,v)+\\lambda\\bn(u,v)$为曲面$S$的\\emph{平行曲面}, 其中$\\lambda$为常数. 试证明:\r\n  \\begin{enumerate}\r\n    \\item 当$\\lambda$充分小时, $\\tilde S$是正则曲面;\r\n    \\item 如果$S$的Gauss曲率为$K$, 平均曲率为$H$, 那么$\\tilde S$的高斯曲率为\r\n      \\[\r\n        \\tilde K=\\frac{K}{1-2\\lambda H+\\lambda^2K}.\r\n      \\]\r\n  \\end{enumerate}",
+   "expect": [
+    "stem display math \\[..\\] inside enumerate stays display",
+    "\\emph{平行曲面} -> <em>平行曲面</em>",
+    "answer enumerate/\\item -> <ol><li>",
+    "\\eqref{eq:normal} resolves to a number or a text fallback, never (???) or raw \\eqref"
+   ]
+  },
+  {
+   "name": "nested-split-in-display",
+   "type": "证明题",
+   "questionText": "证明: 在正则曲面的任一点, 任何两个相互正交的切方向的法曲率之和为常数.",
+   "correctAnswer": "假设$\\be_1,\\be_2$为曲面在一点处的两个幺正主方向, 其对应的主曲率分别为$\\kappa_1,\\kappa_2$. 若$\\bv$, $\\bw$是该点处相互正交的切向量, 则由于法曲率与非零向量的大小无关, 于是可设它们都是单位向量, 且$\\angle(\\bv,\\be_1)=\\theta$, 从而$\\angle(\\bw,\\be_1)=\\theta\\pm90$. \\score{5}\n    于是根据法曲率的Euler公式\n    \\[    \\kappa_n(\\bv)=\\kappa_1\\cos^2\\theta+\\kappa_2\\sin^2\\theta,\\score{5}\n    \\]\n    以及\n    \\[\n      \\begin{split}     \\kappa_n(\\bw)&=\\kappa_1\\cos^2(\\theta\\pm90)+\\kappa_2\\sin^2(\\theta\\pm90)\\\\\n                     &=\\kappa_1\\sin^2\\theta+\\kappa_2\\cos^2\\theta.\n      \\end{split}\\implies\n      \\kappa_n(\\bv)+\\kappa_n(\\bw)=\\kappa_1+\\kappa_2=2H,\\score{5}\n    \\]\n    为常数.",
+   "originalLaTeX": "证明: 在正则曲面的任一点, 任何两个相互正交的切方向的法曲率之和为常数.",
+   "expect": [
+    "split block appears exactly once",
+    "no raw \\implies/\\kappa text and no stray $ outside math"
+   ]
+  },
+  {
+   "name": "pickout-choice",
+   "type": "单选题",
+   "questionText": "假设$A$为$n$阶可逆方阵，则下列等式恒成立的是？\\pickout{C}",
+   "options": {
+    "A": "$(2A)^{-1}=2A^{-1}$;",
+    "B": "$(2A^{-1})^T=(2A^T)^{-1}$;",
+    "C": "$\\left[ (A^{-1})^{-1} \\right]^T=\\left[ (A^T)^{-1} \\right]^{-1}$;",
+    "D": "$\\left[ (A^T)^T \\right]^{-1}=\\left[ (A^{-1})^{-1} \\right]^T$."
+   },
+   "correctAnswer": "C",
+   "originalLaTeX": "假设$A$为$n$阶可逆方阵，则下列等式恒成立的是？\\pickout{C}\r\n    \\begin{abcd}\r\n      \\item $(2A)^{-1}=2A^{-1}$;\r\n      \\item $(2A^{-1})^T=(2A^T)^{-1}$;\r\n      \\item $\\left[ (A^{-1})^{-1} \\right]^T=\\left[ (A^T)^{-1} \\right]^{-1}$;\r\n      \\item $\\left[ (A^T)^T \\right]^{-1}=\\left[ (A^{-1})^{-1} \\right]^T$.\r\n      \\end{abcd}",
+   "expect": [
+    "stem shows empty brackets (　　), not (C)",
+    "abcd block NOT appended when options exist",
+    "options rendered with labels A-D",
+    "answer view shows C"
+   ]
+  },
+  {
+   "name": "true-judgment",
+   "type": "判断题",
+   "questionText": "$E^3$中的正则参数曲线如果曲率$\\kappa>0$, 那么$\\tau=0$当且仅当该曲线是平面曲线.",
+   "correctAnswer": "\\true",
+   "originalLaTeX": "$E^3$中的正则参数曲线如果曲率$\\kappa>0$, 那么$\\tau=0$当且仅当该曲线是平面曲线.",
+   "expect": [
+    "answer renders ✓"
+   ]
+  },
+  {
+   "name": "false-judgment",
+   "type": "判断题",
+   "questionText": "$E^3$中的正则参数曲线曲率$\\kappa=0$当且仅当该曲线是平面曲线.",
+   "correctAnswer": "\\false",
+   "originalLaTeX": "$E^3$中的正则参数曲线曲率$\\kappa=0$当且仅当该曲线是平面曲线.",
+   "expect": [
+    "answer renders ✗"
+   ]
+  },
+  {
+   "name": "textbf-stem",
+   "type": "证明题",
+   "questionText": "设曲面$S$的\\textbf{正交}参数表示为$\\br=\\br(u^1,u^2)$, 证明: 切向量场$\\bv=\\br_1/\\sqrt{E}$ 沿曲线$C:(u^1(t),u^2(t))$平行的充要条件是沿$C$有$\\Gamma^2_{1\\alpha}\\frac{d u^\\alpha}{d t}=0$.",
+   "correctAnswer": "    曲面的参数系是正交参数系, 我们完全可以利用活动标架计算如下: 令$\\be_1=\\bv$, 则\n    \\[\n      0=\\frac{D \\bv}{d t}=\\frac{D\\be_1}{dt}.\\score{5}\n    \\]\n    注意到 $\\be_2=\\br_2/\\sqrt{G}$和$\\be_1$都是单位的且相互正交,\n    \\[\n      0=\\frac{D \\be_1}{d t}=\\frac{\\left\\langle d\\be_1,\\be_\\alpha \\right\\rangle\\be_\\alpha}{dt}=\\frac{\\left\\langle d\\be_1,\\be_2 \\right\\rangle\\be_2}{dt}=\\frac{\\omega_{12}}{dt}\\be_2.\\score{5}\n    \\]\n    而沿着曲线$C$, 利用正交性易得\n    \\begin{align*}\n      \\frac{\\omega_{12}}{dt}&=\\frac{d \\be_1}{d t}\\cdot\\be_2\n      =\\frac{\\partial (\\br_1/\\sqrt E)}{\\partial u^\\alpha}\\frac{d u^\\alpha}{d t}\\cdot\\frac{\\br_2}{\\sqrt G}\\\\\n                            &=\\frac{1}{\\sqrt {EG}}\\frac{d u^\\alpha}{d t}\\br_2 \\cdot\\left( \\frac{\\partial \\br_1}{\\partial u^\\alpha}-\\frac{1}{2E}\\frac{\\partial E}{\\partial u^\\alpha}\\br_1 \\right)\\\\\n                            &=\\frac{1}{\\sqrt {EG}}\\frac{d u^\\alpha}{d t}\\br_2 \\cdot\\Gamma^\\gamma_{1\\alpha}\\br_\\gamma\\score{3}\\\\\n                            &=\\frac{1}{\\sqrt {EG}}\\frac{d u^\\alpha}{d t}\\Gamma^{2}_{1\\alpha}G\\score{2}.\n    \\end{align*}\n    可见结论成立.\n",
+   "originalLaTeX": "设曲面$S$的\\textbf{正交}参数表示为$\\br=\\br(u^1,u^2)$, 证明: 切向量场$\\bv=\\br_1/\\sqrt{E}$ 沿曲线$C:(u^1(t),u^2(t))$平行的充要条件是沿$C$有$\\Gamma^2_{1\\alpha}\\frac{d u^\\alpha}{d t}=0$.",
+   "expect": [
+    "\\textbf{正交} -> <strong>正交</strong>"
+   ]
+  },
+  {
+   "name": "fillin-bare-latex-answer",
+   "type": "填空题",
+   "questionText": "假设$n$阶方阵$A$的行列式$\\lvert A \\rvert=2$, 则$\\lvert A^{-1} \\rvert^2\\cdot \\lvert A \\rvert=\\fillin{\\frac{1}{2}}$.",
+   "correctAnswer": "\\frac{1}{2}",
+   "originalLaTeX": "假设$n$阶方阵$A$的行列式$\\lvert A \\rvert=2$, 则$\\lvert A^{-1} \\rvert^2\\cdot \\lvert A \\rvert=\\fillin{\\frac{1}{2}}$.",
+   "expect": [
+    "stem \\fillin{\\frac{1}{2}} shows blank underline in question view (answer hidden)",
+    "answer \\frac{1}{2} auto-wrapped in math and rendered"
+   ]
+  },
+  {
+   "name": "fillin-pm-answer",
+   "type": "填空题",
+   "questionText": "当$k$满足$\\fillin{\\pm2}$时，齐次线性方程组$\\begin{cases} kx_1+kx_2+x_3=0,\\\\2x_1+kx_2+x_3=0,\\\\kx_1-2x_2+x_3=0\\end{cases}$有非零解？",
+   "correctAnswer": "\\pm2",
+   "originalLaTeX": "当$k$满足$\\fillin{\\pm2}$时，齐次线性方程组$\\begin{cases} kx_1+kx_2+x_3=0,\\\\2x_1+kx_2+x_3=0,\\\\kx_1-2x_2+x_3=0\\end{cases}$有非零解？",
+   "expect": [
+    "answer \\pm2 auto-wrapped in math"
+   ]
+  },
+  {
+   "name": "fillin-matrix-answer",
+   "type": "填空题",
+   "questionText": "二次型$f(x_1,x_2,x_3)=x_1^2+2x_1x_2+3x_2^2$的矩阵$A=\\fillin{\\begin{pmatrix}1&1&0\\\\1&3&0\\\\0&0&0\\end{pmatrix}}$.",
+   "correctAnswer": "\\begin{pmatrix}1&1&0\\\\1&3&0\\\\0&0&0\\end{pmatrix}",
+   "originalLaTeX": "二次型$f(x_1,x_2,x_3)=x_1^2+2x_1x_2+3x_2^2$的矩阵$A=\\fillin{\\begin{pmatrix}1&1&0\\\\1&3&0\\\\0&0&0\\end{pmatrix}}$.",
+   "expect": [
+    "answer bare \\begin{pmatrix}..\\end{pmatrix} auto-wrapped in math"
+   ]
+  },
+  {
+   "name": "fillin-multi-array-answer",
+   "type": "填空题",
+   "questionText": "Gauss曲率为常数的曲面有\\fillin{球面}、\\fillin{平面}、\\fillin{伪球面}.",
+   "correctAnswer": [
+    "球面",
+    "平面",
+    "伪球面"
+   ],
+   "originalLaTeX": "Gauss曲率为常数的曲面有\\fillin{球面}、\\fillin{平面}、\\fillin{伪球面}.",
+   "expect": [
+    "3 blanks in stem shown as underlines; array answer joined in answer view"
+   ]
+  },
+  {
+   "name": "eqref-equation-label",
+   "type": "证明题",
+   "questionText": "我们称曲面$S$上的正则参数曲线$\\gamma(s)$是\\emph{曲率线}, 如果$\\gamma(s)$的在每一点处的切向量都是该点处曲面$S$的一个主方向. 请证明: 曲面$S$上的正则参数曲线$\\gamma(s)$是曲面$S$的曲率线当且仅当沿着曲线$\\gamma(s)$曲面$S$的法线构成的直纹面是可展曲面.",
+   "correctAnswer": "  沿着曲线$\\gamma(s)=\\br(u(s),v(s))$曲面$S$的法线构成的直纹面可表示为\n  \\[\n    X(s,t)=\\br(u(s),v(s))+t\\bn(u(s),v(s))\\mathpunct{:}=\\br(s)+t\\bn(s),\n  \\]\n  这里$\\bn(s)$是曲面$S$的单位法向量. \\score{2}\n\n  充分性: 若直纹面$X(s,t)$是可展曲面, 则\n  \\begin{equation}\\label{eq:develop}\n    (\\br',\\bn,\\bn')=0.\n  \\end{equation}\n  \\score{3}\n  注意到曲线$\\gamma(s)=\\br(s)$在曲面$S$上, 我们有\n  \\[\n    \\left\\langle \\br',\\bn \\right\\rangle=0=\\left\\langle \\bn',\\bn \\right\\rangle.\n  \\]\n  设\n  \\[\n    \\br'\\wedge\\bn'=\\lambda\\bn,\n  \\]\n  将其带入\\eqref{eq:develop}得到\n  \\[\n    0=(\\br',\\bn,\\bn')=-\\left\\langle \\br'\\wedge\\bn',\\bn \\right\\rangle=\\lambda\\implies\\br'\\wedge\\bn'=0.\\score{2}\n  \\]\n  即$\\bn'=\\mu(s)\\br'$ (注意利用曲线是正则的知$\\br'\\neq0$), 这说明\n  \\[\n    \\mathcal{W}(\\br')=\\mathcal{W}(\\br_uu'+\\br_vv')=-(\\bn_uu'+\\bn_vv')=-\\bn'=-\\mu(s)\\br',\\score{3}\n  \\]\n  可见曲线$\\gamma(s)=\\br(u(s),v(s))$的切向量是主方向.\n\n  必要性: 反过来, 若$\\gamma(s)$是曲率线, 则存在$\\mu(s)$使得,\n  \\[\n    \\mathcal{W}(\\br')=-\\bn'=\\mu(s)\\br'.\\score{2}\n  \\]\n  因此直纹面$X(s,t)$满足\n  \\[\n    (\\br',\\bn,\\bn')=(\\br',\\bn,-\\mu(s)\\br')=0.\\score{3}\n  \\]\n  可见该直纹面是可展曲面.\n",
+   "originalLaTeX": "我们称曲面$S$上的正则参数曲线$\\gamma(s)$是\\emph{曲率线}, 如果$\\gamma(s)$的在每一点处的切向量都是该点处曲面$S$的一个主方向. 请证明: 曲面$S$上的正则参数曲线$\\gamma(s)$是曲面$S$的曲率线当且仅当沿着曲线$\\gamma(s)$曲面$S$的法线构成的直纹面是可展曲面.",
+   "expect": [
+    "\\eqref{eq:develop} -> numbered reference or text fallback"
+   ]
+  },
+  {
+   "name": "dg-macros",
+   "type": "计算题",
+   "questionText": "求抛物面$z=x^2-y^2$的Gauss曲率和平均曲率.",
+   "correctAnswer": "我们将抛物面参数化为\n  \\[\n    \\br(u,v)=(u,v,u^2-v^2).\n  \\]\n  直接计算得到\n  \\begin{alignat*}{3}\n    \\br_u&=(1,0,2u),&\\quad \\br_v&=(0,1,-2v),\\\\\n    E&=1+4u^2,&\\quad F&=-4uv,&\\quad G&=1+4v^2,\\score{3}\\\\\n    \\br_u\\wedge\\br_v&=(-2u,2v,1),&\\quad\\bn&=\\frac{1}{\\sqrt{1+4u^2+4v^2}}(-2u,2v,1),\\\\\n    \\br_{uu}&=(0,0,2),\\quad&\\br_{uv}&=(0,0,0),&\\quad\\br_{vv}&=(0,0,-2),\\\\\n    L&=\\frac{2}{\\sqrt{1+4u^2+4v^2}},&\\quad M&=0,&\\quad N&=\\frac{-2}{\\sqrt{1+4u^2+4v^2}}.\\score{6}\n  \\end{alignat*}\n  因此Weingarten变换矩阵为\n  \\begin{align*}\n    W&=\\frac{2}{\\sqrt{1+4u^2+4v^2}}\n    \\begin{pmatrix}\n      1&0\\\\\n      0&-1\n    \\end{pmatrix}\n    \\begin{pmatrix}\n      1+4u^2&-4uv\\\\\n      -4uv&1+4v^2\n    \\end{pmatrix}^{-1}\\\\\n     &=\\frac{2}{(1+4u^2+4v^2)^{3/2}}\n     \\begin{pmatrix}\n       1&0\\\\\n       0&-1\n     \\end{pmatrix}\n     \\begin{pmatrix}\n       1+4v^2&4uv\\\\\n       4uv&1+4u^2\n     \\end{pmatrix}\\\\\n     &=\\frac{2}{(1+4u^2+4v^2)^{3/2}}\n     \\begin{pmatrix}\n       1+4v^2&4uv\\\\\n       -4uv&-(1+4u^2)\n     \\end{pmatrix}.\\score{2}\n  \\end{align*}\n  从而Gauss曲率和平均曲率为\n  \\[\n    K=-\\frac{4}{(1+4u^2+4v^2)^{2}},\\quad H=-4\\frac{u^2-v^2}{(1+4u^2+4v^2)^{3/2}}.\\score{4}\n  \\]\n\n  另一种解法是参数化为\n  \\[\n    \\br(u,v)=\\left( v\\cosh u,v\\sinh u, \\pm v^2 \\right),\n  \\]\n  则\n  \\begin{align*}\n    W&=\\frac{2}{\\sqrt{1+4v^2\\cosh(2u)}}\n    \\begin{pmatrix}\n      \\pm2v^2&0\\\\\n      0&\\mp 2\n    \\end{pmatrix}\n    \\begin{pmatrix}\n      v^2\\cosh(2u)&v\\sinh(2u)\\\\\n      v\\sinh(2u)&4v^2+\\cosh(2u)\n    \\end{pmatrix}^{-1}\\\\\n    &=\\pm\\frac{2}{\\left( 1+4v^2\\cosh(2u) \\right)^{3/2}}\n    \\begin{pmatrix}\n      4v^2+\\cosh(2u)&-v\\sinh(2u)\\\\\n      \\sinh(2u)/v&-\\cosh(2u)\n    \\end{pmatrix}.\n  \\end{align*}\n  从而\n  \\[\n    K=-\\frac{4}{\\left(1+4v^2\\cosh(2u)\\right)^2},\\quad H=\\pm\\frac{4v^2}{\\left(1+4v^2\\cosh(2u)\\right)^{3/2}}.\n  \\]",
+   "originalLaTeX": "求抛物面$z=x^2-y^2$的Gauss曲率和平均曲率.",
+   "expect": [
+    "\\br \\bn render bold; alignat{3}/pmatrix in display ok"
+   ]
+  },
+  {
+   "name": "II-I-macros",
+   "type": "证明题",
+   "questionText": "假设$\\Sigma$是$E^3$中的正则曲面. 证明: 如果$\\Sigma$的切平面都位于同一侧, 那么$\\Sigma$的Gauss曲率$K\\geq0$.",
+   "correctAnswer": "由题意知, 曲面是可以定向的(否则不能谈同一侧的概念). 取定曲面内侧一点$O$作为原点, 对$P\\in\\Sigma$, 考察$P$ 点处的高度函数\n  \\[\n    f(u,v)\\mathpunct{:}= \\br(u,v)\\cdot\\bn(P),\\score{5}\n  \\]\n  这里$\\bn(P)$是曲面在$P$处的\\emph{外法向量}.\n\n  由于在$P$附近, 曲面$\\Sigma$都位于切平面$T_P\\Sigma$的同一侧, 故知$f$ 在$P$ 处取得局部极大值. \\score{2} \n  而在$P$处, 利用Taylor展开容易反证得到\n  \\[\n    0\\leq\n    \\begin{pmatrix}\n      f_{uu}&f_{uv}\\\\\n      f_{vu}&f_{vv}\n      \\end{pmatrix}=\n      \\begin{pmatrix}\n      \\br_{uu}\\cdot\\bn(P)&\\br_{uv}\\cdot\\bn(P)\\\\\n      \\br_{vu}\\cdot\\bn(P)&\\br_{vv}\\cdot\\bn(P)\n      \\end{pmatrix}=\n      \\begin{pmatrix}\n      L&M\\\\\n      M&N\n    \\end{pmatrix}\n    \\mathpunct{:}=\\II(P).\\score{3}\n  \\]\n  最后, 由Gauss曲率是\n  \\[\n    K(P)=\\det\\left( \\II(P)\\I(P)^{-1} \\right)\\geq0,\\score{3}\n  \\]\n  这里\n  \\[\n    \\I(P)=\\begin{pmatrix}\n      E&F\\\\\n      F&G\n    \\end{pmatrix}\n  \\]\n  是曲面的第一基本型在自然基下的表示矩阵.  \\score{2}\n\\begin{rmk}\n  也可根据曲面的弯曲方向来说明法曲率都是大于等于零的, 进而由于主曲率是法曲率中的最大值和最小值因此也是大于等于零的. 最后利用Gauss曲率等于两个主曲率的乘积, 我们知道Gauss曲率大于等于零. \n\\end{rmk}",
+   "originalLaTeX": "假设$\\Sigma$是$E^3$中的正则曲面. 证明: 如果$\\Sigma$的切平面都位于同一侧, 那么$\\Sigma$的Gauss曲率$K\\geq0$.",
+   "expect": [
+   "\\II \\I defined; \\emph -> <em>"
+   ]
+  },
+  {
+   "name": "answer-center-includegraphics",
+   "type": "作图题",
+   "questionText": "作出曲线示意图.",
+   "correctAnswer": "见下图\n\\begin{center}\n\\includegraphics{fig-sketch.png}\n\\end{center}",
+   "originalLaTeX": "作出曲线示意图.",
+   "expect": [
+    "center/includegraphics -> img placeholder, not MathJax center env"
+   ]
+  }
+ ]
+}

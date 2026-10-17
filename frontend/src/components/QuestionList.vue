@@ -137,7 +137,7 @@
               <div class="question-content mb-3">
                 <div
                   class="question-text-content"
-                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX)"
+                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
                 ></div>
               </div>
 
@@ -154,6 +154,10 @@
               <div class="question-answer">
                 <strong>答案：</strong>
                 <div class="answer-text-content" v-html="renderAnswer(question.correctAnswer)"></div>
+              </div>
+              <div v-if="question.solution" class="question-solution mt-2">
+                <strong>解答：</strong>
+                <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
               </div>
 
               <!-- 操作按钮 -->
@@ -251,6 +255,11 @@ export default {
   methods: {
     processQuestionTextToHTML,
     processAnswerTextToHTML,
+    questionRenderOptions(question) {
+      const opts = question && question.options;
+      const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      return { hasOptions, mode: 'question' };
+    },
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
     },
@@ -535,6 +544,7 @@ export default {
 .option-list {
   margin: 0;
   padding-left: 1.5rem;
+  list-style: upper-alpha;
 }
 
 .option-item {
@@ -547,6 +557,14 @@ export default {
   padding: 0.75rem;
   border-radius: 8px;
   border-left: 3px solid #667eea;
+  font-size: 0.95rem;
+}
+
+.question-solution {
+  background: #f0fdf4;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #22c55e;
   font-size: 0.95rem;
 }
 

@@ -5,7 +5,8 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "axios": "^1.6.1",
@@ -23,7 +24,8 @@
     "@vue/cli-service": "~5.0.0",
     "babel-eslint": "^10.1.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3"
+    "eslint-plugin-vue": "^8.0.3",
+    "mathjax-full": "^3.2.2"
   },
   "eslintConfig": {
     "root": true,

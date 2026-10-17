@@ -124,9 +124,19 @@
                       id="questionAnswer"
                       v-model="questionAnswer"
                       class="form-control"
-                      rows="6"
+                      rows="4"
                       placeholder="请输入答案..."
                       required
+                    ></textarea>
+                    <label for="questionSolution" class="form-label mt-3">
+                      <i class="bi bi-journal-text"></i> 解答过程（可选，LaTeX）
+                    </label>
+                    <textarea
+                      id="questionSolution"
+                      v-model="questionSolution"
+                      class="form-control"
+                      rows="4"
+                      placeholder="详细推导或说明，可与短答案分开填写。"
                     ></textarea>
                   </div>
                 </div>
@@ -243,6 +253,7 @@ export default {
       },
       questionText: "",
       questionAnswer: "",
+      questionSolution: "",
       questionScore: 3,
       questionDifficulty: "中",
       createdBy: "夏云伟",
@@ -264,6 +275,7 @@ export default {
         questionText: this.questionText,
         ...dynamicFields,
         correctAnswer: this.questionAnswer,
+        solution: this.questionSolution,
         totalScore: this.questionScore,
         type: this.questionType,
         difficulty: this.questionDifficulty,
@@ -295,6 +307,7 @@ export default {
       this.questionText = "";
       this.options = { ...this.initialOptions };
       this.questionAnswer = "";
+      this.questionSolution = "";
       this.questionScore = 3;
       this.questionDifficulty = "中";
       this.searchResults = [];
