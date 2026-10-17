@@ -2,8 +2,11 @@
   <div>
     <button
       type="button"
-      class="btn btn-outline-light btn-sm"
+      class="btn btn-outline-light btn-sm bank-header-btn"
+      :class="{ 'bank-header-btn--navbar': variant === 'navbar' }"
       :disabled="!bankId || loading"
+      :title="'编辑当前题库的 LaTeX 试卷头默认值'"
+      data-testid="navbar-bank-header-btn"
       @click="openModal"
     >
       试卷头
@@ -66,6 +69,8 @@ export default {
   name: 'BankLatexMetadataEditor',
   props: {
     bankId: { type: String, default: '' },
+    /** When "navbar", use compact horizontal styling in the top bar */
+    variant: { type: String, default: 'default' },
   },
   data() {
     return {
@@ -124,3 +129,19 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.bank-header-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bank-header-btn--navbar {
+  --bs-btn-padding-y: 0.25rem;
+  --bs-btn-padding-x: 0.65rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  border-radius: 6px;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+</style>

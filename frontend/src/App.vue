@@ -519,16 +519,29 @@ main.with-navbar {
 }
 
 .navbar-end {
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-items: center;
+  padding-left: 0.85rem;
+  margin-left: 0.35rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
 }
 
 .navbar-bank-selector {
-  max-width: min(280px, 36vw);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.navbar-user-nav {
+  flex-shrink: 0;
+  margin-left: 0.15rem;
 }
 
 .navbar-user-nav .user-nav-link {
-  max-width: 10rem;
+  max-width: 11rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .navbar-user-nav .user-name {
@@ -577,6 +590,11 @@ main.with-navbar {
 
   .navbar-primary-nav .nav-item {
     flex-shrink: 0;
+  }
+
+  .navbar-end :deep(.bank-selector-select) {
+    max-width: 18rem;
+    width: min(18rem, 22vw);
   }
 }
 
