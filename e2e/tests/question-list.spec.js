@@ -41,6 +41,10 @@ test.describe('question list pagination and filters', () => {
     }, { base: apiBase });
 
     await page.goto('/question-list?page=1&pageSize=10', { waitUntil: 'domcontentloaded' });
+    const onboardingSkip = page.getByTestId('onboarding-skip');
+    if (await onboardingSkip.isVisible().catch(() => false)) {
+      await onboardingSkip.click();
+    }
     await expect(page.getByTestId('question-list-pagination')).toBeVisible({ timeout: 30000 });
     await expect(page).toHaveURL(/page=1/);
     await expect(page).toHaveURL(/pageSize=10/);
