@@ -500,7 +500,7 @@ import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
-import { isChoiceQuestionType } from "../utils/choiceOptions";
+import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 
 export default {
   name: "LatexImport",
@@ -552,7 +552,12 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
-        choiceOptionLabels: isChoiceQuestionType(question?.type),
+        choiceOptionLabels: shouldUseChoiceOptionLabels({
+          questionType: question?.type,
+          hasOptions,
+          questionText: question?.questionText,
+          originalLaTeX: question?.originalLaTeX,
+        }),
       };
     },
     typesetPreview() {

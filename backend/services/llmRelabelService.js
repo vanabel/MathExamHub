@@ -29,6 +29,7 @@ async function buildRelabelSuggestionsForQuestions(questions, bankId, platformSe
         suggestedDifficulty: suggestion?.difficulty,
         suggestedKnowledgePointIds: suggestion?.knowledgePointIds || [],
         source: suggestion?.source,
+        llmError: suggestion?.llmError,
         rationale: suggestion?.rationale,
       };
     },

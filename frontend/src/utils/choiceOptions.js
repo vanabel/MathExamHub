@@ -53,3 +53,21 @@ export function listChoiceOptionEntries(options) {
 export function isChoiceQuestionType(type) {
   return type === '单选题' || type === '多选题';
 }
+
+/**
+ * Use (A)–(D) labels when choice semantics are detectable even if type is not 单选/多选.
+ */
+export function shouldUseChoiceOptionLabels({
+  questionType = '',
+  hasOptions = false,
+  questionText = '',
+  originalLaTeX = '',
+  choiceOptionLabels = false,
+} = {}) {
+  if (choiceOptionLabels || isChoiceQuestionType(questionType)) return true;
+  if (hasOptions) return true;
+  if (originalLaTeX && /\\begin\{abcd\}/.test(originalLaTeX)) return true;
+  const combined = `${questionText}${originalLaTeX}`;
+  if (/\\pickout/.test(combined)) return true;
+  return false;
+}

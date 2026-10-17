@@ -5,18 +5,26 @@ const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
 async function suggestQuestionMetadata(input, settings) {
   const provider = settings?.llmProvider || 'mock';
   if (provider === 'mock') {
-    return suggestWithMock(input);
+    return suggestWithHeuristic(input);
   }
   if (provider === 'openai_compatible') {
     try {
       const fromApi = await suggestWithChatApi(input, settings);
       if (fromApi) return fromApi;
+      return {
+        ...suggestWithHeuristic(input),
+        source: 'heuristic',
+        llmError: 'LLM returned invalid or empty response',
+      };
     } catch (err) {
-      console.warn('LLM assist fallback to mock:', err.message);
+      return {
+        ...suggestWithHeuristic(input),
+        source: 'heuristic',
+        llmError: err.message,
+      };
     }
-    return suggestWithMock(input);
   }
-  return suggestWithMock(input);
+  return suggestWithHeuristic(input);
 }
 
 function buildKpCatalog(knowledgePoints) {
@@ -75,7 +83,7 @@ async function suggestWithChatApi(input, settings) {
   return validateSuggestion(raw, kpCatalog);
 }
 
-function suggestWithMock(input) {
+function suggestWithHeuristic(input) {
   const text = String(input.questionText || '');
   let difficulty = '中';
   if (/证明|推导/.test(text)) difficulty = '难';
@@ -92,7 +100,7 @@ function suggestWithMock(input) {
   return {
     difficulty: normalizeDifficulty(difficulty, '中'),
     knowledgePointIds,
-    source: 'mock',
+    source: 'heuristic',
   };
 }
 

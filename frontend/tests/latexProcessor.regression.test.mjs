@@ -26,14 +26,22 @@ function stripTags(html) {
 
 test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML', async () => {
   const P = await loadProcessor();
+  const { shouldUseChoiceOptionLabels } = await import(
+    pathToFileURL(path.join(root, 'src/utils/choiceOptions.js')).href
+  );
+
   for (const c of fixtures.cases) {
     const hasOptions = !!(c.options && Object.keys(c.options).length);
-    const isChoice = c.type === '单选题' || c.type === '多选题';
     const opts = {
       hasOptions,
       mode: 'question',
       questionType: c.type || '',
-      choiceOptionLabels: isChoice,
+      choiceOptionLabels: shouldUseChoiceOptionLabels({
+        questionType: c.type,
+        hasOptions,
+        questionText: c.questionText,
+        originalLaTeX: c.originalLaTeX,
+      }),
     };
     const stem = P.processQuestionTextToHTML(c.questionText, c.originalLaTeX, opts);
     const ans = P.processAnswerTextToHTML(

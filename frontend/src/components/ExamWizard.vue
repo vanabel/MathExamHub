@@ -371,7 +371,7 @@
 import axios from 'axios';
 import { processQuestionTextToHTML, renderQuestionImagesHtml } from '../utils/latexProcessor';
 import ChoiceOptionsList from './ChoiceOptionsList.vue';
-import { isChoiceQuestionType } from '../utils/choiceOptions';
+import { isChoiceQuestionType, shouldUseChoiceOptionLabels } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 
@@ -448,7 +448,12 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: item?.type || '',
-        choiceOptionLabels: isChoiceQuestionType(item?.type),
+        choiceOptionLabels: shouldUseChoiceOptionLabels({
+          questionType: item?.type,
+          hasOptions,
+          questionText: item?.questionText,
+          originalLaTeX: item?.originalLaTeX,
+        }),
       };
     },
     formatLastUsed(iso) {

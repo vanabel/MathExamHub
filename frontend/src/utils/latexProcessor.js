@@ -703,7 +703,10 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
     questionType = '',
   } = options;
   const useChoiceLabels = choiceOptionLabels
-    || (mode === 'question' && (questionType === '单选题' || questionType === '多选题'));
+    || (mode === 'question' && (questionType === '单选题' || questionType === '多选题'))
+    || hasOptions
+    || (originalLaTeX && /\\begin\{abcd\}/.test(originalLaTeX))
+    || /\\pickout/.test(`${text || ''}${originalLaTeX || ''}`);
   const listRenderOpts = { choiceOptionLabels: useChoiceLabels, depth: 0 };
 
   // 先处理原始的 LaTeX 代码（\includegraphics 和 \ref）

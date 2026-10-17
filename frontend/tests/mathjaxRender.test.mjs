@@ -39,6 +39,13 @@ function extractMathFragments(html) {
   return frags;
 }
 
+test('\\score macro compiles inside display math (no \\hfill)', () => {
+  const { doc, adaptor } = buildRenderer();
+  const tex = String.raw`x = 1 \score{3} y = 2`;
+  const node = doc.convert(tex, { display: true });
+  assert.ok(adaptor.innerHTML(node).length > 0);
+});
+
 test('math fragments from regression fixtures compile under MathJax 3 + shared macros', async () => {
   const fixtures = JSON.parse(
     fs.readFileSync(path.join(root, 'tests/fixtures/latex-render-regression.json'), 'utf8'),
@@ -52,13 +59,22 @@ test('math fragments from regression fixtures compile under MathJax 3 + shared m
   const P = await import(pathToFileURL(tmp).href + '?' + Date.now());
   const { doc, adaptor } = buildRenderer();
 
+  const { shouldUseChoiceOptionLabels } = await import(
+    pathToFileURL(path.join(root, 'src/utils/choiceOptions.js')).href
+  );
+
   for (const c of fixtures.cases) {
-    const isChoice = c.type === '单选题' || c.type === '多选题';
+    const hasOptions = !!(c.options && Object.keys(c.options).length);
     const stem = P.processQuestionTextToHTML(c.questionText, c.originalLaTeX, {
-      hasOptions: !!(c.options && Object.keys(c.options).length),
+      hasOptions,
       mode: 'question',
       questionType: c.type || '',
-      choiceOptionLabels: isChoice,
+      choiceOptionLabels: shouldUseChoiceOptionLabels({
+        questionType: c.type,
+        hasOptions,
+        questionText: c.questionText,
+        originalLaTeX: c.originalLaTeX,
+      }),
     });
     const ans = P.processAnswerTextToHTML(c.correctAnswer);
     for (const { tex, display } of [...extractMathFragments(stem), ...extractMathFragments(ans)]) {

@@ -207,7 +207,7 @@ import {
   renderQuestionImagesHtml,
 } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
-import { isChoiceQuestionType } from "../utils/choiceOptions";
+import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
@@ -280,7 +280,12 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
-        choiceOptionLabels: isChoiceQuestionType(question?.type),
+        choiceOptionLabels: shouldUseChoiceOptionLabels({
+          questionType: question?.type,
+          hasOptions,
+          questionText: question?.questionText,
+          originalLaTeX: question?.originalLaTeX,
+        }),
       };
     },
     renderAnswer(content) {
