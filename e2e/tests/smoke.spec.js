@@ -98,15 +98,11 @@ test.describe('product smoke', () => {
     await page.locator('#allowRelax').check();
     await page.getByTestId('wizard-generate').click();
     const scoreGapConfirm = page.getByTestId('wizard-score-gap-confirm');
-    if (await scoreGapConfirm.isVisible({ timeout: 15000 }).catch(() => false)) {
+    if (await scoreGapConfirm.isVisible({ timeout: 120000 }).catch(() => false)) {
       await scoreGapConfirm.click();
+      await expect(page.getByTestId('wizard-score-gap-modal')).toBeHidden({ timeout: 120000 });
     }
-    await page.waitForFunction(() => {
-      const preview = Array.from(document.querySelectorAll('button.nav-link'))
-        .find((b) => (b.textContent || '').includes('2. 预览'));
-      return preview && !preview.disabled;
-    }, { timeout: 120000 });
-    await page.getByRole('button', { name: '2. 预览' }).click();
+    await page.getByRole('button', { name: '2. 预览' }).click({ timeout: 120000 });
     await expect(page.getByText(/第 1 题/)).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();

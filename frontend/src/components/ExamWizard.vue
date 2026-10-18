@@ -21,12 +21,24 @@
           </button>
         </li>
         <li class="nav-item">
-          <button type="button" class="nav-link" :class="{ active: step === 2 }" :disabled="!paperQuestions.length" @click="step = 2">
+          <button
+            type="button"
+            class="nav-link"
+            :class="{ active: step === 2 }"
+            :disabled="!paperQuestions.length || scoreGapModalOpen"
+            @click="step = 2"
+          >
             2. 预览
           </button>
         </li>
         <li class="nav-item">
-          <button type="button" class="nav-link" :class="{ active: step === 3 }" :disabled="!paperQuestions.length" @click="step = 3">
+          <button
+            type="button"
+            class="nav-link"
+            :class="{ active: step === 3 }"
+            :disabled="!paperQuestions.length || scoreGapModalOpen"
+            @click="step = 3"
+          >
             3. 导出
           </button>
         </li>
@@ -766,7 +778,12 @@ export default {
           if (data.scoreGapRequiresConfirm && !allowScoreGap) {
             this.pendingScoreGap = data.scoreGap;
             this.pendingGeneratePreview = data;
-            this.applyGeneratePayload(data);
+            this.relaxations = data.relaxations || [];
+            this.warnings = data.warnings || [];
+            this.shortfalls = data.shortfalls || [];
+            this.generateStats = data.stats || null;
+            this.paperId = null;
+            this.paperQuestions = [];
             this.scoreGapModalOpen = true;
             return;
           }
