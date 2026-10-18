@@ -7,6 +7,7 @@ const { assertExportZipBuffer, readDownloadBuffer } = require('../helpers/assert
 
 const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
 const shots = path.join(__dirname, '../../docs/screenshots');
+if (!fs.existsSync(shots)) fs.mkdirSync(shots, { recursive: true });
 const fixtureDir = path.join(__dirname, '../../backend/test/fixtures/exam-structure');
 const kpFixture = path.join(__dirname, '../../backend/test/fixtures/analytic-geometry-kp.xls');
 
@@ -19,18 +20,27 @@ async function registerAndLogin(page, { uid, password, email }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass, email: mail }),
     });
-    await fetch(`${base}/auth/login`, {
+    const loginRes = await fetch(`${base}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass }),
     });
+    if (!loginRes.ok) throw new Error(`login failed: ${loginRes.status}`);
     const me = await fetch(`${base}/auth/me`, { credentials: 'include' }).then((r) => r.json());
     if (me.user) localStorage.setItem('currentUser', JSON.stringify(me.user));
     const banks = await fetch(`${base}/banks/mine`, { credentials: 'include' }).then((r) => r.json());
     const personal = (banks.banks || []).find((b) => b.isPersonalDefault) || (banks.banks || [])[0];
     if (personal) localStorage.setItem('currentBankId', personal._id);
+    await fetch(`${base}/onboarding/tour`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tourCompleted: true, tourStep: 4 }),
+    });
   }, { apiBase, username: uid, pass: password, mail: email });
+  await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/question-list/, { timeout: 30000 });
 }
 
 function buildMathexamZip() {
@@ -49,12 +59,10 @@ test.describe('Teacher journey', () => {
 
     const zipPath = buildMathexamZip();
     await page.goto('/latex-import', { waitUntil: 'domcontentloaded' });
-    await page.locator('input[type="file"]').first().setInputFiles(zipPath);
-    await page.getByRole('button', { name: '预览题目' }).click();
-    await expect(page.getByText(/预览识别到的题目/)).toBeVisible({ timeout: 120000 });
-    await page.screenshot({ path: path.join(shots, 'journey-import-preview.png'), fullPage: true });
-    await page.getByRole('button', { name: '确认导入' }).click();
-    await expect(page.getByTestId('latex-import-success-link')).toBeVisible({ timeout: 120000 });
+    await expect(page).toHaveURL(/\/latex-import/);
+    await page.locator('#fileInput').setInputFiles(zipPath);
+    await page.getByRole('button', { name: '直接导入' }).click({ timeout: 120000 });
+    await expect(page.getByTestId('latex-import-success-link')).toBeVisible({ timeout: 180000 });
     await page.screenshot({ path: path.join(shots, 'journey-import-done.png'), fullPage: true });
 
     await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
@@ -70,10 +78,11 @@ test.describe('Teacher journey', () => {
 
     if (fs.existsSync(kpFixture)) {
       await page.goto('/knowledge-points/import', { waitUntil: 'domcontentloaded' });
+      await page.locator('input[placeholder="解析几何"]').fill('解析几何');
       await page.getByTestId('kp-import-file').setInputFiles(kpFixture);
       await page.getByTestId('kp-import-preview').click();
       await page.getByTestId('kp-import-apply').click();
-      await expect(page.getByText(/导入|成功/)).toBeVisible({ timeout: 60000 });
+      await expect(page.getByText(/合并完成/)).toBeVisible({ timeout: 60000 });
     }
 
     const jobId = await page.evaluate(async ({ base }) => {
@@ -94,7 +103,7 @@ test.describe('Teacher journey', () => {
     if (jobId) {
       await page.evaluate(async ({ base, id }) => {
         const headers = { 'X-Bank-Id': localStorage.getItem('currentBankId') };
-        for (let i = 0; i < 45; i += 1) {
+        for (let i = 0; i < 25; i += 1) {
           const res = await fetch(`${base}/questions/kp-tag-jobs/${id}`, { credentials: 'include', headers });
           const job = await res.json();
           if (job.status === 'completed' || job.status === 'failed') break;
@@ -132,16 +141,25 @@ test.describe('Teacher journey', () => {
     }
 
     await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: '克隆' }).first().click();
+    await page.locator('label.form-label', { hasText: '题型' }).first().locator('..').locator('select').selectOption('判断题');
+    await page.locator('label.form-label', { hasText: '题量' }).first().locator('..').locator('input').fill('5');
+    await page.locator('label.form-label', { hasText: '每题分值' }).first().locator('..').locator('input').fill('2');
     await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('高等代数');
-    await page.locator('#allowRelax').check();
-    await page.getByTestId('wizard-generate').click();
-    await expect(page.getByTestId('wizard-coverage-result').or(page.getByText(/缺口|subject_mismatch|科目/i))).toBeVisible({ timeout: 120000 });
+    await page.locator('#allowRelax').uncheck();
+    await page.getByTestId('wizard-coverage-check').click();
+    await expect(page.getByTestId('wizard-coverage-result')).toContainText(/缺口/, { timeout: 180000 });
     await page.screenshot({ path: path.join(shots, 'journey-wizard-gap.png'), fullPage: true });
 
     await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('解析几何');
-    await page.locator('label.form-label', { hasText: '目标总分' }).locator('..').locator('input').fill('0');
+    await page.locator('label.form-label', { hasText: '目标总分' }).locator('..').locator('input').fill('10');
+    await page.locator('#allowRelax').check();
+    await page.getByTestId('wizard-coverage-check').click();
+    await expect(page.getByTestId('wizard-coverage-result')).toContainText(/覆盖检查通过/, { timeout: 180000 });
     await page.getByTestId('wizard-generate').click();
+    const scoreGapModal = page.getByTestId('wizard-score-gap-modal');
+    if (await scoreGapModal.isVisible().catch(() => false)) {
+      await page.getByTestId('wizard-score-gap-confirm').click();
+    }
     await expect(page.getByRole('button', { name: '2. 预览' })).toBeEnabled({ timeout: 180000 });
     await page.getByRole('button', { name: '2. 预览' }).click();
     await page.screenshot({ path: path.join(shots, 'journey-wizard-preview.png'), fullPage: true });
@@ -150,7 +168,7 @@ test.describe('Teacher journey', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('wizard-export-latex').click();
     const download = await downloadPromise;
-    const buf = readDownloadBuffer(await download);
+    const buf = await readDownloadBuffer(download);
     if (process.env.E2E_COMPILE_TEX !== '0') {
       const result = assertExportZipBuffer(buf, { expectAcademicYear: '2026至2027' });
       expect(result.skipped).not.toBe(true);
