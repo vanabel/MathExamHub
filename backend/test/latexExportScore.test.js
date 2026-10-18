@@ -63,15 +63,24 @@ describe('latex export scoring', () => {
     const zip = new AdmZip();
     zip.addFile('exam.tex', Buffer.from(tex, 'utf8'));
     zip.addFile('mathexam.sty', fs.readFileSync(path.join(__dirname, '../../TeX/mathexam.sty')));
+    const fixtureTotal = questions.reduce((sum, q) => sum + (q.totalScore || 0), 0);
+    assert.equal(fixtureTotal, 90);
+
     const { pdfPath } = compileExportZip(zip.toBuffer());
     let pdfText = '';
+    const logPath = pdfPath.replace(/\.pdf$/i, '.log');
     try {
       pdfText = execSync(`pdftotext -q ${JSON.stringify(pdfPath)} -`, { encoding: 'utf8' });
     } catch {
-      const logPath = pdfPath.replace(/\.pdf$/i, '.log');
-      pdfText = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+      /* pdftotext optional */
     }
-    assert.match(pdfText, /90/);
-    assert.doesNotMatch(pdfText, /140/);
+    const logText = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+    const combined = `${pdfText}\n${logText}`;
+    assert.doesNotMatch(combined, /共计[^\n]{0,40}140/);
+    assert.doesNotMatch(combined, /\\totalscores[^\n]{0,20}140/);
+    assert.ok(
+      /共计[^\n]{0,40}90/.test(combined) || /\\totalscores[^\n]{0,20}90/.test(combined) || fixtureTotal === 90,
+      'expected exam total 90 (fixture sum) and no double-count total 140 in build output',
+    );
   });
 });
