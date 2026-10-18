@@ -41,6 +41,7 @@ const {
 } = require('../services/kpTagJobService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
+const { scoreStatsByType } = require('../services/blueprintFromBankService');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -95,6 +96,15 @@ router.post('/create', requireBankWrite, (req, res) => {
   newQuestion.save()
     .then((question) => res.json(question))
     .catch((error) => res.status(400).json({ error, submittedData: req.body }));
+});
+
+router.get('/score-stats-by-type', async (req, res) => {
+  try {
+    const stats = await scoreStatsByType(req.bankId);
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: '读取分值统计失败' });
+  }
 });
 
 router.get('/stats/dashboard', requireBankWrite, async (req, res) => {

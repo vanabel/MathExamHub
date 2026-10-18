@@ -32,15 +32,7 @@ async function registerAndLogin(page, { uid, password, email }) {
     const banks = await fetch(`${base}/banks/mine`, { credentials: 'include' }).then((r) => r.json());
     const personal = (banks.banks || []).find((b) => b.isPersonalDefault) || (banks.banks || [])[0];
     if (personal) localStorage.setItem('currentBankId', personal._id);
-    await fetch(`${base}/onboarding/tour`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tourCompleted: true, tourStep: 4 }),
-    });
   }, { apiBase, username: uid, pass: password, mail: email });
-  await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/question-list/, { timeout: 30000 });
 }
 
 function buildMathexamZip() {
@@ -59,13 +51,19 @@ test.describe('Teacher journey', () => {
 
     const zipPath = buildMathexamZip();
     await page.goto('/latex-import', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('onboarding-panel')).not.toBeVisible();
     await expect(page).toHaveURL(/\/latex-import/);
     await page.locator('#fileInput').setInputFiles(zipPath);
     await page.getByRole('button', { name: '直接导入' }).click({ timeout: 120000 });
     await expect(page.getByTestId('latex-import-success-link')).toBeVisible({ timeout: 180000 });
+    await page.getByTestId('latex-import-generate-blueprint').click();
+    await expect(page.getByTestId('latex-import-open-wizard')).toBeVisible({ timeout: 60000 });
+    const wizardPath = await page.getByTestId('latex-import-open-wizard').getAttribute('href');
     await page.screenshot({ path: path.join(shots, 'journey-import-done.png'), fullPage: true });
 
     await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+    const skipTour = page.getByTestId('onboarding-skip');
+    if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
     await page.getByTestId('navbar-bank-header-btn').click();
     await page.getByTestId('bank-header-exam-date').fill('2026-10-18');
     await page.locator('label.form-label', { hasText: '课程' }).locator('..').locator('input').fill('解析几何');
@@ -140,10 +138,8 @@ test.describe('Teacher journey', () => {
       }, { base: apiBase, id: jobId });
     }
 
-    await page.goto('/exam-wizard', { waitUntil: 'domcontentloaded' });
-    await page.locator('label.form-label', { hasText: '题型' }).first().locator('..').locator('select').selectOption('判断题');
-    await page.locator('label.form-label', { hasText: '题量' }).first().locator('..').locator('input').fill('5');
-    await page.locator('label.form-label', { hasText: '每题分值' }).first().locator('..').locator('input').fill('2');
+    await page.goto(wizardPath, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/exam-wizard/, { timeout: 30000 });
     await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('高等代数');
     await page.locator('#allowRelax').uncheck();
     await page.getByTestId('wizard-coverage-check').click();
@@ -151,7 +147,6 @@ test.describe('Teacher journey', () => {
     await page.screenshot({ path: path.join(shots, 'journey-wizard-gap.png'), fullPage: true });
 
     await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('解析几何');
-    await page.locator('label.form-label', { hasText: '目标总分' }).locator('..').locator('input').fill('10');
     await page.locator('#allowRelax').check();
     await page.getByTestId('wizard-coverage-check').click();
     await expect(page.getByTestId('wizard-coverage-result')).toContainText(/覆盖检查通过/, { timeout: 180000 });

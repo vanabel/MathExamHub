@@ -1,6 +1,12 @@
 <template>
-  <div class="onboarding-backdrop" @click.self="skipTour">
-    <div class="onboarding-panel card shadow-lg" role="dialog" aria-labelledby="onboardingTitle" data-testid="onboarding-panel">
+  <div class="onboarding-backdrop" aria-hidden="true">
+    <div
+      class="onboarding-panel card shadow-lg"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="onboardingTitle"
+      data-testid="onboarding-panel"
+    >
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <span id="onboardingTitle"><i class="bi bi-stars"></i> 快速上手 MathExamHub</span>
         <button type="button" class="btn-close btn-close-white" aria-label="关闭" @click="skipTour" />
@@ -103,6 +109,18 @@ export default {
   },
   mounted() {
     this.step = Math.min(4, Math.max(0, Number(this.onboarding.tourStep) || 0));
+    this._onKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.skipTour();
+      }
+    };
+    document.addEventListener('keydown', this._onKeydown);
+  },
+  beforeUnmount() {
+    if (this._onKeydown) {
+      document.removeEventListener('keydown', this._onKeydown);
+    }
   },
   methods: {
     async importSample() {
@@ -166,15 +184,17 @@ export default {
 .onboarding-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
   z-index: 2000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 1.5rem;
+  pointer-events: none;
 }
 .onboarding-panel {
   max-width: 480px;
   width: 100%;
+  pointer-events: auto;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
 }
 </style>

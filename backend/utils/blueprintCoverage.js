@@ -61,6 +61,7 @@ function analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, opts = {}) {
       listQuery: buildGapListQuery(section, sf.neededDifficulty),
       reasonCode: sf.reasonCode || diagnosis?.reasonCode,
       suggestion: sf.suggestion || diagnosis?.suggestion,
+      suggestedScoreEach: sf.suggestedScoreEach ?? diagnosis?.suggestedScoreEach,
       filterStages: sf.filterStages || diagnosis?.filterStages,
       shortfall: true,
     };
