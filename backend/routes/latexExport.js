@@ -60,6 +60,7 @@ function registerLatexExportRoutes(router) {
         subject: q.subject,
         originalLaTeX: q.originalLaTeX,
         latexPartTitle: q.latexPartTitle,
+        images: q.images,
       }));
 
       const generator = new LatexGenerator();

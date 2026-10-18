@@ -1208,6 +1208,7 @@ class LatexGenerator {
   }
 
   generateDocument(questions, metadata = {}, mode = 'exam') {
+    const emittedFigureKeys = new Set();
     let latex = this.generateHeader(metadata, mode);
     latex += '\n\\begin{document}\n';
     latex += '\\makehead\n';
@@ -1235,18 +1236,18 @@ class LatexGenerator {
       for (const type of typeOrder) {
         if (groupedByOriginalType[type]?.length) {
           const mappedType = this.mapQuestionTypeToPartType(type);
-          latex += this.generatePart(mappedType, groupedByOriginalType[type], mode);
+          latex += this.generatePart(mappedType, groupedByOriginalType[type], mode, emittedFigureKeys);
           processedTypes.add(type);
         }
       }
       for (const [type, qs] of Object.entries(groupedByOriginalType)) {
         if (!processedTypes.has(type)) {
-          latex += this.generatePart(this.mapQuestionTypeToPartType(type), qs, mode);
+          latex += this.generatePart(this.mapQuestionTypeToPartType(type), qs, mode, emittedFigureKeys);
         }
       }
     } else {
       for (const sec of sections) {
-        latex += this.generatePart(sec.title, sec.questions, mode);
+        latex += this.generatePart(sec.title, sec.questions, mode, emittedFigureKeys);
       }
     }
 
@@ -1410,7 +1411,7 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
   /**
    * 生成一个题型部分
    */
-  generatePart(type, questions, mode = 'exam') {
+  generatePart(type, questions, mode = 'exam', emittedFigureKeys = null) {
     const totalScore = questions.reduce((sum, q) => sum + (q.totalScore || 0), 0);
     const fillScoring = type === '填空题' ? inferFillInPartScoring(type, questions) : null;
 
@@ -1438,7 +1439,11 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
     let latex = `\\begin{makepart}[${partInfo}]{${type}}${scoreSuffix}\n`;
 
     for (const q of questions) {
-      latex += this.generateProblem(q, mode, { partPerScore, scoringMode });
+      latex += this.generateProblem(q, mode, {
+        partPerScore,
+        scoringMode,
+        emittedFigureKeys,
+      });
     }
 
     latex += '\\end{makepart}\n';
@@ -1483,9 +1488,12 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
     const hasSolution = /\\begin\{solution\}/.test(bodySource);
     const hasFill = /\\fill(in|out)\{/.test(bodySource);
     const hasTrueFalse = /\\true\b/.test(bodySource) || /\\false\b/.test(bodySource);
+    const hasIncludegraphics = /\\includegraphics(?:\[[^\]]*\])?\{/.test(bodySource);
 
-    if (!question.originalLaTeX) {
-      const imageLatex = this.generateImagesLaTeX(question.images);
+    if (!hasIncludegraphics && question.images?.length) {
+      const imageLatex = this.generateImagesLaTeX(question.images, {
+        emittedKeys: opts.emittedFigureKeys,
+      });
       if (imageLatex) latex += imageLatex;
     }
 
@@ -1558,23 +1566,25 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
   /**
    * Structured question.images → LaTeX (mathexam figure / center placement).
    */
-  generateImagesLaTeX(images) {
+  generateImagesLaTeX(images, opts = {}) {
     if (!images || !images.length) return '';
+    const {
+      normalizeImageEntry,
+      includegraphicsBasenameFromUrl,
+      exportFigureDedupeKey,
+    } = require('./questionImages');
+    const emittedKeys = opts.emittedKeys || null;
     let out = '';
     for (const raw of images) {
-      const img = raw && typeof raw === 'object' ? raw : { url: raw };
-      const url = String(img.url || '').trim();
-      if (!url) continue;
-      let originalName = url;
-      if (url.includes('-')) {
-        const figMatch = url.match(/fig(\d+)/i);
-        if (figMatch) originalName = `fig${figMatch[1]}`;
-        else {
-          const parts = url.split('-');
-          originalName = parts[parts.length - 1];
-        }
+      const img = normalizeImageEntry(raw && typeof raw === 'object' ? raw : { url: raw });
+      if (!img?.url) continue;
+      const dedupeKey = exportFigureDedupeKey(img);
+      if (emittedKeys && dedupeKey) {
+        if (emittedKeys.has(dedupeKey)) continue;
+        emittedKeys.add(dedupeKey);
       }
-      originalName = originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+      const originalName = includegraphicsBasenameFromUrl(img.url);
+      if (!originalName) continue;
       const widthOpt = img.width ? `[width=${img.width}]` : '';
       const labelPart = (img.label || '').replace(/^fig:/, '');
       const caption = img.caption ? img.caption : ' ';
