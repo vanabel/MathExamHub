@@ -52,23 +52,25 @@ async function seedUiV2ScreenshotBank({ base }) {
   const hdrs = { 'Content-Type': 'application/json' };
   if (bankId) hdrs['X-Bank-Id'] = bankId;
 
+  const cred = { credentials: 'include' };
+
   await fetch(`${base}/onboarding/tour`, {
+    ...cred,
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tourCompleted: true, tourStep: 4 }),
   });
 
   const importRes = await fetch(`${base}/onboarding/import-sample`, {
+    ...cred,
     method: 'POST',
-    credentials: 'include',
     headers: hdrs,
   });
   const importBody = await importRes.json();
 
   await fetch(`${base}/banks/${bankId}/latex-metadata`, {
+    ...cred,
     method: 'PATCH',
-    credentials: 'include',
     headers: hdrs,
     body: JSON.stringify({
       course: '解析几何',
