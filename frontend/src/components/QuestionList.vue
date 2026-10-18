@@ -39,6 +39,9 @@
             <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
+            <router-link to="/knowledge-points/import" class="btn btn-outline-primary btn-sm">
+              知识图谱
+            </router-link>
           </div>
         </div>
 
@@ -146,6 +149,13 @@
         </div>
       </div>
 
+      <LlmKpSuggestPanel
+        v-if="selectedQuestionIds.length"
+        class="mb-3"
+        :question-ids="selectedQuestionIds"
+        @applied="getQuestionList"
+      />
+
       <div v-if="gapBatchActive" class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div class="small">
           <strong>覆盖缺口批量查看</strong>
@@ -244,10 +254,20 @@
           :key="question._id"
           class="col-12 col-md-6 col-lg-4"
         >
-          <div class="card question-card h-100">
+          <div class="card question-card h-100" :class="{ 'border-primary': isSelected(question._id) }">
             <div class="card-body">
               <!-- 题目头部信息 -->
               <div class="question-header mb-3">
+                <div class="form-check mb-2">
+                  <input
+                    :id="`sel-${question._id}`"
+                    class="form-check-input"
+                    type="checkbox"
+                    :checked="isSelected(question._id)"
+                    @change="toggleSelect(question._id, $event.target.checked)"
+                  />
+                  <label class="form-check-label small text-muted" :for="`sel-${question._id}`">批量选择</label>
+                </div>
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <span class="badge bg-primary">{{ question.subject }}</span>
                   <span class="badge" :class="getDifficultyClass(question.difficulty)">
@@ -333,6 +353,7 @@ import {
   renderQuestionImagesHtml,
 } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import LlmKpSuggestPanel from "./LlmKpSuggestPanel.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import {
   loadCoverageGapBatch,
@@ -342,7 +363,7 @@ import { flattenKnowledgePointTree, kpTreeIndent } from "../utils/knowledgePoint
 
 export default {
   name: "QuestionList",
-  components: { ChoiceOptionsList },
+  components: { ChoiceOptionsList, LlmKpSuggestPanel },
   data() {
     return {
       questions: [],
@@ -370,6 +391,7 @@ export default {
       gapBatchGaps: [],
       gapBatchIndex: 0,
       gapBatchSeed: null,
+      selectedQuestionIds: [],
     };
   },
   computed: {
@@ -557,6 +579,22 @@ export default {
       this.gapBatchIndex += 1;
       this.applyGapListQuery(this.gapBatchGaps[this.gapBatchIndex]?.listQuery);
       this.pushFiltersToRoute();
+    },
+    isSelected(id) {
+      return this.selectedQuestionIds.includes(String(id));
+    },
+    toggleSelect(id, on) {
+      const sid = String(id);
+      if (on) {
+        if (!this.selectedQuestionIds.includes(sid)) {
+          this.selectedQuestionIds = [...this.selectedQuestionIds, sid];
+        }
+      } else {
+        this.selectedQuestionIds = this.selectedQuestionIds.filter((x) => x !== sid);
+      }
+    },
+    clearSelection() {
+      this.selectedQuestionIds = [];
     },
     clearGapBatch() {
       this.gapBatchGaps = [];

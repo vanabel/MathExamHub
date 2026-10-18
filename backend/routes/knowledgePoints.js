@@ -1,16 +1,113 @@
 const express = require('express');
+const multer = require('multer');
 const KnowledgePoint = require('../models/KnowledgePoint');
+const { parseKpExcelBuffer } = require('../utils/kpExcelParse');
+const { buildKpExcelWorkbook } = require('../utils/kpExcelExport');
+const { diffKpImport, mergeKpImport } = require('../services/kpGraphMergeService');
 const Question = require('../models/Question');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const { buildKnowledgePointPath } = require('../utils/knowledgePointPath');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
+const platformSettingsService = require('../services/platformSettingsService');
+const { settingsForLlmAssist } = require('../services/llmProviderResolve');
+const { draftKnowledgePointTree } = require('../services/llmDraftKpTreeService');
 const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 
 const router = express.Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
 
 router.use(requireAuth);
 router.use(bankContext);
+
+router.post('/llm-draft-tree', requireBankWrite, async (req, res) => {
+  try {
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const settings = settingsForLlmAssist(platformSettings);
+    const draft = await draftKnowledgePointTree(req.bankId, settings, {
+      subject: req.body?.subject || req.query?.subject,
+      maxQuestions: req.body?.maxQuestions,
+    });
+    res.json({ dryRun: true, draft });
+  } catch (error) {
+    console.error('llm-draft-tree failed', error);
+    res.status(500).json({ error: error.message || '草稿知识点树生成失败' });
+  }
+});
+
+router.post('/import/preview', requireBankWrite, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: '请上传 Excel 文件（.xls/.xlsx）' });
+    }
+    const parsed = parseKpExcelBuffer(req.file.buffer);
+    const subject = req.body?.subject?.trim() || parsed.subject;
+    const diff = await diffKpImport(req.bankId, subject, parsed.nodes);
+    res.json({
+      dryRun: true,
+      fileName: req.file.originalname,
+      title: parsed.title,
+      subject,
+      diff: {
+        totalParsed: diff.totalParsed,
+        existingCount: diff.existingCount,
+        toCreate: diff.toCreate,
+        toUpdate: diff.toUpdate,
+        unchanged: diff.unchanged,
+        preview: diff.preview,
+      },
+    });
+  } catch (error) {
+    console.error('KP import preview failed', error);
+    res.status(400).json({ error: error.message || '预览失败' });
+  }
+});
+
+router.post('/import/apply', requireBankWrite, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: '请上传 Excel 文件（.xls/.xlsx）' });
+    }
+    const parsed = parseKpExcelBuffer(req.file.buffer);
+    const subject = req.body?.subject?.trim() || parsed.subject;
+    const result = await mergeKpImport(req.bankId, subject, parsed.nodes);
+    res.json({
+      dryRun: false,
+      subject,
+      ...result,
+    });
+  } catch (error) {
+    console.error('KP import apply failed', error);
+    res.status(400).json({ error: error.message || '导入失败' });
+  }
+});
+
+router.get('/export/excel', requireBankWrite, async (req, res) => {
+  try {
+    const subject = String(req.query.subject || '').trim();
+    if (!subject) {
+      return res.status(400).json({ error: 'subject 查询参数必填' });
+    }
+    const nodes = await KnowledgePoint.find({ bankId: req.bankId, subject })
+      .sort({ path: 1, order: 1 })
+      .lean();
+    const buffer = buildKpExcelWorkbook({
+      subject,
+      title: `${subject}课程知识点`,
+      nodes,
+    });
+    const fileName = encodeURIComponent(`${subject}-课程知识点.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('KP export failed', error);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
 
 router.get('/tree', async (req, res) => {
   try {

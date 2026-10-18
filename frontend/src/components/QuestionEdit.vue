@@ -126,6 +126,16 @@
             </div>
 
             <div class="mb-4">
+              <h5 class="mb-2"><i class="bi bi-diagram-3"></i> 知识点</h5>
+              <KnowledgePointPicker v-model="knowledgePointIds" :subject="questionSubject || '解析几何'" />
+              <LlmKpSuggestPanel
+                class="mt-3"
+                :question-ids="questionId ? [questionId] : []"
+                @applied="getQuestionData"
+              />
+            </div>
+
+            <div class="mb-4">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <h5 class="mb-0"><i class="bi bi-image"></i> 题干配图</h5>
                 <button type="button" class="btn btn-sm btn-outline-primary" @click="addImageRow">
@@ -207,11 +217,17 @@
 
 <script>
 import axios from "axios";
+import KnowledgePointPicker from "./KnowledgePointPicker.vue";
+import LlmKpSuggestPanel from "./LlmKpSuggestPanel.vue";
 
 export default {
   name: "QuestionEdit",
+  components: { KnowledgePointPicker, LlmKpSuggestPanel },
   data() {
     return {
+      questionId: "",
+      questionSubject: "",
+      knowledgePointIds: [],
       questionType: "",
       questionScore: null,
       questionDifficulty: "",
@@ -241,8 +257,8 @@ export default {
     },
     async getQuestionData() {
       try {
-        const questionId = this.$route.params.id;
-        const response = await axios.get(`/questions/${questionId}/get`);
+        this.questionId = this.$route.params.id;
+        const response = await axios.get(`/questions/${this.questionId}/get`);
 
         this.questionText = response.data.questionText;
         this.questionAnswer = response.data.questionAnswer;
@@ -250,6 +266,10 @@ export default {
 
         // 如果后端返回了更多字段，可以在这里设置
         if (response.data.type) this.questionType = response.data.type;
+        if (response.data.subject) this.questionSubject = response.data.subject;
+        if (Array.isArray(response.data.knowledgePointIds)) {
+          this.knowledgePointIds = response.data.knowledgePointIds.map(String);
+        }
         if (response.data.totalScore) this.questionScore = response.data.totalScore;
         if (response.data.difficulty) this.questionDifficulty = response.data.difficulty;
         if (response.data.options) this.options = response.data.options;
@@ -273,8 +293,6 @@ export default {
       this.loading = true;
 
       try {
-        const questionId = this.$route.params.id;
-
         const payload = {
           questionText: this.questionText,
           correctAnswer: this.questionAnswer,
@@ -292,8 +310,10 @@ export default {
           payload.options = this.options;
         }
         payload.images = this.questionImages.filter((img) => img && String(img.url || "").trim());
+        payload.knowledgePointIds = this.knowledgePointIds;
+        if (this.questionSubject) payload.subject = this.questionSubject;
 
-        await axios.put(`/questions/${questionId}/edit`, payload, {
+        await axios.put(`/questions/${this.questionId}/edit`, payload, {
           headers: {
             "Content-Type": "application/json",
           },

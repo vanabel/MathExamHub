@@ -32,6 +32,23 @@ const knowledgePointSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  prerequisiteIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'KnowledgePoint',
+  }],
+  successorIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'KnowledgePoint',
+  }],
+  relatedIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'KnowledgePoint',
+  }],
+  tags: [{ type: String, trim: true }],
+  cognitiveLevel: { type: String, trim: true, default: '' },
+  category: { type: String, trim: true, default: '' },
+  objective: { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
 }, {
   timestamps: true,
 });

@@ -69,6 +69,13 @@ function buildQuestionListFilter({ bankId, query, kpSubtreeIds }) {
     filter.status = query.status;
   }
 
+  if (query.untaggedOnly === 'true' || query.untaggedOnly === true || query.missingKp === 'true') {
+    filter.$or = [
+      { knowledgePointIds: { $exists: false } },
+      { knowledgePointIds: { $size: 0 } },
+    ];
+  }
+
   return filter;
 }
 
