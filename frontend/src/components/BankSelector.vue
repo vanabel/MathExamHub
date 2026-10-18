@@ -152,9 +152,9 @@ export default {
 
 .bank-selector-select {
   flex: 1 1 auto;
-  min-width: 11rem;
-  max-width: 16rem;
-  width: 14rem;
+  min-width: 8rem;
+  max-width: 14rem;
+  width: 11rem;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background-color: rgba(255, 255, 255, 0.97);

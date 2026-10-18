@@ -454,16 +454,43 @@ export default {
   padding-left: 0.85rem;
   margin-left: 0.35rem;
   border-left: 1px solid rgba(255, 255, 255, 0.22);
+  min-width: 0;
 }
 
 .navbar-bank-selector {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;
 }
 
 .navbar-user-nav {
   flex-shrink: 0;
-  margin-left: 0.15rem;
+  margin-left: auto;
+}
+
+/* Avoid bank toolbar overlapping the user menu on typical laptop widths (e2e viewport). */
+@media (min-width: 992px) and (max-width: 1399px) {
+  .navbar-collapse-main {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+
+  .navbar-end {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    margin-left: 0;
+    padding-left: 0;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 1399px) {
+  .navbar-user-nav .user-name {
+    display: none;
+  }
 }
 
 .navbar-user-nav .user-nav-link {
