@@ -1,9 +1,8 @@
 <template>
   <div class="question-list-container">
     <div class="container">
-      <!-- 页面头部：标题 + 搜索 + 统计 -->
       <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="list-header-row list-header-row--top">
           <div>
             <h1 class="page-title mb-1">
               <i class="bi bi-list-ul"></i> 试题列表
@@ -13,138 +12,137 @@
               <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
             </p>
           </div>
-          <div class="d-flex gap-2 flex-wrap align-items-center">
-            <router-link to="/question-add" class="btn btn-primary">
-              <i class="bi bi-plus-lg"></i> 添加题目
-            </router-link>
+          <div class="list-header-actions d-flex gap-2 align-items-center flex-shrink-0">
             <button
               type="button"
-              class="btn btn-outline-secondary d-md-none"
+              class="btn btn-outline-secondary btn-sm d-md-none"
               data-testid="question-list-toggle-filters"
               @click="filtersOpen = !filtersOpen"
             >
               <i class="bi bi-funnel"></i> 筛选
             </button>
+            <div class="dropdown">
+              <button
+                class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                data-testid="question-list-more-menu"
+              >
+                导入 / 导出
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
+                <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
+              </ul>
+            </div>
+            <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
+              <i class="bi bi-plus-lg"></i> 添加题目
+            </router-link>
           </div>
         </div>
 
         <div
-          class="filter-panel mt-3 pt-3 border-top"
-          :class="{ 'd-none d-md-block': !filtersOpen, 'd-block': filtersOpen }"
+          class="filter-toolbar mt-3"
+          :class="{ 'd-none d-md-flex': !filtersOpen, 'd-flex': filtersOpen }"
           data-testid="question-list-filters"
         >
-          <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-4 col-lg-3">
-              <label class="form-label small mb-1">关键词</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  class="form-control"
-                  placeholder="搜索题目…"
-                  data-testid="question-list-search"
-                  @input="handleSearch"
-                />
-              </div>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label small mb-1">科目</label>
+          <div class="filter-toolbar__search">
+            <div class="input-group input-group-sm filter-control">
+              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
               <input
-                v-model="subjectFilter"
-                type="text"
-                class="form-control form-control-sm"
-                list="question-subject-suggestions"
-                placeholder="科目"
-                data-testid="question-list-subject"
-                @change="onFilterChange"
+                v-model="searchQuery"
+                type="search"
+                class="form-control"
+                placeholder="搜索题目…"
+                data-testid="question-list-search"
+                @input="handleSearch"
               />
-              <datalist id="question-subject-suggestions">
-                <option v-for="s in facetSubjects" :key="s.value" :value="s.value" />
-              </datalist>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label small mb-1">题型</label>
-              <select
-                v-model="typeFilter"
-                class="form-select form-select-sm"
-                data-testid="question-list-type"
-                @change="onFilterChange"
-              >
-                <option value="">全部题型</option>
-                <option v-for="t in questionTypes" :key="t" :value="t">
-                  {{ t }}{{ facetSuffix('type', t) }}
-                </option>
-              </select>
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label small mb-1">难度</label>
-              <select
-                v-model="difficultyFilter"
-                class="form-select form-select-sm"
-                data-testid="question-list-difficulty"
-                @change="onFilterChange"
-              >
-                <option value="">全部</option>
-                <option v-for="d in difficultyOptions" :key="d" :value="d">
-                  {{ d }}{{ facetSuffix('difficulty', d) }}
-                </option>
-              </select>
-            </div>
-            <div class="col-12 col-md-4 col-lg-3">
-              <label class="form-label small mb-1">知识点（含子节点）</label>
-              <select
-                v-model="kpFilter"
-                class="form-select form-select-sm"
-                data-testid="question-list-kp"
-                @change="onFilterChange"
-              >
-                <option value="">全部知识点</option>
-                <option v-for="kp in kpTreeFlat" :key="kp._id" :value="kp._id">
-                  {{ kpTreeIndent(kp.depth) }}{{ kp.path || kp.name }}
-                </option>
-              </select>
-            </div>
-            <div class="col-4 col-md-2">
-              <label class="form-label small mb-1">分值</label>
-              <input
-                v-model="exactScoreFilter"
-                type="number"
-                min="0"
-                class="form-control form-control-sm"
-                placeholder="精确"
-                data-testid="question-list-score-exact"
-                @change="onScoreFilterChange"
-              />
-            </div>
-            <div class="col-4 col-md-2">
-              <label class="form-label small mb-1">分值 ≥</label>
-              <input
-                v-model="minScoreFilter"
-                type="number"
-                min="0"
-                class="form-control form-control-sm"
-                placeholder="最小"
-                @change="onScoreFilterChange"
-              />
-            </div>
-            <div class="col-4 col-md-2">
-              <label class="form-label small mb-1">分值 ≤</label>
-              <input
-                v-model="maxScoreFilter"
-                type="number"
-                min="0"
-                class="form-control form-control-sm"
-                placeholder="最大"
-                @change="onScoreFilterChange"
-              />
-            </div>
-            <div class="col-12 col-md-auto">
-              <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearFilters">
-                清除筛选
-              </button>
             </div>
           </div>
+          <select
+            v-model="subjectFilter"
+            class="form-select form-select-sm filter-control filter-toolbar__subject"
+            data-testid="question-list-subject"
+            @change="onFilterChange"
+          >
+            <option value="">全部科目</option>
+            <option v-for="s in facetSubjects" :key="s.value" :value="s.value">
+              {{ s.value }}{{ facetSuffix('subject', s.value) }}
+            </option>
+          </select>
+          <select
+            v-model="typeFilter"
+            class="form-select form-select-sm filter-control"
+            data-testid="question-list-type"
+            @change="onFilterChange"
+          >
+            <option value="">全部题型</option>
+            <option v-for="t in questionTypes" :key="t" :value="t">
+              {{ t }}{{ facetSuffix('type', t) }}
+            </option>
+          </select>
+          <select
+            v-model="difficultyFilter"
+            class="form-select form-select-sm filter-control"
+            data-testid="question-list-difficulty"
+            @change="onFilterChange"
+          >
+            <option value="">全部难度</option>
+            <option v-for="d in difficultyOptions" :key="d" :value="d">
+              {{ d }}{{ facetSuffix('difficulty', d) }}
+            </option>
+          </select>
+          <div class="filter-toolbar__score filter-control d-flex gap-1 align-items-center">
+            <input
+              v-model="minScoreFilter"
+              type="number"
+              min="0"
+              class="form-control form-control-sm"
+              placeholder="分值≥"
+              data-testid="question-list-min-score"
+              @change="onScoreFilterChange"
+            />
+            <span class="text-muted small">–</span>
+            <input
+              v-model="maxScoreFilter"
+              type="number"
+              min="0"
+              class="form-control form-control-sm"
+              placeholder="≤"
+              data-testid="question-list-max-score"
+              @change="onScoreFilterChange"
+            />
+          </div>
+          <select
+            v-model="kpFilter"
+            class="form-select form-select-sm filter-control filter-toolbar__kp"
+            data-testid="question-list-kp"
+            @change="onFilterChange"
+          >
+            <option value="">全部知识点</option>
+            <option v-for="kp in kpTreeFlat" :key="kp._id" :value="kp._id">
+              {{ kpTreeIndent(kp.depth) }}{{ kp.path || kp.name }}
+            </option>
+          </select>
+        </div>
+
+        <div
+          v-if="activeFilterChips.length"
+          class="filter-chips mt-2 d-flex flex-wrap align-items-center gap-2"
+          data-testid="question-list-filter-chips"
+        >
+          <span
+            v-for="chip in activeFilterChips"
+            :key="chip.key"
+            class="badge rounded-pill text-bg-light border filter-chip"
+          >
+            {{ chip.label }}
+            <button type="button" class="btn-close btn-close-sm ms-1" :aria-label="'移除' + chip.label" @click="removeFilterChip(chip.key)"></button>
+          </span>
+          <button type="button" class="btn btn-link btn-sm p-0" data-testid="question-list-clear-filters" @click="clearFilters">
+            清除筛选
+          </button>
         </div>
       </div>
 
@@ -399,6 +397,31 @@ export default {
     rangeEnd() {
       return Math.min(this.currentPage * this.pageSize, this.totalCount);
     },
+    activeFilterChips() {
+      const chips = [];
+      if (this.searchQuery.trim()) {
+        chips.push({ key: 'q', label: `搜索：${this.searchQuery.trim()}` });
+      }
+      if (this.subjectFilter.trim()) {
+        chips.push({ key: 'subject', label: `科目：${this.subjectFilter.trim()}` });
+      }
+      if (this.typeFilter) chips.push({ key: 'type', label: `题型：${this.typeFilter}` });
+      if (this.difficultyFilter) chips.push({ key: 'difficulty', label: `难度：${this.difficultyFilter}` });
+      if (this.kpFilter) {
+        chips.push({ key: 'kp', label: `知识点：${this.kpPathLabel(this.kpFilter)}` });
+      }
+      if (this.exactScoreFilter !== '' && this.exactScoreFilter != null) {
+        chips.push({ key: 'score', label: `分值 = ${this.exactScoreFilter}` });
+      } else {
+        if (this.minScoreFilter !== '' && this.minScoreFilter != null) {
+          chips.push({ key: 'minScore', label: `分值 ≥ ${this.minScoreFilter}` });
+        }
+        if (this.maxScoreFilter !== '' && this.maxScoreFilter != null) {
+          chips.push({ key: 'maxScore', label: `分值 ≤ ${this.maxScoreFilter}` });
+        }
+      }
+      return chips;
+    },
   },
   mounted() {
     this.initGapBatchFromRoute();
@@ -596,6 +619,25 @@ export default {
           runFetch();
         });
       });
+    },
+    kpPathLabel(id) {
+      const hit = this.kpTreeFlat.find((k) => String(k._id) === String(id));
+      return hit?.path || hit?.name || id;
+    },
+    removeFilterChip(key) {
+      const map = {
+        q: () => { this.searchQuery = ''; },
+        subject: () => { this.subjectFilter = ''; },
+        type: () => { this.typeFilter = ''; },
+        difficulty: () => { this.difficultyFilter = ''; },
+        kp: () => { this.kpFilter = ''; },
+        score: () => { this.exactScoreFilter = ''; },
+        minScore: () => { this.minScoreFilter = ''; },
+        maxScore: () => { this.maxScoreFilter = ''; },
+      };
+      map[key]?.();
+      this.currentPage = 1;
+      this.pushFiltersToRoute();
     },
     clearFilters() {
       this.searchQuery = '';
@@ -847,10 +889,61 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.filter-panel {
+.list-header-row--top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
   background: #f8f9fa;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.filter-toolbar__search {
+  flex: 1 1 180px;
+  min-width: 140px;
+}
+
+.filter-toolbar__subject {
+  flex: 0 1 130px;
+  min-width: 110px;
+}
+
+.filter-toolbar__kp {
+  flex: 1 1 200px;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.filter-toolbar__score {
+  flex: 0 1 140px;
+}
+
+.filter-control {
+  height: 38px;
+}
+
+.filter-control.form-select,
+.filter-control .form-control {
+  height: 38px;
+}
+
+.filter-chip {
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.55rem;
+}
+
+.filter-chip .btn-close {
+  font-size: 0.55rem;
 }
 
 .pagination-bar {
@@ -869,8 +962,12 @@ export default {
     padding: 1.5rem;
   }
 
-  .filter-panel {
-    padding: 0.75rem;
+  .filter-toolbar.d-flex {
+    flex-direction: column;
+  }
+
+  .filter-toolbar__kp {
+    max-width: none;
   }
 }
 </style>

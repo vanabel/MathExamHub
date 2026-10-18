@@ -73,5 +73,13 @@ test.describe('question list pagination and filters', () => {
     await expect(filteredCards.first()).toBeVisible({ timeout: 15000 });
     const badgeText = await filteredCards.first().locator('.badge.bg-secondary').textContent();
     expect(badgeText).toContain('填空题');
+
+    await page.getByTestId('question-list-difficulty').selectOption('难');
+    await expect(page.getByTestId('question-list-filter-chips')).toBeVisible();
+    await expect(page.getByTestId('question-list-filter-chips')).toContainText('难度：难');
+
+    await page.getByTestId('question-list-clear-filters').click();
+    await expect(page).not.toHaveURL(/difficulty=/);
+    await expect(page.getByTestId('question-list-filter-chips')).not.toBeVisible();
   });
 });
