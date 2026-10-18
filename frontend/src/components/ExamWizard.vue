@@ -139,12 +139,37 @@
                       <input v-model.number="section.difficultyMix.难" type="number" min="0" class="form-control" placeholder="难" />
                     </div>
                   </div>
-                  <div class="col-12">
-                    <label class="form-label small mb-1">知识点约束（可选，含子树）</label>
-                    <knowledge-point-picker
-                      v-model="section.knowledgePointIds"
-                      :subject="blueprint.subject"
-                    />
+                  <div class="col-12 wizard-kp-constraint-block">
+                    <button
+                      type="button"
+                      class="wizard-kp-constraint-toggle btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center gap-2 w-100 text-start text-body"
+                      data-testid="wizard-kp-constraint-toggle"
+                      :aria-expanded="isKpConstraintOpen(idx) ? 'true' : 'false'"
+                      :aria-controls="`wizard-kp-constraint-body-${idx}`"
+                      @click="toggleKpConstraint(idx)"
+                    >
+                      <i
+                        class="bi flex-shrink-0"
+                        :class="isKpConstraintOpen(idx) ? 'bi-chevron-down' : 'bi-chevron-right'"
+                        aria-hidden="true"
+                      ></i>
+                      <span class="small fw-semibold mb-0">知识点约束（可选，含子树）</span>
+                      <span
+                        class="badge rounded-pill text-bg-light border ms-auto flex-shrink-0"
+                        data-testid="wizard-kp-constraint-count"
+                      >{{ kpConstraintCountLabel(section) }}</span>
+                    </button>
+                    <div
+                      v-show="isKpConstraintOpen(idx)"
+                      :id="`wizard-kp-constraint-body-${idx}`"
+                      class="mt-2"
+                      data-testid="wizard-kp-constraint-body"
+                    >
+                      <knowledge-point-picker
+                        v-model="section.knowledgePointIds"
+                        :subject="blueprint.subject"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -551,6 +576,7 @@ export default {
       scoreGapModalOpen: false,
       pendingScoreGap: null,
       pendingGeneratePreview: null,
+      kpConstraintOpenBySection: {},
     };
   },
   computed: {
@@ -567,6 +593,20 @@ export default {
     this.openFromRouteQuery();
   },
   methods: {
+    isKpConstraintOpen(idx) {
+      return !!this.kpConstraintOpenBySection[idx];
+    },
+    toggleKpConstraint(idx) {
+      const next = !this.isKpConstraintOpen(idx);
+      this.kpConstraintOpenBySection = {
+        ...this.kpConstraintOpenBySection,
+        [idx]: next,
+      };
+    },
+    kpConstraintCountLabel(section) {
+      const n = (section.knowledgePointIds || []).length;
+      return `已设 ${n} 项`;
+    },
     formatFilterStageSummary,
     reasonCodeLabel,
     formatScoreDelta(delta) {
@@ -1077,5 +1117,11 @@ export default {
 }
 .max-w-600 {
   max-width: 36rem;
+}
+
+.wizard-kp-constraint-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.35));
+  border-radius: 6px;
 }
 </style>
