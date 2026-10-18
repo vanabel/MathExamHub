@@ -36,6 +36,8 @@ const {
   getKpTagReviewSummary,
   updateKpTagJobReview,
   applyKpTagJob,
+  dismissKpTagJob,
+  summarizeJob,
 } = require('../services/kpTagJobService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
@@ -364,7 +366,8 @@ router.get('/kp-tag-jobs/latest-open', requireBankWrite, async (req, res) => {
 router.get('/kp-tag-jobs', requireBankWrite, async (req, res) => {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 30;
-    const jobs = await listKpTagJobs(req.bankId, { limit });
+    const filter = req.query.filter ? String(req.query.filter) : undefined;
+    const jobs = await listKpTagJobs(req.bankId, { limit, filter });
     res.json({ jobs });
   } catch (error) {
     res.status(500).json({ error: '列出任务失败' });
@@ -398,6 +401,16 @@ router.post('/kp-tag-jobs/:jobId/apply', requireBankWrite, async (req, res) => {
   } catch (error) {
     console.error('kp-tag-jobs apply failed', error);
     res.status(500).json({ error: '写入知识点失败' });
+  }
+});
+
+router.post('/kp-tag-jobs/:jobId/dismiss', requireBankWrite, async (req, res) => {
+  try {
+    const job = await dismissKpTagJob(req.bankId, req.params.jobId, req.user?.username);
+    if (!job) return res.status(404).json({ error: '任务不存在' });
+    res.json({ ok: true, job: summarizeJob(job) });
+  } catch (error) {
+    res.status(500).json({ error: '关闭任务失败' });
   }
 });
 

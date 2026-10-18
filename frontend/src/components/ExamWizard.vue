@@ -299,13 +299,25 @@
                   <button type="button" class="btn-close" aria-label="关闭" @click="cancelScoreGapModal"></button>
                 </div>
                 <div class="modal-body small">
-                  <p>
+                  <template v-if="pendingScoreGap.variantA || pendingScoreGap.variantB">
+                    <p v-if="pendingScoreGap.variantA">
+                      A 卷：实际 <strong>{{ pendingScoreGap.variantA.actual }}</strong>，
+                      目标 <strong>{{ pendingScoreGap.variantA.requested }}</strong>，
+                      相差 <strong>{{ formatScoreDelta(pendingScoreGap.variantA.delta) }}</strong> 分。
+                    </p>
+                    <p v-if="pendingScoreGap.variantB">
+                      B 卷：实际 <strong>{{ pendingScoreGap.variantB.actual }}</strong>，
+                      目标 <strong>{{ pendingScoreGap.variantB.requested }}</strong>，
+                      相差 <strong>{{ formatScoreDelta(pendingScoreGap.variantB.delta) }}</strong> 分。
+                    </p>
+                  </template>
+                  <p v-else>
                     实际总分 <strong>{{ pendingScoreGap.actual }}</strong>，
                     蓝图目标 <strong>{{ pendingScoreGap.requested }}</strong>，
-                    相差 <strong>{{ pendingScoreGap.delta?.toFixed?.(2) ?? pendingScoreGap.delta }}</strong> 分。
+                    相差 <strong>{{ formatScoreDelta(pendingScoreGap.delta) }}</strong> 分。
                   </p>
                   <p class="text-muted mb-0">
-                    确认后将保存试卷并进入预览；未确认前不会写入试卷记录。
+                    确认后将保存{{ generateAbPair ? ' A/B 卷' : '试卷' }}并进入预览；未确认前不会写入试卷记录。
                   </p>
                 </div>
                 <div class="modal-footer">
@@ -512,6 +524,10 @@ export default {
   methods: {
     formatFilterStageSummary,
     reasonCodeLabel,
+    formatScoreDelta(delta) {
+      if (delta == null) return '—';
+      return typeof delta === 'number' ? delta.toFixed(2) : String(delta);
+    },
     processQuestionTextToHTML,
     renderQuestionImagesHtml,
     isChoiceType: isChoiceQuestionType,
@@ -755,16 +771,35 @@ export default {
           const { data } = await axios.post('/exams/generate-variants', {
             blueprintId: this.savedBlueprintId,
             maxVariantOverlapPct,
+            allowScoreGap,
           });
+          if (data.scoreGapRequiresConfirm && !allowScoreGap) {
+            this.pendingScoreGap = data.scoreGap || {};
+            this.relaxations = [
+              ...(data.variants?.A?.relaxations || []),
+              ...(data.variants?.B?.relaxations || []),
+            ];
+            this.warnings = data.warnings || [];
+            this.shortfalls = data.shortfalls || [];
+            this.generateStats = data.variants?.A?.stats || null;
+            this.paperId = null;
+            this.paperQuestions = [];
+            this.scoreGapModalOpen = true;
+            return;
+          }
+          this.scoreGapModalOpen = false;
           this.variantOverlapRatio = data.overlapRatio ?? 0;
           if (data.warnings?.length) {
             this.warnings = data.warnings;
+          }
+          if (data.shortfalls?.length) {
+            this.shortfalls = data.shortfalls;
           }
           this.variants.A = data.variants.A;
           this.variants.B = data.variants.B;
           this.activeVariant = 'A';
           this.applyGeneratePayload(data.variants.A, 'A');
-          this.maybeAdvanceAfterGenerate(data.variants.A);
+          this.maybeAdvanceAfterGenerate(data);
         } else {
           const { data } = await axios.post('/exams/generate', {
             blueprintId: this.savedBlueprintId,
@@ -794,11 +829,12 @@ export default {
     },
     maybeAdvanceAfterGenerate(data) {
       if (data.scoreGapRequiresConfirm) return;
-      if (!data.success && !(data.questionIds?.length)) {
+      const payload = this.generateAbPair ? data.variants?.A : data;
+      if (!data.success && !(payload?.questionIds?.length)) {
         alert('未能抽到题目，请查看缺口说明或放宽设置。');
         return;
       }
-      if (this.paperQuestions.length && data.success) {
+      if (this.paperQuestions.length && (data.success || payload?.success)) {
         this.step = 2;
         this.$nextTick(() => {
           if (window.MathJax?.typesetPromise) {

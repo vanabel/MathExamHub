@@ -12,9 +12,10 @@ const MAX_SEED_ATTEMPTS = 48;
  * @param {number} seedBStart
  * @param {number} maxOverlapRatio 0..1
  */
-function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, maxOverlapRatio) {
+function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, maxOverlapRatio, opts = {}) {
+  const genOpts = { allowScoreGap: opts.allowScoreGap === true };
   const bpA = { ...blueprint, randomSeed: seedA };
-  const resultA = generateExamPaper(bpA, pool, kpExpansionMap);
+  const resultA = generateExamPaper(bpA, pool, kpExpansionMap, genOpts);
 
   let best = null;
   let seedB = seedBStart;
@@ -22,7 +23,7 @@ function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, 
 
   for (let attempt = 0; attempt < MAX_SEED_ATTEMPTS; attempt += 1) {
     const bpB = { ...blueprint, randomSeed: seedB + attempt };
-    const resultB = generateExamPaper(bpB, pool, kpExpansionMap);
+    const resultB = generateExamPaper(bpB, pool, kpExpansionMap, genOpts);
     const { overlapRatio, overlapCount } = computeVariantOverlap(
       resultA.questionIds,
       resultB.questionIds,
@@ -50,15 +51,25 @@ function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, 
 
   const variantGroupId = new mongoose.Types.ObjectId();
 
+  const resultB = best.resultB;
+  const scoreGapRequiresConfirm = Boolean(
+    resultA.scoreGapRequiresConfirm || resultB?.scoreGapRequiresConfirm,
+  );
+
   return {
     variantGroupId,
     resultA,
-    resultB: best.resultB,
+    resultB,
     seedA,
     seedB: best.seedB,
     overlapRatio: best.overlapRatio,
     overlapCount: best.overlapCount,
     warnings,
+    scoreGapRequiresConfirm,
+    scoreGap: scoreGapRequiresConfirm ? {
+      variantA: resultA.scoreGap || null,
+      variantB: resultB?.scoreGap || null,
+    } : null,
   };
 }
 

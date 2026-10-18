@@ -21,6 +21,8 @@ function summarizeJob(job) {
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     appliedAt: job.appliedAt,
+    dismissedAt: job.dismissedAt,
+    dismissedBy: job.dismissedBy,
     reviewCounts,
     reviewOpen: isJobReviewOpen(job),
   };
@@ -133,18 +135,28 @@ async function getKpTagJob(bankId, jobId) {
   return KpTagJob.findOne({ _id: jobId, bankId }).lean();
 }
 
-async function listKpTagJobs(bankId, { limit = 30 } = {}) {
+async function listKpTagJobs(bankId, { limit = 30, filter } = {}) {
   const jobs = await KpTagJob.find({ bankId })
     .sort({ createdAt: -1 })
     .limit(Math.min(limit, 100))
     .lean();
-  return jobs.map(summarizeJob);
+  const { jobListCategory } = require('../utils/kpTagJobReviewCounts');
+  let list = jobs.map(summarizeJob);
+  if (filter === 'pending') {
+    list = list.filter((j) => jobListCategory(j) === 'pending');
+  } else if (filter === 'applied') {
+    list = list.filter((j) => jobListCategory(j) === 'applied');
+  } else if (filter === 'dismissed') {
+    list = list.filter((j) => jobListCategory(j) === 'dismissed');
+  }
+  return list;
 }
 
 async function getLatestOpenReviewJob(bankId, subject) {
   const query = {
     bankId,
     appliedAt: null,
+    dismissedAt: null,
     status: { $in: ['queued', 'running', 'completed'] },
   };
   if (subject) query.subject = String(subject).trim();
@@ -156,8 +168,9 @@ async function getKpTagReviewSummary(bankId) {
   const jobs = await KpTagJob.find({
     bankId,
     appliedAt: null,
+    dismissedAt: null,
     status: { $in: ['queued', 'running', 'completed'] },
-  }).select('rows status').lean();
+  }).select('rows status dismissedAt appliedAt').lean();
 
   let pendingRowCount = 0;
   let openJobCount = 0;
@@ -182,6 +195,18 @@ async function updateKpTagJobReview(bankId, jobId, rowUpdates) {
     }
   }
   job.markModified('rows');
+  await job.save();
+  return job.toObject();
+}
+
+async function dismissKpTagJob(bankId, jobId, username) {
+  const job = await KpTagJob.findOne({ _id: jobId, bankId });
+  if (!job) return null;
+  if (job.dismissedAt) {
+    return job.toObject();
+  }
+  job.dismissedAt = new Date();
+  job.dismissedBy = username || '';
   await job.save();
   return job.toObject();
 }
@@ -223,6 +248,7 @@ module.exports = {
   getKpTagReviewSummary,
   updateKpTagJobReview,
   applyKpTagJob,
+  dismissKpTagJob,
   loadUntaggedQuestions,
   summarizeJob,
   countReviewRows,

@@ -9,13 +9,22 @@ function countReviewRows(rows) {
 }
 
 function isJobReviewOpen(job) {
-  if (!job || job.appliedAt) return false;
+  if (!job || job.appliedAt || job.dismissedAt) return false;
   if (job.status === 'queued' || job.status === 'running') return true;
   if (job.status === 'completed') return true;
   return false;
 }
 
+function jobListCategory(job) {
+  if (job.dismissedAt) return 'dismissed';
+  if (job.appliedAt) return 'applied';
+  const pending = job.reviewCounts?.pending ?? countReviewRows(job.rows).pending;
+  if (isJobReviewOpen(job) && pending > 0) return 'pending';
+  return 'other';
+}
+
 module.exports = {
   countReviewRows,
   isJobReviewOpen,
+  jobListCategory,
 };
