@@ -713,9 +713,7 @@ export default {
     async refreshCoverageAnalysis() {
       this.coverageLoading = true;
       try {
-        if (!this.savedBlueprintId) {
-          await this.saveBlueprint();
-        }
+        await this.saveBlueprint();
         const seedTrials = Math.min(32, Math.max(1, Number(this.coverageSeedTrials) || 1));
         const { data } = await axios.post('/exams/coverage-analysis', {
           blueprintId: this.savedBlueprintId,
@@ -751,9 +749,7 @@ export default {
         this.pendingGeneratePreview = null;
       }
       try {
-        if (!this.savedBlueprintId) {
-          await this.saveBlueprint();
-        }
+        await this.saveBlueprint();
         const maxVariantOverlapPct = Math.min(1, Math.max(0, this.maxOverlapPctUi / 100));
         if (this.generateAbPair) {
           const { data } = await axios.post('/exams/generate-variants', {
