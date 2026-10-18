@@ -39,9 +39,9 @@
             <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
-            <router-link to="/knowledge-points/import" class="btn btn-outline-primary btn-sm">
+            <kp-graph-nav-link link-class="btn btn-outline-primary btn-sm">
               知识图谱
-            </router-link>
+            </kp-graph-nav-link>
           </div>
         </div>
 
@@ -342,10 +342,11 @@ import {
   COVERAGE_GAP_BATCH_KEY,
 } from "../utils/coverageGapBatch";
 import { flattenKnowledgePointTree, kpTreeIndent } from "../utils/knowledgePointTree";
+import KpGraphNavLink from "./KpGraphNavLink.vue";
 
 export default {
   name: "QuestionList",
-  components: { ChoiceOptionsList },
+  components: { ChoiceOptionsList, KpGraphNavLink },
   data() {
     return {
       questions: [],

@@ -14,12 +14,15 @@ async function registerAndLogin(page, { uid, password, email }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass, email: mail }),
     });
-    await fetch(`${base}/auth/login`, {
+    const loginRes = await fetch(`${base}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass }),
     });
+    if (!loginRes.ok) {
+      throw new Error(`login failed: ${loginRes.status}`);
+    }
     const me = await fetch(`${base}/auth/me`, { credentials: 'include' }).then((r) => r.json());
     if (me.user) localStorage.setItem('currentUser', JSON.stringify(me.user));
     const banks = await fetch(`${base}/banks/mine`, { credentials: 'include' }).then((r) => r.json());
@@ -44,6 +47,40 @@ test.describe('KP Excel workflow', () => {
     await expect(page.getByTestId('kp-import-tree-preview')).not.toBeEmpty();
   });
 
+  test('job list and standalone review route', async ({ page }) => {
+    const uid = `kplist_${Date.now()}`;
+    await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+    await page.evaluate(async ({ base }) => {
+      await fetch(`${base}/onboarding/import-sample`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-Bank-Id': localStorage.getItem('currentBankId') },
+      });
+    }, { base: apiBase });
+
+    const jobId = await page.evaluate(async ({ base }) => {
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Bank-Id': localStorage.getItem('currentBankId'),
+      };
+      const start = await fetch(`${base}/questions/kp-tag-jobs`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({ subject: '解析几何', maxKpsPerQuestion: 1 }),
+      });
+      const body = await start.json();
+      return body.jobId;
+    }, { base: apiBase });
+
+    expect(jobId).toBeTruthy();
+    await page.goto(`/knowledge-points/review/${jobId}`, { waitUntil: 'domcontentloaded' });
+    const skip = page.getByTestId('onboarding-skip');
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+    await expect(page.getByTestId('kp-tag-job-list')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('kp-tag-job-review')).toBeVisible();
+  });
+
   test('tag job review panel visible on step 2', async ({ page }) => {
     const uid = `kpr_${Date.now()}`;
     await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
@@ -62,5 +99,6 @@ test.describe('KP Excel workflow', () => {
     await page.getByTestId('kp-workflow-step-2').click();
     await expect(page.getByTestId('kp-tag-job-review')).toBeVisible();
     await expect(page.getByTestId('kp-tag-job-start')).toBeVisible();
+    await expect(page.getByTestId('kp-tag-job-list')).toBeVisible();
   });
 });

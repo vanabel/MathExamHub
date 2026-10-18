@@ -2,14 +2,13 @@
   <div class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h1 class="page-title mb-0"><i class="bi bi-diagram-3"></i> 章节 / 知识点</h1>
-      <router-link
+      <kp-graph-nav-link
         v-if="canWrite"
-        to="/knowledge-points/import"
-        class="btn btn-outline-primary btn-sm"
+        link-class="btn btn-outline-primary btn-sm"
         data-testid="kp-excel-import-link"
       >
         <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
-      </router-link>
+      </kp-graph-nav-link>
     </div>
     <div class="row g-3 mb-4">
       <div class="col-md-4">
@@ -80,9 +79,11 @@
 
 <script>
 import axios from 'axios';
+import KpGraphNavLink from './KpGraphNavLink.vue';
 
 export default {
   name: 'KnowledgePointManager',
+  components: { KpGraphNavLink },
   data() {
     return {
       subject: '解析几何',

@@ -8,6 +8,7 @@ import LatexImportView from "../views/LatexImportView.vue";
 import LatexExportView from "../views/LatexExportView.vue";
 import KnowledgePointView from "../views/KnowledgePointView.vue";
 import KnowledgePointImportView from "../views/KnowledgePointImportView.vue";
+import KnowledgePointTagReviewView from "../views/KnowledgePointTagReviewView.vue";
 import DuplicateReviewView from "../views/DuplicateReviewView.vue";
 import RecycleBinView from "../views/RecycleBinView.vue";
 import ExamWizardView from "../views/ExamWizardView.vue";
@@ -71,6 +72,12 @@ const routes = [
     path: "/knowledge-points/import",
     name: "knowledge-points-import",
     component: KnowledgePointImportView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/knowledge-points/review/:jobId",
+    name: "knowledge-points-tag-review",
+    component: KnowledgePointTagReviewView,
     meta: { requiresAuth: true },
   },
   {

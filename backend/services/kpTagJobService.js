@@ -7,6 +7,24 @@ const { settingsForLlmAssist } = require('./llmProviderResolve');
 const { buildKpTagSuggestionsForQuestions } = require('./llmKpTagService');
 const { applyKpTagUpdates } = require('./llmKpTagService');
 const { mapWithConcurrency } = require('./latexImportLlmHelper');
+const { countReviewRows, isJobReviewOpen } = require('../utils/kpTagJobReviewCounts');
+
+function summarizeJob(job) {
+  const reviewCounts = countReviewRows(job.rows);
+  return {
+    _id: job._id,
+    bankId: job.bankId,
+    subject: job.subject,
+    status: job.status,
+    total: job.total,
+    processed: job.processed,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    appliedAt: job.appliedAt,
+    reviewCounts,
+    reviewOpen: isJobReviewOpen(job),
+  };
+}
 
 async function loadUntaggedQuestions(bankId, subject) {
   const filter = activeQuestionFilter({
@@ -115,6 +133,42 @@ async function getKpTagJob(bankId, jobId) {
   return KpTagJob.findOne({ _id: jobId, bankId }).lean();
 }
 
+async function listKpTagJobs(bankId, { limit = 30 } = {}) {
+  const jobs = await KpTagJob.find({ bankId })
+    .sort({ createdAt: -1 })
+    .limit(Math.min(limit, 100))
+    .lean();
+  return jobs.map(summarizeJob);
+}
+
+async function getLatestOpenReviewJob(bankId, subject) {
+  const query = {
+    bankId,
+    appliedAt: null,
+    status: { $in: ['queued', 'running', 'completed'] },
+  };
+  if (subject) query.subject = String(subject).trim();
+  const job = await KpTagJob.findOne(query).sort({ updatedAt: -1 }).lean();
+  return job || null;
+}
+
+async function getKpTagReviewSummary(bankId) {
+  const jobs = await KpTagJob.find({
+    bankId,
+    appliedAt: null,
+    status: { $in: ['queued', 'running', 'completed'] },
+  }).select('rows status').lean();
+
+  let pendingRowCount = 0;
+  let openJobCount = 0;
+  for (const job of jobs) {
+    if (!isJobReviewOpen(job)) continue;
+    openJobCount += 1;
+    pendingRowCount += countReviewRows(job.rows).pending;
+  }
+  return { openJobCount, pendingRowCount };
+}
+
 async function updateKpTagJobReview(bankId, jobId, rowUpdates) {
   const job = await KpTagJob.findOne({ _id: jobId, bankId });
   if (!job) return null;
@@ -133,9 +187,13 @@ async function updateKpTagJobReview(bankId, jobId, rowUpdates) {
 }
 
 async function applyKpTagJob(bankId, jobId, reviewer) {
-  const job = await KpTagJob.findOne({ _id: jobId, bankId }).lean();
+  const job = await KpTagJob.findOne({ _id: jobId, bankId });
   if (!job) return { modified: 0 };
-  const updates = (job.rows || [])
+  if (job.appliedAt) {
+    return { modified: 0, alreadyApplied: true };
+  }
+  const jobLean = job.toObject();
+  const updates = (jobLean.rows || [])
     .filter((r) => r.status === 'accepted' || r.status === 'edited')
     .filter((r) => r.acceptedKnowledgePointIds?.length)
     .map((r) => ({
@@ -150,13 +208,22 @@ async function applyKpTagJob(bankId, jobId, reviewer) {
         };
       }),
     }));
-  return applyKpTagUpdates(bankId, updates, { replace: true });
+  const result = await applyKpTagUpdates(bankId, updates, { replace: true });
+  job.appliedAt = new Date();
+  job.appliedModified = result.modified;
+  await job.save();
+  return { ...result, appliedAt: job.appliedAt };
 }
 
 module.exports = {
   startKpTagJob,
   getKpTagJob,
+  listKpTagJobs,
+  getLatestOpenReviewJob,
+  getKpTagReviewSummary,
   updateKpTagJobReview,
   applyKpTagJob,
   loadUntaggedQuestions,
+  summarizeJob,
+  countReviewRows,
 };

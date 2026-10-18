@@ -46,6 +46,11 @@ const kpTagJobSchema = new mongoose.Schema({
   },
   rows: [kpTagJobRowSchema],
   createdBy: { type: String, default: '' },
+  appliedAt: { type: Date, default: null },
+  appliedModified: { type: Number, default: 0 },
 }, { timestamps: true });
+
+kpTagJobSchema.index({ bankId: 1, createdAt: -1 });
+kpTagJobSchema.index({ bankId: 1, appliedAt: 1, status: 1 });
 
 module.exports = mongoose.model('KpTagJob', kpTagJobSchema);
