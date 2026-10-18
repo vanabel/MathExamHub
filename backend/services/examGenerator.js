@@ -347,15 +347,16 @@ function generateExamPaper(blueprint, pool, kpExpansionMap, options = {}) {
   }
 
   let scoreGap = null;
-  if (work.totalScore != null && !work.totalScoreRelaxed) {
-    const delta = Math.abs(attempt.stats.totalScore - work.totalScore);
+  const requestedTotal = Number(work.totalScore);
+  if (Number.isFinite(requestedTotal) && requestedTotal > 0 && !work.totalScoreRelaxed) {
+    const delta = Math.abs(attempt.stats.totalScore - requestedTotal);
     if (delta > 0.01) {
       scoreGap = {
-        requested: work.totalScore,
+        requested: requestedTotal,
         actual: attempt.stats.totalScore,
         delta,
       };
-      const gapMsg = `实际总分 ${attempt.stats.totalScore} 与目标 ${work.totalScore} 相差 ${delta.toFixed(2)}`;
+      const gapMsg = `实际总分 ${attempt.stats.totalScore} 与目标 ${requestedTotal} 相差 ${delta.toFixed(2)}`;
       if (!allowScoreGap) {
         warnings.push(gapMsg);
         return {

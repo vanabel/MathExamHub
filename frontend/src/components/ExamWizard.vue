@@ -737,7 +737,6 @@ export default {
       this.pendingGeneratePreview = null;
     },
     async confirmScoreGapAndSave() {
-      this.scoreGapModalOpen = false;
       await this.runGenerate({ allowScoreGap: true });
     },
     async runGenerate({ allowScoreGap = false } = {}) {
@@ -787,6 +786,7 @@ export default {
             this.scoreGapModalOpen = true;
             return;
           }
+          this.scoreGapModalOpen = false;
           this.applyGeneratePayload(data);
           this.maybeAdvanceAfterGenerate(data);
         }

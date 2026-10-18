@@ -96,6 +96,7 @@ test.describe('product smoke', () => {
     await page.screenshot({ path: path.join(shots, 'onboarding-wizard.png'), fullPage: true });
 
     await page.locator('#allowRelax').check();
+    await page.getByLabel('目标总分').fill('');
     await page.getByTestId('wizard-generate').click();
     const scoreGapConfirm = page.getByTestId('wizard-score-gap-confirm');
     if (await scoreGapConfirm.isVisible({ timeout: 120000 }).catch(() => false)) {
