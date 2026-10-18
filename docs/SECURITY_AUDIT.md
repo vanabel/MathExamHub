@@ -20,7 +20,7 @@
 ## 低危 / 持续项
 
 - Session 密钥：生产环境必须设置 `SESSION_SECRET`。
-- CORS：默认允许 localhost；生产应配合 Nginx 同源。
+- CORS：通过 `CORS_ORIGINS`（逗号分隔）配置；默认含 `https://exam.vanabel.cn` 与本地 dev 端口。未列出的 `Origin` 返回 **403**（非 500）。见 `backend/config/corsOrigins.js`。
 - 平台 `admin` 角色：`/api/admin/*` 挂载 `requirePlatformAdmin`（统计、用户列表、角色变更）。
 
 ## 验证
