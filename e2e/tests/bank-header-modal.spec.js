@@ -46,5 +46,15 @@ test.describe('bank LaTeX header modal', () => {
     await page.getByTestId('bank-header-toggle-preamble').click();
     await expect(page.getByTestId('bank-header-preamble')).toBeVisible();
     await expect(page.getByTestId('bank-header-preamble')).toContainText('\\usepackage');
+
+    await page.getByTestId('bank-header-exam-date').fill('2026-10-18');
+    await expect(page.getByText('9 月 1 日')).toBeVisible();
+
+    await page.getByTestId('bank-header-academic-year-start').fill('2026');
+    await page.getByTestId('bank-header-save').click();
+    await expect(page.getByTestId('bank-header-year-error')).toBeVisible();
+
+    await page.getByTestId('bank-header-clear-academic-year').click();
+    await expect(page.getByTestId('bank-header-academic-year-start')).toHaveValue('');
   });
 });

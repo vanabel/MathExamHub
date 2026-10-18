@@ -30,6 +30,12 @@
         <div class="col-lg-8 mx-auto">
           <div class="card">
             <div class="card-body">
+              <div v-if="formError" class="alert alert-danger" role="alert" data-testid="latex-import-form-error">
+                {{ formError }}
+              </div>
+              <div v-if="previewError" class="alert alert-danger" role="alert" data-testid="latex-import-preview-error">
+                {{ previewError }}
+              </div>
               <!-- 文件上传区域 -->
               <div class="upload-area mb-4">
                 <input
@@ -529,7 +535,11 @@
                   </div>
                   <hr v-if="importResult.success" />
                   <div v-if="importResult.success" class="d-flex gap-2">
-                    <router-link to="/question-list" class="btn btn-sm btn-primary">
+                    <router-link
+                      to="/question-list"
+                      class="btn btn-sm btn-primary"
+                      data-testid="latex-import-success-link"
+                    >
                       查看题目列表
                     </router-link>
                     <button
@@ -559,6 +569,8 @@ import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 
+const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024;
+
 export default {
   name: "LatexImport",
   components: {
@@ -584,6 +596,8 @@ export default {
       skipDuplicates: false,
       duplicateThreshold: 0.85,
       mathjaxOptions: mathjaxOptions,
+      formError: '',
+      previewError: '',
     };
   },
   updated() {
@@ -637,14 +651,27 @@ export default {
         formData.append('partTypeOverrides', JSON.stringify(this.partTypeOverrides));
       }
     },
-    handleFileSelect(event) {
-      const files = Array.from(event.target.files || []);
+    validateTexFiles(files) {
       const texOrZip = files.filter((f) => /\.(tex|zip)$/i.test(f.name));
       if (!texOrZip.length) {
-        alert('请选择 .tex 或 .zip 文件');
+        return { ok: false, message: '请选择 .tex 或 .zip 文件' };
+      }
+      const tooLarge = texOrZip.find((f) => f.size > MAX_IMPORT_FILE_BYTES);
+      if (tooLarge) {
+        return { ok: false, message: `「${tooLarge.name}」超过 20MB 上限，请拆分或压缩后重试` };
+      }
+      return { ok: true, files: texOrZip };
+    },
+    handleFileSelect(event) {
+      const files = Array.from(event.target.files || []);
+      const check = this.validateTexFiles(files);
+      if (!check.ok) {
+        this.formError = check.message;
         return;
       }
-      this.selectedTexFiles = texOrZip;
+      this.formError = '';
+      this.previewError = '';
+      this.selectedTexFiles = check.files;
       this.isDragging = false;
     },
     handleDrop(event) {
@@ -656,7 +683,13 @@ export default {
       );
       
       if (texFiles.length) {
-        this.selectedTexFiles = texFiles;
+        const check = this.validateTexFiles(texFiles);
+        if (!check.ok) {
+          this.formError = check.message;
+          return;
+        }
+        this.formError = '';
+        this.selectedTexFiles = check.files;
         const dataTransfer = new DataTransfer();
         texFiles.forEach((f) => dataTransfer.items.add(f));
         this.$refs.fileInput.files = dataTransfer.files;
@@ -670,7 +703,7 @@ export default {
       }
       
       if (!texFiles.length && imageFiles.length === 0) {
-        alert('请选择 .tex / .zip 文件或图片文件');
+        this.formError = '请选择 .tex / .zip 文件或图片文件';
       }
     },
     handleImageSelect(event) {
@@ -684,13 +717,15 @@ export default {
     },
     async previewFile() {
       if (!this.selectedTexFiles.length) {
-        alert('请先选择文件');
+        this.formError = '请先选择文件';
         return;
       }
 
       this.previewing = true;
       this.previewData = null;
       this.importResult = null;
+      this.previewError = '';
+      this.formError = '';
 
       const formData = new FormData();
       this.appendTexFilesToFormData(formData);
@@ -761,7 +796,7 @@ export default {
         if (error.response?.data?.details) {
           console.error("服务器错误堆栈:", error.response.data.details);
         }
-        alert(error.response?.data?.error || "预览失败，请检查文件格式");
+        this.previewError = error.response?.data?.error || '预览失败，请检查文件格式与大小（.tex / .zip，≤20MB）';
       } finally {
         this.previewing = false;
       }

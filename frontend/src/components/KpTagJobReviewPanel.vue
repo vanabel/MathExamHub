@@ -52,7 +52,8 @@
           <input v-model.number="extraMinConfidence" type="number" step="0.05" min="0" max="1" class="form-control form-control-sm" />
         </div>
       </div>
-      <p v-if="error" class="text-danger small">{{ error }}</p>
+      <p v-if="error" class="text-danger small" role="alert">{{ error }}</p>
+      <p v-if="rowActionHint" class="small text-success mb-2" role="status" data-testid="kp-tag-row-feedback">{{ rowActionHint }}</p>
       <div v-if="job && job.status === 'running'" class="progress mb-3">
         <div
           class="progress-bar progress-bar-striped progress-bar-animated"
@@ -60,13 +61,22 @@
         ></div>
       </div>
 
+      <p v-if="!job" class="text-muted small mb-0">填写科目并点击「后台打标」开始；完成后在此审核建议。</p>
+      <p
+        v-else-if="job.status === 'completed' && !displayRows.length"
+        class="text-muted small mb-0"
+        data-testid="kp-tag-review-empty"
+      >
+        本任务没有待审核条目（可能已全部处理或无匹配题目）。
+      </p>
+
       <div v-if="displayRows.length" class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
             <tr>
-              <th>题干</th>
-              <th>建议知识点</th>
-              <th>操作</th>
+              <th scope="col">题干</th>
+              <th scope="col">建议知识点</th>
+              <th scope="col">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -92,8 +102,20 @@
                 </div>
               </td>
               <td class="text-nowrap">
-                <button type="button" class="btn btn-link btn-sm p-0" :disabled="!!job?.appliedAt" @click="setStatus(row, 'accepted')">接受</button>
-                <button type="button" class="btn btn-link btn-sm p-0 text-danger" :disabled="!!job?.appliedAt" @click="setStatus(row, 'rejected')">拒绝</button>
+                <button
+                  type="button"
+                  class="btn btn-link btn-sm p-0"
+                  :disabled="!!job?.appliedAt"
+                  aria-label="接受本题建议"
+                  @click="setStatus(row, 'accepted')"
+                >接受</button>
+                <button
+                  type="button"
+                  class="btn btn-link btn-sm p-0 text-danger"
+                  :disabled="!!job?.appliedAt"
+                  aria-label="拒绝本题建议"
+                  @click="setStatus(row, 'rejected')"
+                >拒绝</button>
               </td>
             </tr>
           </tbody>
@@ -129,6 +151,8 @@ export default {
       error: '',
       saveTimer: null,
       saveState: '',
+      rowActionHint: '',
+      rowActionTimer: null,
     };
   },
   computed: {
@@ -169,6 +193,7 @@ export default {
   beforeUnmount() {
     this.stopPoll();
     if (this.saveTimer) clearTimeout(this.saveTimer);
+    if (this.rowActionTimer) clearTimeout(this.rowActionTimer);
   },
   methods: {
     stemHtml(text) {
@@ -274,12 +299,18 @@ export default {
       if (this.pollTimer) clearInterval(this.pollTimer);
       this.pollTimer = null;
     },
+    flashRowAction(text) {
+      this.rowActionHint = text;
+      if (this.rowActionTimer) clearTimeout(this.rowActionTimer);
+      this.rowActionTimer = setTimeout(() => { this.rowActionHint = ''; }, 2500);
+    },
     setStatus(row, status) {
       row.status = status;
       if (status === 'accepted' && !row.acceptedKnowledgePointIds?.length) {
         row.acceptedKnowledgePointIds = (row.suggestions || []).map((s) => s.knowledgePointId);
       }
       if (status === 'rejected') row.acceptedKnowledgePointIds = [];
+      this.flashRowAction(status === 'accepted' ? '已标记为接受，将自动保存' : '已标记为拒绝，将自动保存');
       this.schedulePersist();
     },
     onRowEdited(row) {
