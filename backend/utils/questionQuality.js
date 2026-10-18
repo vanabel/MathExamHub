@@ -1,5 +1,6 @@
 const { DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { stepScoreMismatch } = require('./stepScoreUtils');
+const { danglingRefsForQuestion } = require('./latexRefLabels');
 const {
   isEmptyAnswer,
   effectiveCorrectAnswer,
@@ -12,7 +13,7 @@ function missingSolution(originalLaTeX) {
   return !/\\begin\s*\{solution\}/i.test(tex) && !/\\score\s*\{/i.test(tex);
 }
 
-function assessQuestionQuality(q) {
+function assessQuestionQuality(q, context = {}) {
   const issues = [];
   if (isEmptyAnswer(effectiveCorrectAnswer(q))) issues.push('missing_answer');
   if (!q.difficulty || !DIFFICULTY_VALUES.includes(q.difficulty)) issues.push('missing_difficulty');
@@ -22,6 +23,11 @@ function assessQuestionQuality(q) {
   }
   if (stepScoreMismatch(q)) {
     issues.push('step_score_mismatch');
+  }
+  const bankLabels = context.bankLabelSet;
+  if (bankLabels) {
+    const dangling = danglingRefsForQuestion(q, bankLabels);
+    if (dangling.length) issues.push('dangling_ref');
   }
   return issues;
 }
@@ -46,6 +52,14 @@ function mergeQualityMongoFilter(baseFilter, qualityFilter) {
           { knowledgePointIds: { $exists: false } },
           { knowledgePointIds: { $size: 0 } },
           { difficulty: { $nin: DIFFICULTY_VALUES } },
+        ],
+      };
+      break;
+    case 'dangling_ref':
+      extra = {
+        $or: [
+          { originalLaTeX: { $regex: '\\\\(?:ref|cref|Cref|eqref|Ref|pageref)\\{', $options: 'i' } },
+          { questionText: { $regex: '\\\\(?:ref|cref|Cref|eqref|Ref|pageref)\\{', $options: 'i' } },
         ],
       };
       break;

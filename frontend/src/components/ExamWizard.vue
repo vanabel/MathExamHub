@@ -338,6 +338,24 @@
                     蓝图目标 <strong>{{ pendingScoreGap.requested }}</strong>，
                     相差 <strong>{{ formatScoreDelta(pendingScoreGap.delta) }}</strong> 分。
                   </p>
+                  <ul
+                    v-if="pendingScoreGap.countShortfalls?.length"
+                    class="small text-danger mb-2 ps-3"
+                    data-testid="wizard-score-gap-count-shortfalls"
+                  >
+                    <li v-for="(g, gi) in pendingScoreGap.countShortfalls" :key="'csg' + gi">
+                      {{ g.message }}
+                    </li>
+                  </ul>
+                  <ul
+                    v-else-if="shortfalls.length"
+                    class="small text-danger mb-2 ps-3"
+                    data-testid="wizard-score-gap-count-shortfalls"
+                  >
+                    <li v-for="(g, gi) in shortfalls.filter((s) => s.reasonCode === 'section_count_shortfall')" :key="'cs' + gi">
+                      {{ g.message }}
+                    </li>
+                  </ul>
                   <p class="text-muted mb-0">
                     确认后将保存{{ generateAbPair ? ' A/B 卷' : '试卷' }}并进入预览；未确认前不会写入试卷记录。
                   </p>

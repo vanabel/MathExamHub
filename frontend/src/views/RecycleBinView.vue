@@ -89,6 +89,7 @@
         <thead>
           <tr>
             <th>名称</th>
+            <th>题目数</th>
             <th>删除时间</th>
             <th>操作</th>
           </tr>
@@ -96,6 +97,7 @@
         <tbody>
           <tr v-for="b in archivedBanks" :key="b._id">
             <td>{{ b.name }}</td>
+            <td>{{ b.questionCount ?? '—' }}</td>
             <td>{{ formatDate(b.deletedAt) }}</td>
             <td>
               <button

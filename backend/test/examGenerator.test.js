@@ -82,6 +82,28 @@ describe('examGenerator', () => {
     assert.ok(result.shortfalls[0].filterStages);
   });
 
+  it('reports section_count_shortfall when relaxation drops slots before score gap', () => {
+    const pool = [];
+    for (let i = 0; i < 15; i += 1) {
+      pool.push(q(String(i), { type: '单选题', totalScore: 3 }));
+    }
+    const blueprint = {
+      title: 'over-demand',
+      subject: '解析几何',
+      totalScore: 100,
+      randomSeed: 11,
+      allowRelaxation: true,
+      sections: [{ type: '单选题', count: 20, scoreEach: 3 }],
+    };
+    const result = generateExamPaper(blueprint, pool, new Map(), { allowScoreGap: false });
+    assert.equal(result.success, false);
+    assert.equal(result.scoreGapRequiresConfirm, true);
+    assert.ok(result.shortfalls.length >= 5);
+    assert.ok(result.shortfalls.every((s) => s.reasonCode === 'section_count_shortfall'));
+    assert.ok(result.scoreGap?.countShortfalls?.length >= 5);
+    assert.ok(result.relaxations.some((r) => r.step === 'section_count'));
+  });
+
   it('requires allowScoreGap when total score differs from blueprint target', () => {
     const pool = [
       q('1', { totalScore: 4 }),

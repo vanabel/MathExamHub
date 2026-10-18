@@ -130,8 +130,8 @@ An application for managing and generating math exam questions, with **Node + Ex
 ```bash
 cd backend
 
-# 安装依赖（包含 bcryptjs）
-npm install
+# 安装依赖（仓库不跟踪 node_modules；推荐 lockfile 一致安装）
+npm ci
 
 # 开发模式（依赖 nodemon）
 npm run dev
@@ -148,7 +148,7 @@ export OPENAI_API_KEY=你的API密钥
 ```bash
 cd frontend
 
-npm install
+npm ci
 npm run serve
 ```
 

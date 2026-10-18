@@ -1341,7 +1341,7 @@ class LatexGenerator {
 ${preambleBlock}
 \\university{${pick('university', '西南大学')}}
 \\school{${pick('school', '数学与统计学院')}}
-\\course{${pick('course', '高等代数')}}
+\\course{${pick('course', '')}}
 \\AorB{${pick('AorB', 'A')}}
 ${dateMacroBlock}\\semester{${pick('semester', '')}}
 \\finalmiddle{${pick('finalmiddle', '期末')}}
@@ -1350,7 +1350,7 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
 \\degree{${pick('degree', '本科')}}
 \\totalstu{${pick('totalstu', '')}}
 \\major{${pick('major', '数学与应用数学')}}
-\\grade{${pick('grade', '2017')}}
+\\grade{${pick('grade', '')}}
 \\examiner{${pick('examiner', '')}}
 \\director{${pick('director', '')}}
 \\dean{${pick('dean', '')}}
@@ -1499,6 +1499,7 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
       latex += `    ${body}\n`;
     } else {
       let text = question.questionText || '';
+      text = this.stripTrailingLonePunctuationLines(text);
       text = this.convertImageTagsToLaTeX(text);
       text = this.convertRefTagsToLaTeX(text);
       latex += `    ${text}\n`;
@@ -1584,6 +1585,15 @@ ${dateMacroBlock}\\semester{${pick('semester', '')}}
       }
     }
     return out;
+  }
+
+  /** Remove trailing lines that are only sentence punctuation (common after \\fillin{…} in source). */
+  stripTrailingLonePunctuationLines(text) {
+    const lines = String(text || '').split('\n');
+    while (lines.length > 0 && /^[.。．\s]+$/.test(lines[lines.length - 1].trim())) {
+      lines.pop();
+    }
+    return lines.join('\n').trimEnd();
   }
 
   /**

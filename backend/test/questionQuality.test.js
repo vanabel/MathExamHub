@@ -42,4 +42,13 @@ describe('questionQuality', () => {
     assert.ok(f.$and);
     assert.equal(f.$and[1].type.$in.includes('证明题'), true);
   });
+
+  it('flags dangling_ref when label missing from bank', () => {
+    const bankLabelSet = new Set(['fig:ok']);
+    const issues = assessQuestionQuality(
+      { originalLaTeX: '如图\\ref{fig:bad}', questionText: '' },
+      { bankLabelSet },
+    );
+    assert.ok(issues.includes('dangling_ref'));
+  });
 });

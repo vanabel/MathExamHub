@@ -12,6 +12,7 @@
           <option value="missing_kp">缺少知识点</option>
           <option value="missing_difficulty">缺少难度</option>
           <option value="missing_solution">缺少解答（主观题）</option>
+          <option value="dangling_ref">悬空 \\ref（可能显示 ??）</option>
         </select>
       </div>
       <div class="col-md-2">

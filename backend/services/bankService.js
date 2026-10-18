@@ -124,14 +124,25 @@ async function restoreBank(userId, bankId, opts = {}) {
 }
 
 async function listArchivedBanksForUser(userId) {
+  const Question = require('../models/Question');
   const memberships = await BankMember.find({ userId, role: 'owner' }).lean();
   const bankIds = memberships.map((m) => m.bankId);
-  return QuestionBank.find({
+  const banks = await QuestionBank.find({
     _id: { $in: bankIds },
     deletedAt: { $ne: null },
   })
     .sort({ deletedAt: -1 })
     .lean();
+  if (!banks.length) return [];
+  const counts = await Question.aggregate([
+    { $match: { bankId: { $in: bankIds }, status: { $ne: 'deleted' } } },
+    { $group: { _id: '$bankId', questionCount: { $sum: 1 } } },
+  ]);
+  const countByBank = new Map(counts.map((c) => [String(c._id), c.questionCount]));
+  return banks.map((b) => ({
+    ...b,
+    questionCount: countByBank.get(String(b._id)) || 0,
+  }));
 }
 
 async function createSharedBank(user, name) {

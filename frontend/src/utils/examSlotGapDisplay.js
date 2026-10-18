@@ -19,6 +19,7 @@ export const REASON_CODE_LABELS = {
   difficulty_mismatch: '难度不符',
   knowledge_point_mismatch: '知识点不符',
   score_window_mismatch: '分值不符',
+  section_count_shortfall: '题量不足',
   all_used: '题目已占用',
   empty_bank: '题库为空',
   unknown: '未知',

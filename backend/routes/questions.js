@@ -19,6 +19,7 @@ const {
   computeQuestionListFacets,
 } = require('../utils/questionListQuery');
 const { assessQuestionQuality } = require('../utils/questionQuality');
+const { buildBankLabelSet } = require('../utils/latexRefLabels');
 const { extractImagesFromStem } = require('../utils/questionImages');
 const platformSettingsService = require('../services/platformSettingsService');
 const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelService');
@@ -234,11 +235,15 @@ router.get('/quality/export.csv', requireBankWrite, async (req, res) => {
     const questions = await Question.find(query)
       .select('_id questionText type difficulty knowledgePointIds correctAnswer originalLaTeX')
       .lean();
+    const labelDocs = await Question.find(activeQuestionFilter({ bankId: req.bankId }))
+      .select('originalLaTeX questionText')
+      .lean();
+    const bankLabelSet = buildBankLabelSet(labelDocs);
     const lines = [
       'id,type,difficulty,qualityIssues,questionText',
     ];
     for (const q of questions) {
-      const issues = assessQuestionQuality(q).join(';');
+      const issues = assessQuestionQuality(q, { bankLabelSet }).join(';');
       lines.push([
         escapeCsvCell(q._id),
         escapeCsvCell(q.type),
@@ -511,15 +516,40 @@ async function runQuestionList(req, res) {
     } = parseListPagination(req.query);
     const wantFacets = req.query.facets === 'true';
 
-    let questionsQuery = Question.find(query).sort(sort);
-    if (limit != null) {
-      questionsQuery = questionsQuery.skip(offset).limit(limit);
+    const attachQuality = req.query.includeQuality === 'true';
+    const qualityFilter = req.query.quality;
+    const needBankLabelSet = attachQuality || qualityFilter === 'dangling_ref';
+    let bankLabelSet = null;
+    if (needBankLabelSet) {
+      const labelDocs = await Question.find(activeQuestionFilter({ bankId: req.bankId }))
+        .select('originalLaTeX questionText')
+        .lean();
+      bankLabelSet = buildBankLabelSet(labelDocs);
     }
-    const [questions, total, facets] = await Promise.all([
-      questionsQuery.exec(),
-      hasPagination ? Question.countDocuments(query) : Promise.resolve(null),
-      wantFacets ? computeQuestionListFacets(Question, query) : Promise.resolve(null),
-    ]);
+
+    let questions;
+    let total;
+    if (qualityFilter === 'dangling_ref' && bankLabelSet) {
+      const candidates = await Question.find(query).sort(sort).lean();
+      const filtered = candidates.filter(
+        (q) => assessQuestionQuality(q, { bankLabelSet }).includes('dangling_ref'),
+      );
+      total = hasPagination ? filtered.length : null;
+      if (limit != null) {
+        questions = filtered.slice(offset, offset + limit);
+      } else {
+        questions = filtered;
+      }
+    } else {
+      let questionsQuery = Question.find(query).sort(sort);
+      if (limit != null) {
+        questionsQuery = questionsQuery.skip(offset).limit(limit);
+      }
+      questions = await questionsQuery.exec();
+      total = hasPagination ? await Question.countDocuments(query) : null;
+    }
+
+    const facets = wantFacets ? await computeQuestionListFacets(Question, query) : null;
 
     if (checkDuplicates === 'true') {
       const threshold = parseFloat(req.query.duplicateThreshold) || 0.85;
@@ -556,11 +586,10 @@ async function runQuestionList(req, res) {
       return res.json(payload);
     }
 
-    const attachQuality = req.query.includeQuality === 'true';
     const mapQ = (q) => {
       const obj = q.toObject ? q.toObject() : q;
       if (attachQuality) {
-        obj.qualityIssues = assessQuestionQuality(obj);
+        obj.qualityIssues = assessQuestionQuality(obj, { bankLabelSet });
       }
       return obj;
     };

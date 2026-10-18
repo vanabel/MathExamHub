@@ -56,6 +56,11 @@ function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, 
     resultA.scoreGapRequiresConfirm || resultB?.scoreGapRequiresConfirm,
   );
 
+  const countShortfalls = [
+    ...(resultA.scoreGap?.countShortfalls || resultA.shortfalls || []),
+    ...(resultB?.scoreGap?.countShortfalls || resultB?.shortfalls || []),
+  ].filter((s) => s?.reasonCode === 'section_count_shortfall');
+
   return {
     variantGroupId,
     resultA,
@@ -69,6 +74,7 @@ function generateAbVariants(blueprint, pool, kpExpansionMap, seedA, seedBStart, 
     scoreGap: scoreGapRequiresConfirm ? {
       variantA: resultA.scoreGap || null,
       variantB: resultB?.scoreGap || null,
+      countShortfalls,
     } : null,
   };
 }
