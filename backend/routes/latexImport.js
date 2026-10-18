@@ -23,6 +23,15 @@ const {
   fillBankLatexMetadata,
   metadataForExportForm,
 } = require('../utils/latexExamMetadata');
+const {
+  applyPartTypeOverrides,
+  summarizePartSections,
+} = require('../utils/latexPartType');
+const {
+  expandTexInputs,
+  pickMainTexFile,
+  extractZipToTexMap,
+} = require('../utils/latexTexBundle');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -32,7 +41,12 @@ if (!fs.existsSync(uploadDir)) {
 const upload = multer({
   dest: uploadDir,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/plain' || file.originalname.endsWith('.tex')) {
+    if (
+      file.mimetype === 'text/plain'
+      || /\.tex$/i.test(file.originalname)
+      || /\.zip$/i.test(file.originalname)
+      || file.mimetype === 'application/zip'
+    ) {
       cb(null, true);
     } else if (
       file.mimetype.startsWith('image/') ||
@@ -41,11 +55,68 @@ const upload = multer({
     ) {
       cb(null, true);
     } else {
-      cb(new Error('只支持 .tex 与图片/PDF'));
+      cb(new Error('只支持 .tex / .zip 与图片/PDF'));
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
+
+function parsePartTypeOverrides(body) {
+  const raw = body.partTypeOverrides;
+  if (!raw) return {};
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadTexBundleFromUploads(fileUploads) {
+  const warnings = [];
+  let filesByPath = {};
+  const texPaths = [];
+  const zipPaths = [];
+
+  for (const f of fileUploads) {
+    if (/\.zip$/i.test(f.originalname)) {
+      zipPaths.push(f.path);
+    } else if (/\.tex$/i.test(f.originalname)) {
+      texPaths.push(f);
+    }
+  }
+
+  for (const zp of zipPaths) {
+    const dest = path.join(uploadDir, `zip-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const fromZip = extractZipToTexMap(zp, dest);
+    filesByPath = { ...filesByPath, ...fromZip };
+  }
+
+  for (const tf of texPaths) {
+    const base = path.basename(tf.originalname);
+    filesByPath[base] = fs.readFileSync(tf.path, 'utf-8');
+  }
+
+  const main = pickMainTexFile(filesByPath);
+  if (!main) {
+    const err = new Error('未找到可解析的 .tex 文件');
+    err.status = 400;
+    throw err;
+  }
+  const [mainKey, mainContent] = main;
+  const expanded = expandTexInputs(mainContent, filesByPath, { mainFile: mainKey });
+  if (expanded.missing.length) {
+    warnings.push({
+      code: 'MISSING_INPUT',
+      message: `缺少 \\input/\\include 文件: ${expanded.missing.join(', ')}`,
+    });
+  }
+  return {
+    fileContent: expanded.content,
+    sourceFileName: path.basename(mainKey),
+    warnings,
+  };
+}
 
 function generateFilePrefix(texFileName, fileContent) {
   const courseMatch = fileContent.match(/\\course\{([^}]+)\}/);
@@ -79,25 +150,45 @@ function processUploadedImages(imageFiles, filePrefix) {
 
 async function parseTexUpload(req) {
   if (!req.files?.file?.length) {
-    const err = new Error('请上传 .tex 文件');
+    const err = new Error('请上传 .tex 或 .zip 文件');
     err.status = 400;
     throw err;
   }
-  const texFile = req.files.file[0];
+  const fileUploads = req.files.file;
   const imageFiles = req.files.images || [];
-  const fileContent = fs.readFileSync(texFile.path, 'utf-8');
-  const texFileName = texFile.originalname.replace(/\.tex$/i, '');
+  const bundle = loadTexBundleFromUploads(fileUploads);
+  const { fileContent, sourceFileName, warnings: bundleWarnings } = bundle;
+  const texFileName = sourceFileName.replace(/\.tex$/i, '');
   const filePrefix = generateFilePrefix(texFileName, fileContent);
   const imageMap = processUploadedImages(imageFiles, filePrefix);
   const parser = new LatexParser();
-  const questions = parser.parse(fileContent, { imageMap, filePrefix });
-  fs.unlinkSync(texFile.path);
+  let questions = parser.parse(fileContent, { imageMap, filePrefix });
+  const partTypeOverrides = parsePartTypeOverrides(req.body || {});
+  applyPartTypeOverrides(questions, partTypeOverrides);
+
+  for (const f of fileUploads) {
+    try {
+      fs.unlinkSync(f.path);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const parseWarnings = [...bundleWarnings];
+  if (questions.length === 0) {
+    parseWarnings.push({
+      code: 'ZERO_QUESTIONS',
+      message: '未解析到任何题目。若主文件使用 \\input，请一并上传子 .tex 或上传包含全部文件的 .zip。',
+    });
+  }
+
   return {
     questions,
     filePrefix,
     imageMap,
-    sourceFileName: texFile.originalname,
+    sourceFileName,
     documentMetadata: parser.documentMetadata,
+    parseWarnings,
   };
 }
 
@@ -111,7 +202,7 @@ function registerLatexImportRoutes(router, opts = {}) {
   router.post(
     '/import/latex/preview',
     requireBankWriteMw,
-    upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
+    upload.fields([{ name: 'file', maxCount: 30 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
         const {
@@ -120,8 +211,10 @@ function registerLatexImportRoutes(router, opts = {}) {
           imageMap,
           sourceFileName,
           documentMetadata,
+          parseWarnings,
         } = await parseTexUpload(req);
         const validation = validateQuestionBatch(questions);
+        const partSections = summarizePartSections(questions, validation.errors);
         const bank = await QuestionBank.findById(req.bankId).lean();
         const duplicateThreshold = parseFloat(req.body.duplicateThreshold) || 0.85;
         let duplicateWarnings = [];
@@ -153,13 +246,15 @@ function registerLatexImportRoutes(router, opts = {}) {
           llmPreviewProcessed = llm.llmPreviewProcessed;
         }
         res.json({
-          success: validation.summary.errorCount === 0,
+          success: validation.summary.errorCount === 0 && validation.summary.valid > 0,
+          partialImportAllowed: validation.summary.valid > 0,
           filePrefix,
           imageMap,
           sourceFileName,
           questions: validation.questions,
           errors: validation.errors,
-          warnings: validation.warnings,
+          warnings: [...(parseWarnings || []), ...validation.warnings],
+          partSections,
           summary: validation.summary,
           duplicates: duplicateWarnings,
           duplicateCount: duplicateWarnings.length,
@@ -182,16 +277,23 @@ function registerLatexImportRoutes(router, opts = {}) {
   router.post(
     '/import/latex',
     requireBankWriteMw,
-    upload.fields([{ name: 'file', maxCount: 1 }, { name: 'images', maxCount: 20 }]),
+    upload.fields([{ name: 'file', maxCount: 30 }, { name: 'images', maxCount: 20 }]),
     async (req, res) => {
       try {
-        const { questions, sourceFileName, documentMetadata } = await parseTexUpload(req);
+        const {
+          questions,
+          sourceFileName,
+          documentMetadata,
+          parseWarnings,
+        } = await parseTexUpload(req);
         const validation = validateQuestionBatch(questions);
-        if (validation.summary.errorCount > 0) {
+        if (validation.summary.valid === 0) {
           return res.status(400).json({
-            error: '解析结果未通过校验',
+            error: validation.summary.total === 0
+              ? (parseWarnings?.find((w) => w.code === 'ZERO_QUESTIONS')?.message || '未解析到题目')
+              : '解析结果未通过校验',
             errors: validation.errors,
-            warnings: validation.warnings,
+            warnings: [...(parseWarnings || []), ...validation.warnings],
             summary: validation.summary,
           });
         }
@@ -228,6 +330,8 @@ function registerLatexImportRoutes(router, opts = {}) {
           ? await KnowledgePoint.find({ bankId: req.bankId }).select('_id path name subject').lean()
           : [];
         let llmAssistApplied = 0;
+
+        const skippedInvalid = questions.length - validation.questions.length;
 
         for (let qi = 0; qi < validation.questions.length; qi += 1) {
           const q = validation.questions[qi];
@@ -285,6 +389,7 @@ function registerLatexImportRoutes(router, opts = {}) {
               createdBy: req.user.username,
               options: q.options,
               originalLaTeX: q.originalLaTeX,
+              latexPartTitle: q.latexPartTitle || q.partType,
               knowledgePointIds,
               source: { kind: 'latex-import', fileName: sourceFileName },
             });
@@ -304,7 +409,8 @@ function registerLatexImportRoutes(router, opts = {}) {
           questions: saved,
           skippedItems: skipped,
           failures: failed,
-          warnings: validation.warnings,
+          warnings: [...(parseWarnings || []), ...validation.warnings],
+          skippedInvalid,
           bankMetadataUpdated,
           exportDefaults: metadataForExportForm(bank, documentMetadata),
           llmAssistApplied,

@@ -59,6 +59,7 @@ function registerLatexExportRoutes(router) {
         solution: q.solution,
         subject: q.subject,
         originalLaTeX: q.originalLaTeX,
+        latexPartTitle: q.latexPartTitle,
       }));
 
       const generator = new LatexGenerator();
