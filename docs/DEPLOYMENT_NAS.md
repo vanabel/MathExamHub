@@ -79,7 +79,7 @@ location /api/ {
 在**同一 `MONGODB_URI`** 上按顺序执行（先备份）：
 
 1. `node backend/scripts/migrate-m2-schema.js`
-2. `node backend/scripts/migrate-m3-banks.js`（为用户创建个人题库并绑定 orphan 题目）
+2. `node backend/scripts/migrate-m3-banks.js`（dry-run）→ `node backend/scripts/migrate-m3-banks.js --apply`（为用户创建个人题库并绑定 orphan 题目；无 `createdBy` 时可加 `--fallback-username=vanabel`）
 3. `node backend/scripts/migrate-bank-latex-metadata.js`（如有 LaTeX 元数据字段）
 
 新装空库可跳过；注册用户时会自动创建个人题库。
@@ -119,7 +119,11 @@ location /api/ {
 ```bash
 curl -s http://localhost:8080/api/health
 # 期望 {"ok":true,...}
+node backend/scripts/check-database.js
+# 只读汇总：用户数、题库、题型/难度分布、M2/M3/图片迁移是否完成
 ```
+
+运维 CLI：`node backend/scripts/reset-password.js <username>`（密码来自 `RESET_PASSWORD` 或 stdin，不回显）。
 
 ## 10. CI 对齐
 
