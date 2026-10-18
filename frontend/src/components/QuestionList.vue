@@ -326,28 +326,32 @@
                 </div>
               </div>
 
-              <div
-                class="question-card__preview"
-                :class="{ 'question-card__preview--expanded': isCardExpanded(question._id) }"
-              >
+              <div class="question-card__body-main flex-grow-1 d-flex flex-column">
                 <div
-                  class="question-text-content question-card__formula"
-                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
-                ></div>
-                <div
-                  v-if="question.images && question.images.length"
-                  class="question-images mt-2"
-                  v-html="renderQuestionImagesHtml(question.images)"
-                ></div>
+                  class="question-card__preview"
+                  :class="{ 'question-card__preview--expanded': isCardExpanded(question._id) }"
+                >
+                  <div
+                    class="question-text-content question-card__formula"
+                    v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
+                  ></div>
+                  <div
+                    v-if="question.images && question.images.length"
+                    class="question-images mt-2"
+                    v-html="renderQuestionImagesHtml(question.images)"
+                  ></div>
+                </div>
+                <div class="question-card__expand-row">
+                  <button
+                    v-if="previewNeedsExpand(question)"
+                    type="button"
+                    class="btn btn-link btn-sm p-0 question-card__expand"
+                    @click="toggleCardExpanded(question._id)"
+                  >
+                    {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
+                  </button>
+                </div>
               </div>
-              <button
-                v-if="previewNeedsExpand(question)"
-                type="button"
-                class="btn btn-link btn-sm p-0 align-self-start question-card__expand"
-                @click="toggleCardExpanded(question._id)"
-              >
-                {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
-              </button>
 
               <div class="question-card__footer mt-auto pt-2 text-muted small">
                 <span>{{ question.subject }}</span>
@@ -935,10 +939,25 @@ export default {
   padding: 0.2rem 0.45rem;
 }
 
+.question-card__body-main {
+  min-height: 6.75rem;
+}
+
+.question-card__expand-row {
+  flex-shrink: 0;
+  min-height: 1.35rem;
+  margin-top: 0.15rem;
+}
+
 .question-card__preview {
   overflow: hidden;
   max-height: 5.25rem;
   position: relative;
+  flex: 1 1 auto;
+}
+
+.question-card__preview:not(.question-card__preview--expanded) {
+  min-height: 5.25rem;
 }
 
 .question-card__preview:not(.question-card__preview--expanded)::after {

@@ -41,6 +41,18 @@ async function assertNotLoginPage(page, slug) {
   }
 }
 
+async function assertNoHorizontalOverflow(page, slug) {
+  const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+  }));
+  if (scrollWidth > innerWidth) {
+    throw new Error(
+      `[${slug}] horizontal overflow: scrollWidth=${scrollWidth} > innerWidth=${innerWidth}`,
+    );
+  }
+}
+
 async function assertPageReady(page, slug) {
   await assertNotLoginPage(page, slug);
   const marker = PAGE_MARKERS[slug];
@@ -59,4 +71,10 @@ async function assertPageReady(page, slug) {
   await expect(loc, `expected ${slug} marker ${marker.testId}`).toBeVisible({ timeout: 45000 });
 }
 
-module.exports = { assertNotLoginPage, assertPageReady, PAGE_MARKERS, ensureNavbarExpanded };
+module.exports = {
+  assertNotLoginPage,
+  assertNoHorizontalOverflow,
+  assertPageReady,
+  PAGE_MARKERS,
+  ensureNavbarExpanded,
+};

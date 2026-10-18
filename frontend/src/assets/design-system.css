@@ -42,22 +42,30 @@
 
 html {
   font-size: 16px;
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 body {
   font-family: var(--font-sans);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 #app {
   min-height: 100vh;
   background: var(--surface-bg);
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 main.app-main {
   min-height: calc(100vh - 56px);
   padding: var(--space-page-y) 0 2.5rem;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 main.app-main.with-navbar {
@@ -121,10 +129,21 @@ main.app-main.with-navbar {
   border-left-color: rgba(255, 255, 255, 0.2);
 }
 
+.app-navbar .container-fluid.navbar-shell {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-navbar .navbar-collapse-main {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .app-navbar .bank-selector-wrap {
   min-width: 0;
-  max-width: min(420px, 100%);
+  max-width: min(100%, 100%);
   flex: 1 1 auto;
+  overflow: hidden;
 }
 
 @media (max-width: 991px) {

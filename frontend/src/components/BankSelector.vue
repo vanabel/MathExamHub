@@ -76,7 +76,7 @@ export default {
     formatBankOption(bank) {
       const role = this.roleLabel(bank.role);
       const suffix = `（${role}）`;
-      const maxNameLen = 18;
+      const maxNameLen = 14;
       let name = bank.name;
       if (name.length > maxNameLen) {
         name = `${name.slice(0, maxNameLen - 1)}…`;
@@ -151,17 +151,19 @@ export default {
 }
 
 .bank-selector-select {
-  flex: 1 1 auto;
-  min-width: 8rem;
-  max-width: 14rem;
-  width: 11rem;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 10.5rem;
+  width: 100%;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background-color: rgba(255, 255, 255, 0.97);
   font-size: 0.875rem;
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bank-selector-select:focus {

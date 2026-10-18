@@ -16,7 +16,7 @@ const {
   apiBase,
 } = require('../helpers/screenshotAuth');
 // apiBase defaults to ${PLAYWRIGHT_BASE_URL}/api — use ui-v2-static-server.js for same-origin session cookies.
-const { assertPageReady } = require('../helpers/screenshotAssert');
+const { assertPageReady, assertNoHorizontalOverflow } = require('../helpers/screenshotAssert');
 
 const phase = process.env.UI_V2_PHASE || 'after';
 const outRoot = path.join(__dirname, '../../docs/screenshots/ui-v2', phase);
@@ -45,6 +45,7 @@ async function waitForKpJob(page, jobId, maxMs = 90000) {
 
 async function snap(page, slug, vp) {
   await assertPageReady(page, slug);
+  await assertNoHorizontalOverflow(page, slug);
   const dir = path.join(outRoot, vp.name);
   fs.mkdirSync(dir, { recursive: true });
   await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -68,6 +69,10 @@ async function snapPublic(page, slug, vp) {
   fs.mkdirSync(dir, { recursive: true });
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.waitForTimeout(300);
+  if (slug === 'login') {
+    await expect(page.getByTestId('login-page')).toBeVisible();
+  }
+  await assertNoHorizontalOverflow(page, slug);
   await page.screenshot({ path: path.join(dir, `${slug}.png`), fullPage: true });
 }
 

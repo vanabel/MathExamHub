@@ -46,7 +46,7 @@
 
       <!-- Step 1 -->
       <div v-show="step === 1" class="row g-4">
-        <div class="col-lg-7">
+        <div class="col-lg-8">
           <div class="card shadow-sm">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
               <span class="fw-semibold">组卷蓝图</span>
@@ -84,12 +84,6 @@
                     title="连续尝试 N 个种子，报告最好/最差缺口"
                   />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                  <div class="form-check">
-                    <input id="allowRelax" v-model="blueprint.allowRelaxation" class="form-check-input" type="checkbox" />
-                    <label class="form-check-label" for="allowRelax">允许自动放宽约束</label>
-                  </div>
-                </div>
                 <div class="col-md-4">
                   <label class="form-label">A/B 重合率上限（%）</label>
                   <input
@@ -101,7 +95,15 @@
                     class="form-control"
                   />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label invisible d-block">选项</label>
+                  <div class="form-check">
+                    <input id="allowRelax" v-model="blueprint.allowRelaxation" class="form-check-input" type="checkbox" />
+                    <label class="form-check-label" for="allowRelax">允许自动放宽约束</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label invisible d-block">选项</label>
                   <div class="form-check">
                     <input id="genAb" v-model="generateAbPair" class="form-check-input" type="checkbox" />
                     <label class="form-check-label" for="genAb">同时生成 A/B 双卷</label>
@@ -204,7 +206,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-5">
+        <div class="col-lg-4">
           <div class="card shadow-sm mb-3">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
               <span class="fw-semibold">蓝图模板库</span>

@@ -133,8 +133,14 @@
                     <i class="bi bi-magic"></i> 智能选择
                   </button>
                 </div>
-                <div class="text-muted">
+                <div
+                  class="export-list-selection text-muted"
+                  data-testid="latex-export-selection-summary"
+                >
                   已选择 <strong>{{ selectedQuestions.length }}</strong> 道题目
+                  <span v-if="selectedQuestions.length > 0" class="export-list-selection__score">
+                    · 合计 <strong>{{ selectedTotalScore }}</strong> 分
+                  </span>
                 </div>
               </div>
 
@@ -188,13 +194,14 @@
 
         <!-- 导出配置区域 -->
         <div class="col-lg-4">
-          <div class="card">
+          <div class="card export-config-card h-100">
             <div class="card-header bg-light">
               <h5 class="mb-0">
                 <i class="bi bi-gear"></i> 导出配置
               </h5>
             </div>
-            <div class="card-body">
+            <div class="card-body export-config-card__body">
+              <div class="export-config-card__fields">
               <div class="mb-3">
                 <label for="filename" class="form-label">文件名（不含扩展名）</label>
                 <input
@@ -371,38 +378,30 @@
                 </div>
               </div>
 
-              <div
-                v-if="exportStatusMessage"
-                class="alert py-2 small mb-2"
-                :class="exportStatusError ? 'alert-danger' : 'alert-success'"
-                role="status"
-                data-testid="latex-export-status"
-              >
-                {{ exportStatusMessage }}
               </div>
-              <div
-                v-if="selectedQuestions.length > 0"
-                class="export-selection-summary mb-3"
-                data-testid="latex-export-selection-summary"
-              >
-                <div class="d-flex justify-content-between align-items-center">
-                  <span>已选 <strong>{{ selectedQuestions.length }}</strong> 题</span>
-                  <span>合计 <strong>{{ selectedTotalScore }}</strong> 分</span>
+              <div class="export-config-card__footer">
+                <div
+                  v-if="exportStatusMessage"
+                  class="alert py-2 small mb-2"
+                  :class="exportStatusError ? 'alert-danger' : 'alert-success'"
+                  role="status"
+                  data-testid="latex-export-status"
+                >
+                  {{ exportStatusMessage }}
                 </div>
-              </div>
-              <button
-                type="button"
-                class="btn btn-primary w-100 latex-export-submit-sticky"
-                @click="exportToLatex"
-                :disabled="selectedQuestions.length === 0 || exporting"
-              >
-                <span v-if="exporting" class="spinner-border spinner-border-sm me-2"></span>
-                <i v-else class="bi bi-download"></i>
-                {{ exporting ? "导出中..." : "导出 LaTeX 文件" }}
-              </button>
-
-              <div v-if="selectedQuestions.length === 0" class="alert alert-warning mt-3 mb-0">
-                <small><i class="bi bi-exclamation-triangle"></i> 请至少选择一道题目</small>
+                <div v-if="selectedQuestions.length === 0" class="alert alert-warning mb-3">
+                  <small><i class="bi bi-exclamation-triangle"></i> 请至少选择一道题目</small>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-primary w-100"
+                  @click="exportToLatex"
+                  :disabled="selectedQuestions.length === 0 || exporting"
+                >
+                  <span v-if="exporting" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-download"></i>
+                  {{ exporting ? "导出中..." : "导出 LaTeX 文件" }}
+                </button>
               </div>
             </div>
           </div>
@@ -1488,21 +1487,27 @@ export default {
   max-width: 100%;
 }
 
-.export-selection-summary {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  background: var(--color-primary-soft, #eff6ff);
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  border-radius: var(--radius-sm, 6px);
-  padding: 0.55rem 0.75rem;
-  font-size: 0.9rem;
+.export-list-selection__score {
+  color: var(--text-secondary, #475569);
+  font-weight: 500;
 }
 
-.latex-export-submit-sticky {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+.export-config-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.export-config-card__fields {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.export-config-card__footer {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle, #e2e8f0);
 }
 
 .question-item {

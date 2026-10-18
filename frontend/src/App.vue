@@ -472,18 +472,27 @@ export default {
   .navbar-collapse-main {
     flex-wrap: wrap;
     row-gap: 0.35rem;
+    align-content: flex-start;
+  }
+
+  .navbar-primary-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .navbar-end {
     flex: 1 1 100%;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     border-left: none;
     margin-left: 0;
     padding-left: 0;
     justify-content: flex-end;
     align-items: center;
     gap: 0.65rem 1rem;
+    overflow: hidden;
   }
 }
 
@@ -556,17 +565,16 @@ export default {
 }
 
 @media (min-width: 992px) {
-  .navbar-collapse-main {
-    flex-wrap: nowrap !important;
-  }
-
-  .navbar-primary-nav .nav-item {
-    flex-shrink: 0;
-  }
-
   .navbar-end :deep(.bank-selector-select) {
-    max-width: 18rem;
-    width: min(18rem, 22vw);
+    max-width: 10.5rem;
+    width: min(10.5rem, 18vw);
+    min-width: 0;
+  }
+
+  .navbar-end :deep(.bank-archive-btn) {
+    flex-shrink: 0;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
   }
 }
 
