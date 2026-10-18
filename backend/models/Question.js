@@ -55,6 +55,8 @@ const questionSchema = new mongoose.Schema({
   originalLaTeX: {
     type: String,
   },
+  /** mathexam makepart title for LaTeX round-trip (e.g. 计算与证明题) */
+  latexPartTitle: { type: String, trim: true },
   knowledgePointIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'KnowledgePoint',

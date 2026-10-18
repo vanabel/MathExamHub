@@ -25,4 +25,14 @@ describe('stepScoreUtils', () => {
   it('returns null when no step scores', () => {
     assert.equal(stepScoreMismatch({ totalScore: 5, correctAnswer: 'x' }), null);
   });
+
+  it('does not double-count identical answer and solution step scores', () => {
+    const body = 'a\\score{5}b\\score{5}';
+    const issue = stepScoreMismatch({
+      totalScore: 10,
+      correctAnswer: body,
+      solution: body,
+    });
+    assert.equal(issue, null);
+  });
 });

@@ -3,6 +3,8 @@
  * 用于解析 mathexam 格式的 LaTeX 文件，提取题目信息
  */
 
+const { resolveQuestionTypeFromPartTitle } = require('./latexPartType');
+
 const MATHEXAM_HEAD_MACROS = [
   'university', 'school', 'course', 'AorB', 'semester', 'finalmiddle',
   'totaltime', 'openclose', 'degree', 'totalstu', 'major', 'grade',
@@ -125,6 +127,20 @@ class LatexParser {
 
     const bodyStart = content.indexOf('\\begin{document}');
     const preamble = bodyStart >= 0 ? content.substring(0, bodyStart) : content;
+
+    const docClassMatch = preamble.match(/\\documentclass(\[[^\]]*\])?\{([^}]+)\}/);
+    if (docClassMatch) {
+      metadata.documentClass = (docClassMatch[2] || 'article').trim();
+      if (docClassMatch[1]) {
+        const inner = docClassMatch[1].replace(/^\[|\]$/g, '');
+        metadata.documentClassOptions = inner
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else {
+        metadata.documentClassOptions = [];
+      }
+    }
 
     const usepackageMatch = preamble.match(/\\usepackage(\[[^\]]*\])?\{mathexam\}/);
     if (usepackageMatch && usepackageMatch[1]) {
@@ -852,8 +868,9 @@ class LatexParser {
       
       problemIndex++; // 增加索引
 
+      const mappedType = this.mapPartTypeToQuestionType(partType);
       const question = {
-        type: this.mapPartTypeToQuestionType(partType),
+        type: mappedType || '',
         totalScore: score,
         questionText: '',
         correctAnswer: '',
@@ -863,6 +880,7 @@ class LatexParser {
         subject: this.extractSubject(this.fullContent || content),
         originalLaTeX: originalProblemContent, // 保存原始的 LaTeX 代码（未处理的）
         partType,
+        latexPartTitle: partType,
       };
 
       // 先解析解答（需要从完整内容中提取）
@@ -882,19 +900,7 @@ class LatexParser {
    * 将题型映射到数据库中的题目类型
    */
   mapPartTypeToQuestionType(partType) {
-    const typeMap = {
-      '填空题': '填空题',
-      '选择题': '单选题',
-      '单项选择题': '单选题',
-      '多项选择题': '多选题',
-      '判断题': '判断题',
-      '计算题': '计算题',
-      '解答题': '解答题',
-      '证明题': '证明题',
-      '作图题': '作图题',
-      '简答题': '简答题',  // 简答题类型
-    };
-    return typeMap[partType] || partType;
+    return resolveQuestionTypeFromPartTitle(partType);
   }
 
   /**
@@ -1077,10 +1083,6 @@ class LatexParser {
       // 处理解答中的 \ref 命令
       solutionText = this.processRefs(solutionText);
       question.solution = this.cleanText(solutionText).trim();
-      // 如果答案为空，使用解答作为答案
-      if (!question.correctAnswer && question.solution) {
-        question.correctAnswer = question.solution;
-      }
     }
   }
 
@@ -1104,7 +1106,6 @@ class LatexParser {
           question.correctAnswer = question.correctAnswer + '\n\n注：' + rmkText;
         } else if (question.solution) {
           question.solution = question.solution + '\n\n注：' + rmkText;
-          question.correctAnswer = question.solution;
         } else {
           question.correctAnswer = '注：' + rmkText;
         }
@@ -1188,33 +1189,45 @@ class LatexGenerator {
   }
 
   generateDocument(questions, metadata = {}, mode = 'exam') {
-    const groupedByOriginalType = {};
-    for (const q of questions) {
-      if (!groupedByOriginalType[q.type]) {
-        groupedByOriginalType[q.type] = [];
-      }
-      groupedByOriginalType[q.type].push(q);
-    }
-
     let latex = this.generateHeader(metadata, mode);
     latex += '\n\\begin{document}\n';
     latex += '\\makehead\n';
 
-    const typeOrder = this.getTypeOrder();
-    const processedTypes = new Set();
-
-    for (const type of typeOrder) {
-      if (groupedByOriginalType[type] && groupedByOriginalType[type].length > 0) {
-        const mappedType = this.mapQuestionTypeToPartType(type);
-        latex += this.generatePart(mappedType, groupedByOriginalType[type], mode);
-        processedTypes.add(type);
+    const sections = [];
+    for (const q of questions) {
+      const partTitle = q.latexPartTitle
+        || this.mapQuestionTypeToPartType(q.type);
+      const last = sections[sections.length - 1];
+      if (last && last.title === partTitle) {
+        last.questions.push(q);
+      } else {
+        sections.push({ title: partTitle, questions: [q] });
       }
     }
 
-    for (const [type, qs] of Object.entries(groupedByOriginalType)) {
-      if (!processedTypes.has(type)) {
-        const mappedType = this.mapQuestionTypeToPartType(type);
-        latex += this.generatePart(mappedType, qs, mode);
+    if (sections.length === 0) {
+      const groupedByOriginalType = {};
+      for (const q of questions) {
+        if (!groupedByOriginalType[q.type]) groupedByOriginalType[q.type] = [];
+        groupedByOriginalType[q.type].push(q);
+      }
+      const typeOrder = this.getTypeOrder();
+      const processedTypes = new Set();
+      for (const type of typeOrder) {
+        if (groupedByOriginalType[type]?.length) {
+          const mappedType = this.mapQuestionTypeToPartType(type);
+          latex += this.generatePart(mappedType, groupedByOriginalType[type], mode);
+          processedTypes.add(type);
+        }
+      }
+      for (const [type, qs] of Object.entries(groupedByOriginalType)) {
+        if (!processedTypes.has(type)) {
+          latex += this.generatePart(this.mapQuestionTypeToPartType(type), qs, mode);
+        }
+      }
+    } else {
+      for (const sec of sections) {
+        latex += this.generatePart(sec.title, sec.questions, mode);
       }
     }
 
@@ -1292,9 +1305,13 @@ class LatexGenerator {
     ].join('\n');
     const preambleBlock = [defaultMacroLines, preambleExtras].filter(Boolean).join('\n') + (defaultMacroLines || preambleExtras ? '\n' : '');
 
+    const docClass = metadata.documentClass || 'article';
+    const docOpts = metadata.documentClassOptions?.length
+      ? `[${metadata.documentClassOptions.join(',')}]`
+      : '';
     return `% !TEX program = xelatex
 % 编译：将同目录下的 mathexam.sty 与本文一并交给 XeLaTeX
-\\documentclass{article}
+\\documentclass${docOpts}{${docClass}}
 \\usepackage[${pkgOpts}]{mathexam}
 \\usepackage{hyperref}
 \\usepackage[nameinlink]{cleveref}
@@ -1305,6 +1322,7 @@ ${preambleBlock}
 \\school{${pick('school', '数学与统计学院')}}
 \\course{${pick('course', '高等代数')}}
 \\AorB{${pick('AorB', 'A')}}
+\\semester{${pick('semester', '')}}
 \\finalmiddle{${pick('finalmiddle', '期末')}}
 \\totaltime{${pick('totaltime', '120')}}
 \\openclose{${pick('openclose', '闭卷')}}

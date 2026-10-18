@@ -35,7 +35,8 @@
                 <input
                   ref="fileInput"
                   type="file"
-                  accept=".tex"
+                  accept=".tex,.zip"
+                  multiple
                   @change="handleFileSelect"
                   class="d-none"
                   id="fileInput"
@@ -52,18 +53,19 @@
                 <label
                   for="fileInput"
                   class="upload-label"
-                  :class="{ 'dragover': isDragging, 'has-file': selectedFile }"
+                  :class="{ 'dragover': isDragging, 'has-file': selectedTexFiles.length }"
                   @dragover.prevent="isDragging = true"
                   @dragleave.prevent="isDragging = false"
                   @drop.prevent="handleDrop"
                 >
                   <div class="upload-content">
                     <i class="bi bi-cloud-upload display-4 text-primary mb-3"></i>
-                    <h5 v-if="!selectedFile">点击选择文件或拖拽文件到此处</h5>
+                    <h5 v-if="!selectedTexFiles.length">点击选择文件或拖拽文件到此处</h5>
                     <h5 v-else class="text-success">
-                      <i class="bi bi-check-circle"></i> {{ selectedFile.name }}
+                      <i class="bi bi-check-circle"></i>
+                      {{ selectedTexFiles.length === 1 ? selectedTexFiles[0].name : `已选 ${selectedTexFiles.length} 个文件` }}
                     </h5>
-                    <p class="text-muted mb-0">支持 .tex 格式文件，最大 10MB</p>
+                    <p class="text-muted mb-0">支持 .tex / .zip（可多选，含 \\input 子文件），最大 20MB</p>
                     <p class="text-muted mb-0 small">图片支持：png/jpg/jpeg/gif/pdf</p>
                   </div>
                 </label>
@@ -152,7 +154,7 @@
                   type="button"
                   class="btn btn-info"
                   @click="previewFile"
-                  :disabled="!selectedFile || previewing || importing"
+                  :disabled="!selectedTexFiles.length || previewing || importing"
                 >
                   <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-eye"></i>
@@ -162,7 +164,7 @@
                   type="button"
                   class="btn btn-primary"
                   @click="importFile"
-                  :disabled="!selectedFile || importing || previewing"
+                  :disabled="!selectedTexFiles.length || importing || previewing"
                   v-if="!previewData"
                 >
                   <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
@@ -174,7 +176,7 @@
                   type="button"
                   class="btn btn-success"
                   @click="confirmImport"
-                  :disabled="importing"
+                  :disabled="importing || !(previewData?.partialImportAllowed || previewData?.success)"
                 >
                   <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-check-circle"></i>
@@ -254,8 +256,54 @@
                     </div>
                   </div>
                   <div class="card-body">
+                    <div
+                      v-for="(w, wi) in (previewData.warnings || []).filter(x => x.code === 'ZERO_QUESTIONS' || x.code === 'MISSING_INPUT')"
+                      :key="'w-' + wi"
+                      class="alert alert-warning mb-3"
+                    >
+                      {{ w.message }}
+                    </div>
+                    <div
+                      v-if="previewData.partSections && previewData.partSections.some(s => !s.recognized || s.invalidCount)"
+                      class="alert alert-warning mb-3"
+                    >
+                      <strong>部分题型需确认</strong>
+                      <div
+                        v-for="sec in previewData.partSections.filter(s => !s.recognized || s.invalidCount)"
+                        :key="sec.partTitle"
+                        class="d-flex flex-wrap align-items-center gap-2 mt-2"
+                      >
+                        <span class="small">{{ sec.partTitle }}（{{ sec.questionIndices.length }} 题）</span>
+                        <select
+                          v-model="partTypeOverrides[sec.partTitle]"
+                          class="form-select form-select-sm"
+                          style="width: 10rem"
+                          @change="previewFile"
+                        >
+                          <option value="判断题">判断题</option>
+                          <option value="单选题">单选题</option>
+                          <option value="多选题">多选题</option>
+                          <option value="填空题">填空题</option>
+                          <option value="解答题">解答题</option>
+                          <option value="计算题">计算题</option>
+                          <option value="证明题">证明题</option>
+                          <option value="简答题">简答题</option>
+                          <option value="作图题">作图题</option>
+                        </select>
+                      </div>
+                      <p class="small mb-0 mt-2">修改题型后请重新预览；确认导入时将跳过仍无法识别的题目。</p>
+                    </div>
+                    <div v-if="previewData.errors && previewData.errors.length" class="alert alert-danger mb-3">
+                      <strong>{{ previewData.errors.length }} 道题无法导入</strong>
+                      <ul class="small mb-0 mt-1">
+                        <li v-for="(err, ei) in previewData.errors.slice(0, 8)" :key="ei">{{ err.message }}</li>
+                      </ul>
+                    </div>
                     <div class="alert alert-info mb-3">
-                      <strong>共识别到 {{ previewQuestions.length }} 道题目</strong>
+                      <strong>共识别到 {{ previewQuestions.length }} 道可导入题目</strong>
+                      <span v-if="previewData.summary && previewData.summary.total > previewQuestions.length" class="ms-1 text-muted small">
+                        （共解析 {{ previewData.summary.total }}，跳过 {{ previewData.summary.total - previewQuestions.length }}）
+                      </span>
                       <span v-if="previewData.exportDefaults?.course" class="ms-2 text-muted small">
                         导出默认：{{ previewData.exportDefaults.course }}
                         <span v-if="previewData.exportDefaults.university"> · {{ previewData.exportDefaults.university }}</span>
@@ -510,7 +558,8 @@ export default {
   },
   data() {
     return {
-      selectedFile: null,
+      selectedTexFiles: [],
+      partTypeOverrides: {},
       selectedImages: [],
       isDragging: false,
       importing: false,
@@ -568,29 +617,36 @@ export default {
         }
       }
     },
-    handleFileSelect(event) {
-      const file = event.target.files[0];
-      if (file) {
-        if (!file.name.endsWith(".tex")) {
-          alert("请选择 .tex 格式的文件");
-          return;
-        }
-        this.selectedFile = file;
-        this.isDragging = false;
+    appendTexFilesToFormData(formData) {
+      for (const f of this.selectedTexFiles) {
+        formData.append('file', f);
       }
+      if (Object.keys(this.partTypeOverrides).length) {
+        formData.append('partTypeOverrides', JSON.stringify(this.partTypeOverrides));
+      }
+    },
+    handleFileSelect(event) {
+      const files = Array.from(event.target.files || []);
+      const texOrZip = files.filter((f) => /\.(tex|zip)$/i.test(f.name));
+      if (!texOrZip.length) {
+        alert('请选择 .tex 或 .zip 文件');
+        return;
+      }
+      this.selectedTexFiles = texOrZip;
+      this.isDragging = false;
     },
     handleDrop(event) {
       this.isDragging = false;
       const files = Array.from(event.dataTransfer.files);
-      const texFile = files.find(f => f.name.endsWith(".tex"));
+      const texFiles = files.filter((f) => /\.(tex|zip)$/i.test(f.name));
       const imageFiles = files.filter(f => 
         f.name.match(/\.(png|jpg|jpeg|gif|pdf)$/i)
       );
       
-      if (texFile) {
-        this.selectedFile = texFile;
+      if (texFiles.length) {
+        this.selectedTexFiles = texFiles;
         const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(texFile);
+        texFiles.forEach((f) => dataTransfer.items.add(f));
         this.$refs.fileInput.files = dataTransfer.files;
       }
       
@@ -601,8 +657,8 @@ export default {
         this.$refs.imageInput.files = dataTransfer.files;
       }
       
-      if (!texFile && imageFiles.length === 0) {
-        alert("请选择 .tex 文件或图片文件");
+      if (!texFiles.length && imageFiles.length === 0) {
+        alert('请选择 .tex / .zip 文件或图片文件');
       }
     },
     handleImageSelect(event) {
@@ -615,8 +671,8 @@ export default {
       }
     },
     async previewFile() {
-      if (!this.selectedFile) {
-        alert("请先选择文件");
+      if (!this.selectedTexFiles.length) {
+        alert('请先选择文件');
         return;
       }
 
@@ -625,7 +681,7 @@ export default {
       this.importResult = null;
 
       const formData = new FormData();
-      formData.append("file", this.selectedFile);
+      this.appendTexFilesToFormData(formData);
       // 添加图片文件
       this.selectedImages.forEach((img) => {
         formData.append("images", img);
@@ -662,6 +718,12 @@ export default {
           };
         }
         this.previewData = data;
+        this.partTypeOverrides = {};
+        (data.partSections || []).forEach((sec) => {
+          if (!sec.recognized || sec.invalidCount > 0) {
+            this.partTypeOverrides[sec.partTitle] = sec.mappedType || '解答题';
+          }
+        });
         this.previewKnowledgePoints = data.knowledgePoints || [];
         const suggestions = data.llmSuggestions || [];
         this.llmEdits = (data.questions || []).map((q, i) => {
@@ -693,17 +755,20 @@ export default {
       }
     },
     async confirmImport() {
-      if (!this.previewData || !this.selectedFile) {
-        alert("请先预览文件");
+      if (!this.previewData || !this.selectedTexFiles.length) {
+        alert('请先预览文件');
+        return;
+      }
+      if (!this.previewData.partialImportAllowed && this.previewData.summary?.valid === 0) {
+        alert('没有可导入的有效题目');
         return;
       }
 
-      // 使用预览数据，直接调用导入接口
       this.importing = true;
       this.importResult = null;
 
       const formData = new FormData();
-      formData.append("file", this.selectedFile);
+      this.appendTexFilesToFormData(formData);
       // 添加图片文件
       this.selectedImages.forEach((img) => {
         formData.append("images", img);
@@ -751,8 +816,8 @@ export default {
       }
     },
     async importFile() {
-      if (!this.selectedFile) {
-        alert("请先选择文件");
+      if (!this.selectedTexFiles.length) {
+        alert('请先选择文件');
         return;
       }
 
@@ -760,7 +825,7 @@ export default {
       this.importResult = null;
 
       const formData = new FormData();
-      formData.append("file", this.selectedFile);
+      this.appendTexFilesToFormData(formData);
       // 添加图片文件
       this.selectedImages.forEach((img) => {
         formData.append("images", img);
@@ -800,7 +865,8 @@ export default {
       }
     },
     resetForm() {
-      this.selectedFile = null;
+      this.selectedTexFiles = [];
+      this.partTypeOverrides = {};
       this.selectedImages = [];
       this.importResult = null;
       this.previewData = null;

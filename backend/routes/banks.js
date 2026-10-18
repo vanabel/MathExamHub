@@ -5,7 +5,8 @@ const QuestionBank = require('../models/QuestionBank');
 const router = express.Router();
 
 const METADATA_KEYS = [
-  'packageOptions', 'university', 'school', 'course', 'AorB', 'semester',
+  'packageOptions', 'documentClass', 'documentClassOptions',
+  'university', 'school', 'course', 'AorB', 'semester',
   'finalmiddle', 'totaltime', 'openclose', 'degree', 'totalstu', 'major',
   'grade', 'examiner', 'director', 'dean', 'preambleLines', 'exportMode',
 ];

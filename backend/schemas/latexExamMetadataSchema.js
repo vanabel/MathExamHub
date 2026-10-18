@@ -6,6 +6,11 @@ const latexExamMetadataSchema = new mongoose.Schema({
     type: [String],
     default: undefined,
   },
+  documentClass: { type: String, trim: true },
+  documentClassOptions: {
+    type: [String],
+    default: undefined,
+  },
   university: { type: String, trim: true },
   school: { type: String, trim: true },
   course: { type: String, trim: true },

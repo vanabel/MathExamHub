@@ -25,11 +25,25 @@ function sumStepScoresFromText(text) {
   return { sum: scores.reduce((a, b) => a + b, 0), scores };
 }
 
+function normalizeScoreText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 function sumStepScoresForQuestion(question) {
-  const chunks = [
-    ...collectScoreStrings(question.correctAnswer),
-    ...collectScoreStrings(question.solution),
-  ];
+  const answerText = collectScoreStrings(question.correctAnswer).join('\n');
+  const solutionText = String(question.solution || '').trim();
+  const answerNorm = normalizeScoreText(answerText);
+  const solutionNorm = normalizeScoreText(solutionText);
+  const duplicateAnswerSolution = solutionNorm
+    && answerNorm
+    && (answerNorm === solutionNorm || answerNorm.includes(solutionNorm) || solutionNorm.includes(answerNorm));
+
+  const chunks = duplicateAnswerSolution
+    ? collectScoreStrings(question.solution || question.correctAnswer)
+    : [
+      ...collectScoreStrings(question.correctAnswer),
+      ...collectScoreStrings(question.solution),
+    ];
   let sum = 0;
   const allScores = [];
   for (const t of chunks) {

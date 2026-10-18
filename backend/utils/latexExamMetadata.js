@@ -37,6 +37,12 @@ function normalizeDocumentMetadata(documentMetadata) {
   if (documentMetadata.preambleLines?.length) {
     flat.preambleLines = [...documentMetadata.preambleLines];
   }
+  if (documentMetadata.documentClass) {
+    flat.documentClass = documentMetadata.documentClass;
+  }
+  if (documentMetadata.documentClassOptions?.length) {
+    flat.documentClassOptions = [...documentMetadata.documentClassOptions];
+  }
   return flat;
 }
 
@@ -52,9 +58,16 @@ function fillBankLatexMetadata(bankDoc, documentMetadata) {
   let changed = false;
 
   for (const [key, value] of Object.entries(incoming)) {
-    if (key === 'packageOptions' || key === 'preambleLines') {
+    if (key === 'packageOptions' || key === 'documentClassOptions' || key === 'preambleLines') {
       if ((!target[key] || target[key].length === 0) && value?.length) {
         target[key] = value;
+        changed = true;
+      }
+      continue;
+    }
+    if (key === 'documentClass') {
+      if (isEmptyValue(target.documentClass) && !isEmptyValue(value)) {
+        target.documentClass = value;
         changed = true;
       }
       continue;
@@ -70,7 +83,7 @@ function fillBankLatexMetadata(bankDoc, documentMetadata) {
 function layerToExportShape(layer) {
   if (!layer) return {};
   const out = {};
-  for (const key of [...Object.keys(HEAD_FIELD_MAP), 'packageOptions', 'preambleLines', 'exportMode']) {
+  for (const key of [...Object.keys(HEAD_FIELD_MAP), 'packageOptions', 'documentClass', 'documentClassOptions', 'preambleLines', 'exportMode']) {
     if (!isEmptyValue(layer[key])) {
       out[key] = layer[key];
     }
