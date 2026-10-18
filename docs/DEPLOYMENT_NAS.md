@@ -124,3 +124,46 @@ curl -s http://localhost:8080/api/health
 ## 10. CI 对齐
 
 GitHub Actions 运行 `npm test`、`npm run test:scenario`；M6 起增加 `npm run test:bench`（1e4 题分页基准），与生产 API 前缀约定相同。
+
+## 11. v1 upgrade from feature/latex-import-export（PM2 / Cloudflare）
+
+生产 NAS 若仍运行在旧分支 `feature/latex-import-export`（例如 `@102f998`，根目录 `ecosystem.config.js` + `deploy-pm2.sh`），升级到 **main** 后请改用仓库内 **`deploy/pm2/`** 脚本（main 不再在根目录保留 PM2 文件）。
+
+### 11.1 一次性：`node_modules` 出 Git
+
+与 §3.1 相同：若历史上在仓库里装过依赖，先 `git rm -r --cached backend/node_modules node_modules`（如有），删除目录后 `npm ci --prefix backend` 与 `npm ci --prefix frontend`。
+
+### 11.2 `backend/.env`（无密钥写入脚本）
+
+在 NAS 上维护 **`backend/.env`**（参考 `backend/.env.example`），至少包括：
+
+| 变量 | PM2 典型值 |
+|------|------------|
+| `PORT` | `19897`（后端） |
+| `MONGODB_URI` | 本地或容器 Mongo |
+| `SESSION_SECRET` | 强随机串 |
+| `CORS_ORIGINS` | `https://exam.vanabel.cn`（逗号分隔多域名） |
+
+可选：`GIT_COMMIT=$(git rev-parse --short HEAD)` 供 `/api/health` 返回。
+
+### 11.3 构建与 PM2
+
+Node **20**；PM2 若装在 `~/pm2-local` 且不在 `PATH`：
+
+```bash
+export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
+./deploy/pm2/deploy-pm2.sh
+```
+
+- 后端：`backend/server.js`，端口由 `backend/.env` 的 `PORT` 决定（默认生产 **19897**）。
+- 前端：`deploy/pm2/start-frontend.sh` → `serve -s frontend/dist --listen=19896`。
+- 重启：`./deploy/pm2/restart-pm2.sh`。
+
+### 11.4 路由与探活
+
+- **无 NAS 本机 Nginx**：公网 `https://exam.vanabel.cn` 经 **Cloudflare Tunnel** 把 `/api` 指到后端 `:19897`，静态页指到前端 `:19896`（或 tunnel 多 origin）。
+- 探活：`curl -s http://127.0.0.1:19897/api/health` → `{"ok":true,"version":"…",…}`。
+
+### 11.5 与 Docker 文档的差异
+
+本文 §4–§5 的 Nginx/`docker compose` 流程适用于容器部署；PM2 裸机路径见本节，二者勿混用同一端口映射。

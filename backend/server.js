@@ -2,40 +2,18 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors = require('cors');
 const passport = require('passport');
 const session = require('express-session');
 const crypto = require('crypto');
 const connectDB = require('./config/database');
+const { parseCorsOrigins } = require('./config/corsOrigins');
+const { createCorsPolicyMiddleware } = require('./middleware/corsPolicy');
 
 const secret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:8080',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000',
-];
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bank-Id'],
-}));
+app.use(...createCorsPolicyMiddleware(parseCorsOrigins()));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -67,11 +45,16 @@ const onboardingRoutes = require('./routes/onboarding');
 const path = require('path');
 
 app.get('/api/health', (req, res) => {
-  res.json({
+  const pkg = require('./package.json');
+  const payload = {
     ok: true,
+    version: pkg.version,
     service: 'mathexam-backend',
     mongoReadyState: require('mongoose').connection.readyState,
-  });
+  };
+  const commit = process.env.GIT_COMMIT || process.env.SOURCE_COMMIT;
+  if (commit) payload.commit = commit;
+  res.json(payload);
 });
 
 app.use('/api/auth', authRoutes);
