@@ -4,6 +4,12 @@
  */
 
 const { resolveQuestionTypeFromPartTitle } = require('./latexPartType');
+const {
+  countFillBlanksInText,
+  inferFillInPartScoring,
+  isPerBlankMakepart,
+  resolveMakepartUnitScore,
+} = require('./fillinPartScoring');
 
 const MATHEXAM_HEAD_MACROS = [
   'university', 'school', 'course', 'AorB', 'semester', 'finalmiddle',
@@ -590,21 +596,19 @@ class LatexParser {
           ? this.originalContent.substring(originalStartPos, originalEndPos).trim()
           : partContent;
         
-        // 解析部分级别的默认分数（从 info 中提取，如 "共25分" -> 25）
-        let defaultScore = 0;
-        const scoreMatch = cmd.info.match(/(\d+)\s*分/);
-        if (scoreMatch) {
-          defaultScore = parseInt(scoreMatch[1], 10);
-        }
-        
+        const perBlankPart = isPerBlankMakepart(cmd.type, cmd.info);
+        const defaultScore = resolveMakepartUnitScore(cmd.info, cmd.type, '');
+
         this.currentPart = {
           type: cmd.type,
           info: cmd.info,
-          defaultScore: defaultScore,
+          defaultScore,
+          perBlank: perBlankPart,
         };
-        
-        // 解析该部分中的题目
-        this.parseProblems(partContent, cmd.type, defaultScore, originalPartContent);
+
+        this.parseProblems(partContent, cmd.type, defaultScore, originalPartContent, {
+          perBlank: perBlankPart,
+        });
       }
       return;
     }
@@ -639,23 +643,19 @@ class LatexParser {
       const originalPartContent = originalParts[partIndex] ? originalParts[partIndex].partContent : partContent;
       partIndex++;
 
-      // 解析部分级别的默认分数
-      let defaultScore = 0;
-      if (partScore && partScore.trim() !== '') {
-        const parsedScore = parseInt(partScore.trim(), 10);
-        if (!isNaN(parsedScore) && parsedScore >= 0) {
-          defaultScore = parsedScore;
-        }
-      }
+      const perBlankPart = isPerBlankMakepart(partType, partInfo);
+      const defaultScore = resolveMakepartUnitScore(partInfo, partType, partScore);
 
       this.currentPart = {
         type: partType,
         info: partInfo,
-        defaultScore: defaultScore, // 保存默认分数
+        defaultScore,
+        perBlank: perBlankPart,
       };
 
-      // 解析该部分中的题目，传入默认分数和原始内容
-      this.parseProblems(partContent, partType, defaultScore, originalPartContent);
+      this.parseProblems(partContent, partType, defaultScore, originalPartContent, {
+        perBlank: perBlankPart,
+      });
     }
   }
 
@@ -666,7 +666,8 @@ class LatexParser {
    * @param {number} defaultScore - 部分级别的默认分数（如果题目没有指定分数，使用此默认值）
    * @param {string} originalPartContent - 原始部分内容（未处理的）
    */
-  parseProblems(content, partType, defaultScore = 0, originalPartContent = null) {
+  parseProblems(content, partType, defaultScore = 0, originalPartContent = null, partOpts = {}) {
+    const perBlankPart = Boolean(partOpts.perBlank) && partType === '填空题';
     // 匹配 \begin{problem}...\end{problem}
     // 需要处理嵌套的环境（如 enumerate），所以不能简单使用非贪婪匹配
     // 使用手动解析来正确处理嵌套结构
@@ -742,17 +743,21 @@ class LatexParser {
     for (let i = 0; i < allProblems.length; i++) {
       const match = allProblems[i];
       problemIndex = i; // 使用循环索引，确保一致性
-      // 解析分数：优先使用题目自己指定的分数，如果没有则使用部分级别的默认分数
-      let score = defaultScore; // 默认使用部分级别的分数
-      if (match.score && match.score.trim() !== '') {
+      let score = defaultScore;
+      const hasExplicitProblemScore = match.score && match.score.trim() !== '';
+      if (hasExplicitProblemScore) {
         const parsedScore = parseInt(match.score.trim(), 10);
-        // 检查是否为有效数字
-        if (!isNaN(parsedScore) && parsedScore >= 0) {
-          score = parsedScore; // 题目自己指定了分数，优先使用
+        if (!Number.isNaN(parsedScore) && parsedScore >= 0) {
+          score = parsedScore;
         }
       }
-      
+
       let problemContent = match.content;
+
+      if (perBlankPart && !hasExplicitProblemScore && defaultScore > 0) {
+        const blanks = countFillBlanksInText(problemContent);
+        score = defaultScore * (blanks > 0 ? blanks : 1);
+      }
       
       // 检查 problem 内容中是否有 \ref{fig:xxx} 引用
       const refRegex = /\\ref\{([^}]+)\}/g;
@@ -1398,17 +1403,33 @@ ${preambleBlock}
    */
   generatePart(type, questions, mode = 'exam') {
     const totalScore = questions.reduce((sum, q) => sum + (q.totalScore || 0), 0);
-    const perItemScore = this.inferPartPerScore(type, questions);
-    const uniformPartScore = perItemScore > 0;
-    const partInfo = uniformPartScore
-      ? `共${questions.length}题，每题${perItemScore}分，共计${totalScore}分`
-      : `共${questions.length}题，共计${totalScore}分`;
-    const scoreSuffix = uniformPartScore ? `[${perItemScore}]` : '';
+    const fillScoring = type === '填空题' ? inferFillInPartScoring(type, questions) : null;
+
+    let partInfo;
+    let scoreSuffix = '';
+    let partPerScore = 0;
+    let scoringMode = 'mixed';
+
+    if (fillScoring && fillScoring.mode === 'per_blank') {
+      scoringMode = 'per_blank';
+      partPerScore = fillScoring.perBlankScore;
+      partInfo = `共${questions.length}题，每空${partPerScore}分，共计${totalScore}分`;
+      scoreSuffix = `[${partPerScore}]`;
+    } else {
+      const perItemScore = this.inferPartPerScore(type, questions);
+      const uniformPartScore = perItemScore > 0;
+      scoringMode = uniformPartScore ? 'per_question' : 'mixed';
+      partPerScore = uniformPartScore ? perItemScore : 0;
+      partInfo = uniformPartScore
+        ? `共${questions.length}题，每题${perItemScore}分，共计${totalScore}分`
+        : `共${questions.length}题，共计${totalScore}分`;
+      scoreSuffix = uniformPartScore ? `[${perItemScore}]` : '';
+    }
 
     let latex = `\\begin{makepart}[${partInfo}]{${type}}${scoreSuffix}\n`;
 
     for (const q of questions) {
-      latex += this.generateProblem(q, mode, { partPerScore: uniformPartScore ? perItemScore : 0 });
+      latex += this.generateProblem(q, mode, { partPerScore, scoringMode });
     }
 
     latex += '\\end{makepart}\n';
@@ -1429,13 +1450,21 @@ ${preambleBlock}
     return originalLaTeX.replace(re, '\\begin{problem}');
   }
 
+  stripAnyProblemScoreAttr(originalLaTeX) {
+    if (!originalLaTeX) return originalLaTeX;
+    return originalLaTeX.replace(/\\begin\{problem\}\s*\[\s*\d+\s*\]/, '\\begin{problem}');
+  }
+
   /**
    * 生成单个题目
    */
   generateProblem(question, mode = 'exam', opts = {}) {
     const partPerScore = opts.partPerScore || 0;
+    const scoringMode = opts.scoringMode || 'mixed';
     const qScore = question.totalScore || 0;
-    const omitProblemScore = partPerScore > 0 && qScore === partPerScore;
+    const omitProblemScore =
+      (scoringMode === 'per_blank' && partPerScore > 0)
+      || (partPerScore > 0 && qScore === partPerScore);
     const scoreAttr = (!omitProblemScore && qScore) ? `[${qScore}]` : '';
     let latex = `  \\begin{problem}${scoreAttr}\n`;
 
@@ -1454,7 +1483,9 @@ ${preambleBlock}
     if (question.originalLaTeX) {
       let body = question.originalLaTeX;
       if (omitProblemScore) {
-        body = this.stripProblemScoreAttr(body, partPerScore);
+        body = scoringMode === 'per_blank'
+          ? this.stripAnyProblemScoreAttr(body)
+          : this.stripProblemScoreAttr(body, partPerScore);
       }
       latex += `    ${body}\n`;
     } else {
