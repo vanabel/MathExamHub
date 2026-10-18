@@ -140,10 +140,20 @@
     </div>
 
     <div v-show="step === 2">
+      <kp-tag-job-list
+        ref="jobList"
+        :selected-job-id="selectedReviewJobId"
+        @select="selectedReviewJobId = String($event)"
+      />
       <kp-tag-job-review-panel
+        v-if="step === 2"
         :subject="subject"
         :kp-tree="kpTree"
-        @applied="loadKpTree"
+        :job-id="selectedReviewJobId"
+        :auto-load-latest="!selectedReviewJobId"
+        @applied="onJobApplied"
+        @job-started="onJobStarted"
+        @job-loaded="onJobLoaded"
       />
     </div>
   </div>
@@ -152,13 +162,15 @@
 <script>
 import axios from 'axios';
 import KpTagJobReviewPanel from '../components/KpTagJobReviewPanel.vue';
+import KpTagJobList from '../components/KpTagJobList.vue';
 
 export default {
   name: 'KnowledgePointImportView',
-  components: { KpTagJobReviewPanel },
+  components: { KpTagJobReviewPanel, KpTagJobList },
   data() {
     return {
       step: 1,
+      selectedReviewJobId: '',
       subject: '解析几何',
       file: null,
       preview: null,
@@ -236,6 +248,17 @@ export default {
       } finally {
         this.applyLoading = false;
       }
+    },
+    onJobStarted(jobId) {
+      this.selectedReviewJobId = String(jobId);
+      this.$refs.jobList?.refresh();
+    },
+    onJobLoaded(job) {
+      if (job?._id) this.selectedReviewJobId = String(job._id);
+    },
+    onJobApplied() {
+      this.loadKpTree();
+      this.$refs.jobList?.refresh();
     },
     async exportExcel() {
       this.exportLoading = true;

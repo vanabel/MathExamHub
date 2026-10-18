@@ -31,6 +31,9 @@ const {
 const {
   startKpTagJob,
   getKpTagJob,
+  listKpTagJobs,
+  getLatestOpenReviewJob,
+  getKpTagReviewSummary,
   updateKpTagJobReview,
   applyKpTagJob,
 } = require('../services/kpTagJobService');
@@ -336,6 +339,35 @@ router.post('/kp-tag-jobs', requireBankWrite, async (req, res) => {
   } catch (error) {
     console.error('kp-tag-jobs start failed', error);
     res.status(500).json({ error: error.message || '启动打标任务失败' });
+  }
+});
+
+router.get('/kp-tag-jobs/review-summary', requireBankWrite, async (req, res) => {
+  try {
+    const summary = await getKpTagReviewSummary(req.bankId);
+    res.json(summary);
+  } catch (error) {
+    res.status(500).json({ error: '读取审核摘要失败' });
+  }
+});
+
+router.get('/kp-tag-jobs/latest-open', requireBankWrite, async (req, res) => {
+  try {
+    const subject = req.query.subject ? String(req.query.subject).trim() : '';
+    const job = await getLatestOpenReviewJob(req.bankId, subject || undefined);
+    res.json({ job });
+  } catch (error) {
+    res.status(500).json({ error: '读取任务失败' });
+  }
+});
+
+router.get('/kp-tag-jobs', requireBankWrite, async (req, res) => {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 30;
+    const jobs = await listKpTagJobs(req.bankId, { limit });
+    res.json({ jobs });
+  } catch (error) {
+    res.status(500).json({ error: '列出任务失败' });
   }
 });
 

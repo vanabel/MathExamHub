@@ -1,11 +1,17 @@
 <template>
   <div class="card mb-3" data-testid="kp-tag-job-review">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <span>LLM 自动打标（仅未标注题目）</span>
+      <span>
+        LLM 自动打标（仅未标注题目）
+        <span v-if="job?._id" class="text-muted small ms-1">#{{ String(job._id).slice(-6) }}</span>
+      </span>
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <span v-if="job" class="small text-muted">
           {{ job.processed }}/{{ job.total }} · {{ job.status }}
+          <span v-if="job.appliedAt"> · 已写入</span>
         </span>
+        <span v-if="saveState === 'saving'" class="small text-muted">保存中…</span>
+        <span v-if="saveState === 'saved'" class="small text-success">已保存</span>
         <button
           type="button"
           class="btn btn-sm btn-outline-primary"
@@ -16,7 +22,7 @@
           {{ starting ? '启动中…' : '后台打标' }}
         </button>
         <button
-          v-if="job && job.status === 'completed'"
+          v-if="job && job.status === 'completed' && !job.appliedAt"
           type="button"
           class="btn btn-sm btn-outline-secondary"
           @click="bulkAcceptHigh"
@@ -24,7 +30,7 @@
           批量接受高置信度 (≥{{ Math.round(highConfidence * 100) }}%)
         </button>
         <button
-          v-if="job && job.status === 'completed'"
+          v-if="job && job.status === 'completed' && !job.appliedAt"
           type="button"
           class="btn btn-sm btn-primary"
           data-testid="kp-tag-job-apply"
@@ -74,7 +80,8 @@
                   class="form-select form-select-sm mb-1"
                   multiple
                   size="3"
-                  @change="markEdited(row)"
+                  :disabled="!!job?.appliedAt"
+                  @change="onRowEdited(row)"
                 >
                   <option v-for="kp in kpOptions" :key="kp.id" :value="kp.id">
                     {{ kp.path }}
@@ -85,8 +92,8 @@
                 </div>
               </td>
               <td class="text-nowrap">
-                <button type="button" class="btn btn-link btn-sm p-0" @click="setStatus(row, 'accepted')">接受</button>
-                <button type="button" class="btn btn-link btn-sm p-0 text-danger" @click="setStatus(row, 'rejected')">拒绝</button>
+                <button type="button" class="btn btn-link btn-sm p-0" :disabled="!!job?.appliedAt" @click="setStatus(row, 'accepted')">接受</button>
+                <button type="button" class="btn btn-link btn-sm p-0 text-danger" :disabled="!!job?.appliedAt" @click="setStatus(row, 'rejected')">拒绝</button>
               </td>
             </tr>
           </tbody>
@@ -105,8 +112,10 @@ export default {
   props: {
     subject: { type: String, required: true },
     kpTree: { type: Array, default: () => [] },
+    jobId: { type: String, default: '' },
+    autoLoadLatest: { type: Boolean, default: false },
   },
-  emits: ['applied'],
+  emits: ['applied', 'job-loaded', 'job-started'],
   data() {
     return {
       maxKps: 1,
@@ -118,6 +127,8 @@ export default {
       starting: false,
       applying: false,
       error: '',
+      saveTimer: null,
+      saveState: '',
     };
   },
   computed: {
@@ -137,9 +148,27 @@ export default {
     acceptedCount() {
       return this.localRows.filter((r) => r.status === 'accepted' || r.status === 'edited').length;
     },
+    activeJobId() {
+      return this.jobId || (this.job?._id ? String(this.job._id) : '');
+    },
+  },
+  watch: {
+    jobId: {
+      immediate: true,
+      handler(id) {
+        if (id) this.loadJob(id);
+      },
+    },
+    autoLoadLatest: {
+      immediate: true,
+      handler(on) {
+        if (on && !this.jobId) this.tryLoadLatestOpen();
+      },
+    },
   },
   beforeUnmount() {
     this.stopPoll();
+    if (this.saveTimer) clearTimeout(this.saveTimer);
   },
   methods: {
     stemHtml(text) {
@@ -156,6 +185,56 @@ export default {
         acceptedKnowledgePointIds: [...(r.acceptedKnowledgePointIds || [])],
       }));
     },
+    async tryLoadLatestOpen() {
+      try {
+        const { data } = await axios.get('/questions/kp-tag-jobs/latest-open', {
+          params: { subject: this.subject.trim() || undefined },
+        });
+        if (data.job?._id) await this.loadJob(String(data.job._id));
+      } catch {
+        /* no open job */
+      }
+    },
+    async loadJob(id) {
+      this.error = '';
+      try {
+        const { data } = await axios.get(`/questions/kp-tag-jobs/${id}`);
+        this.job = data;
+        this.syncRowsFromJob(data);
+        this.$emit('job-loaded', data);
+        if (data.status === 'running' || data.status === 'queued') {
+          this.startPoll(id);
+        } else {
+          this.stopPoll();
+        }
+      } catch (e) {
+        this.error = e.response?.data?.error || e.message;
+      }
+    },
+    schedulePersist() {
+      if (!this.activeJobId || this.job?.appliedAt) return;
+      if (this.saveTimer) clearTimeout(this.saveTimer);
+      this.saveTimer = setTimeout(() => this.persistReview(), 450);
+    },
+    async persistReview() {
+      if (!this.activeJobId || this.job?.appliedAt) return;
+      this.saveState = 'saving';
+      try {
+        const { data } = await axios.patch(`/questions/kp-tag-jobs/${this.activeJobId}/review`, {
+          rows: this.localRows.map((r) => ({
+            questionId: r.questionId,
+            status: r.status,
+            acceptedKnowledgePointIds: r.acceptedKnowledgePointIds,
+          })),
+        });
+        this.job = data;
+        this.saveState = 'saved';
+        setTimeout(() => { this.saveState = ''; }, 2000);
+      } catch (e) {
+        this.saveState = '';
+        this.error = e.response?.data?.error || e.message;
+      }
+    },
     async startJob() {
       this.starting = true;
       this.error = '';
@@ -165,9 +244,8 @@ export default {
           maxKpsPerQuestion: this.maxKps,
           extraMinConfidence: this.extraMinConfidence,
         });
-        this.job = { _id: data.jobId, status: data.status, total: data.total, processed: 0, rows: [] };
-        this.localRows = [];
-        this.startPoll(data.jobId);
+        this.$emit('job-started', data.jobId);
+        await this.loadJob(data.jobId);
       } catch (e) {
         this.error = e.response?.data?.error || e.message;
       } finally {
@@ -183,8 +261,6 @@ export default {
           if (data.status === 'completed' || data.status === 'failed') {
             this.syncRowsFromJob(data);
             this.stopPoll();
-          } else {
-            this.job = data;
           }
         } catch (e) {
           this.error = e.response?.data?.error || e.message;
@@ -204,9 +280,11 @@ export default {
         row.acceptedKnowledgePointIds = (row.suggestions || []).map((s) => s.knowledgePointId);
       }
       if (status === 'rejected') row.acceptedKnowledgePointIds = [];
+      this.schedulePersist();
     },
-    markEdited(row) {
+    onRowEdited(row) {
       row.status = 'edited';
+      this.schedulePersist();
     },
     bulkAcceptHigh() {
       for (const row of this.localRows) {
@@ -216,20 +294,16 @@ export default {
           row.status = 'accepted';
         }
       }
+      this.schedulePersist();
     },
     async applyAccepted() {
-      if (!this.job?._id) return;
+      if (!this.activeJobId) return;
       this.applying = true;
       this.error = '';
       try {
-        await axios.patch(`/questions/kp-tag-jobs/${this.job._id}/review`, {
-          rows: this.localRows.map((r) => ({
-            questionId: r.questionId,
-            status: r.status,
-            acceptedKnowledgePointIds: r.acceptedKnowledgePointIds,
-          })),
-        });
-        await axios.post(`/questions/kp-tag-jobs/${this.job._id}/apply`);
+        await this.persistReview();
+        await axios.post(`/questions/kp-tag-jobs/${this.activeJobId}/apply`);
+        await this.loadJob(this.activeJobId);
         this.$emit('applied');
       } catch (e) {
         this.error = e.response?.data?.error || e.message;
