@@ -534,13 +534,30 @@
                     </div>
                   </div>
                   <hr v-if="importResult.success" />
-                  <div v-if="importResult.success" class="d-flex gap-2">
+                  <div v-if="importResult.success" class="d-flex flex-wrap gap-2">
                     <router-link
                       to="/question-list"
                       class="btn btn-sm btn-primary"
                       data-testid="latex-import-success-link"
                     >
                       查看题目列表
+                    </router-link>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      data-testid="latex-import-generate-blueprint"
+                      :disabled="blueprintFromImportLoading"
+                      @click="generateBlueprintFromImport"
+                    >
+                      {{ blueprintFromImportLoading ? '生成中…' : '从导入试卷生成蓝图' }}
+                    </button>
+                    <router-link
+                      v-if="generatedBlueprintId"
+                      :to="{ name: 'exam-wizard', query: { blueprintId: generatedBlueprintId } }"
+                      class="btn btn-sm btn-success"
+                      data-testid="latex-import-open-wizard"
+                    >
+                      打开组卷向导
                     </router-link>
                     <button
                       type="button"
@@ -598,6 +615,8 @@ export default {
       mathjaxOptions: mathjaxOptions,
       formError: '',
       previewError: '',
+      blueprintFromImportLoading: false,
+      generatedBlueprintId: '',
     };
   },
   updated() {
@@ -911,11 +930,25 @@ export default {
         this.importing = false;
       }
     },
+    async generateBlueprintFromImport() {
+      this.blueprintFromImportLoading = true;
+      try {
+        const { data } = await axios.post('/exam-blueprints/from-imported-paper', {
+          title: '从导入试卷生成',
+        });
+        this.generatedBlueprintId = data._id;
+      } catch (error) {
+        alert(error.response?.data?.error || '生成蓝图失败');
+      } finally {
+        this.blueprintFromImportLoading = false;
+      }
+    },
     resetForm() {
       this.selectedTexFiles = [];
       this.partTypeOverrides = {};
       this.selectedImages = [];
       this.importResult = null;
+      this.generatedBlueprintId = '';
       this.previewData = null;
       this.useLlmPreview = false;
       this.llmEdits = [];

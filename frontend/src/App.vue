@@ -278,6 +278,9 @@ const EXAM_MENU_ROUTES = new Set(['exam-wizard', 'exam-history']);
 
 const TOOLS_MENU_ROUTES = new Set(['latex-import', 'latex-export']);
 
+/** 仅在这些入口页自动弹出引导；深链（如 LaTeX 导入）不挡操作 */
+const ONBOARDING_AUTO_START_ROUTES = new Set(['question-list']);
+
 const ADMIN_MENU_ROUTES = new Set(['admin-console']);
 
 export default {
@@ -323,6 +326,7 @@ export default {
         && this.currentUser
         && !this.onboardingState.tourCompleted
         && !this.onboardingDismissed
+        && ONBOARDING_AUTO_START_ROUTES.has(this.$route.name)
       );
     },
   },

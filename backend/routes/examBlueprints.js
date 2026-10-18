@@ -6,6 +6,7 @@ const {
   normalizeBlueprintBody,
   formatBlueprintValidationError,
 } = require('../utils/blueprintInput');
+const { createBlueprintFromImportedPaper } = require('../services/blueprintFromBankService');
 
 const router = express.Router();
 
@@ -43,6 +44,21 @@ router.get('/library', async (req, res) => {
     res.json(list);
   } catch (error) {
     res.status(500).json({ error: 'Failed to list template library' });
+  }
+});
+
+router.post('/from-imported-paper', requireBankWrite, async (req, res) => {
+  try {
+    const doc = await createBlueprintFromImportedPaper(req.bankId, req.user.username, {
+      title: req.body?.title,
+      asTemplate: req.body?.asTemplate,
+      sharedWithBank: req.body?.sharedWithBank,
+      randomSeed: req.body?.randomSeed,
+      allowRelaxation: req.body?.allowRelaxation,
+    });
+    res.status(201).json(doc);
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message || '生成蓝图失败' });
   }
 });
 

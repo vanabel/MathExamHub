@@ -84,6 +84,8 @@ function diagnoseEmptySlot({
 
   const scoreTarget = section.scoreEach;
   const tol = section.scoreTolerancePct ?? 0.15;
+  let suggestedScoreEach = null;
+  const preScoreCandidates = working;
   if (scoreTarget != null && scoreTarget > 0) {
     const min = scoreTarget * (1 - tol);
     const max = scoreTarget * (1 + tol);
@@ -93,6 +95,10 @@ function diagnoseEmptySlot({
     });
     stages.scoreWindowMatch = matched.length;
     stages.scoreWindowExcluded = working.length - matched.length;
+    if (matched.length === 0 && preScoreCandidates.length > 0) {
+      const { scoreMode } = require('./scoreMode');
+      suggestedScoreEach = scoreMode(preScoreCandidates.map((q) => q.totalScore));
+    }
     working = matched;
   } else {
     stages.scoreWindowMatch = working.length;
@@ -132,13 +138,16 @@ function diagnoseEmptySlot({
   } else if (scoreTarget > 0 && stages.scoreWindowMatch === 0) {
     reasonCode = 'score_window_mismatch';
     message = `没有分值在 ${scoreTarget} 分 ±${Math.round(tol * 100)}% 范围内的题（${stages.scoreWindowExcluded || 0} 题分值不符）`;
-    suggestion = '调整每题分值或放宽容差';
+    suggestion = suggestedScoreEach
+      ? `可将本大题「每题分值」改为 ${suggestedScoreEach} 分（题库该槽位常见分值）`
+      : '调整每题分值或放宽容差';
   }
 
   return {
     reasonCode,
     message,
     suggestion,
+    suggestedScoreEach,
     filterStages: stages,
   };
 }

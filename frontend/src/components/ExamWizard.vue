@@ -119,7 +119,7 @@
                 <div class="row g-2">
                   <div class="col-md-4">
                     <label class="form-label small">题型</label>
-                    <select v-model="section.type" class="form-select form-select-sm">
+                    <select v-model="section.type" class="form-select form-select-sm" @change="onSectionTypeChange(section)">
                       <option v-for="t in questionTypes" :key="t" :value="t">{{ t }}</option>
                     </select>
                   </div>
@@ -186,7 +186,18 @@
               <button type="button" class="btn btn-sm btn-outline-secondary" @click="loadTemplateLibrary">刷新</button>
             </div>
             <ul class="list-group list-group-flush small">
-              <li v-if="!templateLibrary.length" class="list-group-item text-muted">暂无模板，保存蓝图时可勾选「保存到模板库」。</li>
+              <li v-if="!templateLibrary.length" class="list-group-item">
+                <p class="text-muted mb-2">暂无模板。可从已导入题目按大题结构生成蓝图，或保存蓝图时勾选「保存到模板库」。</p>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  data-testid="wizard-from-imported-paper"
+                  :disabled="blueprintFromImportLoading"
+                  @click="loadBlueprintFromImportedPaper"
+                >
+                  {{ blueprintFromImportLoading ? '生成中…' : '从导入试卷生成蓝图' }}
+                </button>
+              </li>
               <li
                 v-for="tpl in templateLibrary"
                 :key="tpl._id"
@@ -250,13 +261,24 @@
                       {{ formatFilterStageSummary(g.filterStages) }}
                     </div>
                   </div>
-                  <router-link
-                    v-if="g.listQuery"
-                    class="btn btn-sm btn-outline-primary shrink-0"
-                    :to="{ name: 'question-list', query: g.listQuery }"
-                  >
-                    筛选题库
-                  </router-link>
+                  <div class="d-flex flex-column gap-1 shrink-0">
+                    <button
+                      v-if="g.reasonCode === 'score_window_mismatch' && g.suggestedScoreEach != null && g.sectionIndex != null"
+                      type="button"
+                      class="btn btn-sm btn-warning"
+                      data-testid="wizard-gap-fix-score"
+                      @click="applySuggestedScoreEach(g.sectionIndex, g.suggestedScoreEach)"
+                    >
+                      改为 {{ g.suggestedScoreEach }} 分
+                    </button>
+                    <router-link
+                      v-if="g.listQuery"
+                      class="btn btn-sm btn-outline-primary"
+                      :to="{ name: 'question-list', query: g.listQuery }"
+                    >
+                      筛选题库
+                    </router-link>
+                  </div>
                 </div>
               </li>
             </ul>
@@ -456,13 +478,15 @@ import {
   reasonCodeLabel,
 } from '../utils/examSlotGapDisplay';
 
-const defaultSection = () => ({
-  type: '填空题',
-  count: 3,
-  scoreEach: 4,
-  difficultyMix: { 易: 0, 中: 0, 难: 0 },
-  knowledgePointIds: [],
-});
+function baseDefaultSection(type = '填空题', scoreEach = 4) {
+  return {
+    type,
+    count: 3,
+    scoreEach,
+    difficultyMix: { 易: 0, 中: 0, 难: 0 },
+    knowledgePointIds: [],
+  };
+}
 
 export default {
   name: 'ExamWizard',
@@ -480,8 +504,10 @@ export default {
         randomSeed: 42,
         allowRelaxation: true,
         maxVariantOverlapPct: 0.2,
-        sections: [defaultSection()],
+        sections: [baseDefaultSection()],
       },
+      bankScoreByType: {},
+      blueprintFromImportLoading: false,
       generateAbPair: false,
       maxOverlapPctUi: 20,
       activeVariant: 'single',
@@ -519,6 +545,7 @@ export default {
   mounted() {
     this.loadBlueprintList();
     this.loadTemplateLibrary();
+    this.loadBankScoreDefaults();
     this.openFromRouteQuery();
   },
   methods: {
@@ -558,6 +585,14 @@ export default {
     },
     async openFromRouteQuery() {
       const paperId = this.$route.query.paperId;
+      const blueprintIdOnly = this.$route.query.blueprintId;
+      if (!paperId && blueprintIdOnly) {
+        this.selectedBlueprintId = String(blueprintIdOnly);
+        this.savedBlueprintId = String(blueprintIdOnly);
+        await this.loadBlueprintList();
+        this.loadBlueprint();
+        return;
+      }
       if (!paperId) return;
       try {
         const { data } = await axios.get(`/exams/papers/${paperId}`);
@@ -590,8 +625,88 @@ export default {
         console.error(e);
       }
     },
+    createDefaultSection(type = '填空题') {
+      const mode = this.bankScoreByType[type]?.mode;
+      return baseDefaultSection(type, mode ?? 4);
+    },
+    onSectionTypeChange(section) {
+      const st = this.bankScoreByType[section.type];
+      if (st?.mode) section.scoreEach = st.mode;
+      this.syncBlueprintTotalScore();
+    },
+    syncBlueprintTotalScore() {
+      const sum = (this.blueprint.sections || []).reduce(
+        (acc, s) => acc + (Number(s.count) || 0) * (Number(s.scoreEach) || 0),
+        0,
+      );
+      if (sum > 0) this.blueprint.totalScore = sum;
+    },
+    applySuggestedScoreEach(sectionIndex, scoreEach) {
+      const sec = this.blueprint.sections?.[sectionIndex];
+      if (!sec) return;
+      sec.scoreEach = Number(scoreEach);
+      this.syncBlueprintTotalScore();
+      this.refreshCoverageAnalysis();
+    },
+    async loadBankScoreDefaults() {
+      try {
+        const { data } = await axios.get('/questions/score-stats-by-type');
+        this.bankScoreByType = data.byType || {};
+        this.applyBankScoreDefaultsToPristineBlueprint();
+      } catch (e) {
+        console.error('加载题库分值统计失败', e);
+      }
+    },
+    applyBankScoreDefaultsToPristineBlueprint() {
+      const entries = Object.entries(this.bankScoreByType)
+        .sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+      if (!entries.length) return;
+      const [dominantType, dominantStat] = entries[0];
+      if (this.blueprint.sections?.length === 1) {
+        const sec = this.blueprint.sections[0];
+        const pristine = sec.type === '填空题' && sec.count === 3 && sec.scoreEach === 4;
+        if (pristine && dominantStat?.mode) {
+          sec.type = dominantType;
+          sec.scoreEach = dominantStat.mode;
+          sec.count = Math.max(1, dominantStat.count || 3);
+        }
+      }
+      for (const sec of this.blueprint.sections || []) {
+        const st = this.bankScoreByType[sec.type];
+        if (st?.mode && sec.scoreEach === 4 && st.mode !== 4) {
+          sec.scoreEach = st.mode;
+        }
+      }
+      this.syncBlueprintTotalScore();
+    },
+    async loadBlueprintFromImportedPaper() {
+      this.blueprintFromImportLoading = true;
+      try {
+        const { data } = await axios.post('/exam-blueprints/from-imported-paper', {
+          title: '从导入试卷生成',
+        });
+        this.applyBlueprintDoc(data);
+        await this.loadBlueprintList();
+        await this.loadTemplateLibrary();
+      } catch (e) {
+        alert(e.response?.data?.error || '生成蓝图失败');
+      } finally {
+        this.blueprintFromImportLoading = false;
+      }
+    },
+    applyBlueprintDoc(data) {
+      this.savedBlueprintId = data._id;
+      this.selectedBlueprintId = data._id;
+      this.blueprint = JSON.parse(JSON.stringify(data));
+      this.normalizeSectionKnowledgeIds();
+      this.saveAsTemplate = false;
+      this.shareWithBank = false;
+      if (typeof data.maxVariantOverlapPct === 'number') {
+        this.maxOverlapPctUi = Math.round(data.maxVariantOverlapPct * 100);
+      }
+    },
     addSection() {
-      this.blueprint.sections.push(defaultSection());
+      this.blueprint.sections.push(this.createDefaultSection('填空题'));
     },
     removeSection(idx) {
       this.blueprint.sections.splice(idx, 1);
