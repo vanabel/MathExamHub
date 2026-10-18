@@ -82,4 +82,44 @@ test.describe('question list pagination and filters', () => {
     await expect(page).not.toHaveURL(/difficulty=/);
     await expect(page.getByTestId('question-list-filter-chips')).not.toBeVisible();
   });
+
+  for (const width of [1024, 1280]) {
+    test(`filter toolbar layout at ${width}px (no clipped selects, ≤2 rows)`, async ({ page }) => {
+      const uid = `qltb_${width}_${Date.now()}`;
+      await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+      await page.evaluate(async ({ base }) => {
+        await fetch(`${base}/onboarding/import-sample`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-Bank-Id': localStorage.getItem('currentBankId') },
+        });
+      }, { base: apiBase });
+
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+      const onboardingSkip = page.getByTestId('onboarding-skip');
+      if (await onboardingSkip.isVisible().catch(() => false)) {
+        await onboardingSkip.click();
+      }
+      const toolbar = page.getByTestId('question-list-filters');
+      await expect(toolbar).toBeVisible({ timeout: 30000 });
+
+      const layout = await toolbar.evaluate((el) => {
+        const selects = el.querySelectorAll('select');
+        for (const sel of selects) {
+          if (sel.scrollHeight > sel.clientHeight + 1) {
+            return { ok: false, reason: `select clipped: ${sel.getAttribute('data-testid')}` };
+          }
+        }
+        const children = [...el.children];
+        const tops = children.map((c) => Math.round(c.getBoundingClientRect().top));
+        const rowCount = new Set(tops).size;
+        if (rowCount > 2) {
+          return { ok: false, reason: `toolbar rows ${rowCount}`, rowCount };
+        }
+        return { ok: true, rowCount };
+      });
+      expect(layout.ok, layout.reason || 'layout check failed').toBe(true);
+    });
+  }
 });
