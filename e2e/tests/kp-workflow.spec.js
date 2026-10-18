@@ -14,12 +14,15 @@ async function registerAndLogin(page, { uid, password, email }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass, email: mail }),
     });
-    await fetch(`${base}/auth/login`, {
+    const loginRes = await fetch(`${base}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pass }),
     });
+    if (!loginRes.ok) {
+      throw new Error(`login failed: ${loginRes.status}`);
+    }
     const me = await fetch(`${base}/auth/me`, { credentials: 'include' }).then((r) => r.json());
     if (me.user) localStorage.setItem('currentUser', JSON.stringify(me.user));
     const banks = await fetch(`${base}/banks/mine`, { credentials: 'include' }).then((r) => r.json());
@@ -70,6 +73,7 @@ test.describe('KP Excel workflow', () => {
       return body.jobId;
     }, { base: apiBase });
 
+    expect(jobId).toBeTruthy();
     await page.goto(`/knowledge-points/review/${jobId}`, { waitUntil: 'domcontentloaded' });
     const skip = page.getByTestId('onboarding-skip');
     if (await skip.isVisible().catch(() => false)) await skip.click();
