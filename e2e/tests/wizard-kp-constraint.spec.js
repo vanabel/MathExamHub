@@ -57,6 +57,6 @@ test.describe('Exam wizard KP constraints', () => {
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(body).toBeVisible();
-    await expect(body.locator('.kp-picker-list, .kp-picker')).toBeVisible();
+    await expect(body.locator('.kp-picker-list').first()).toBeVisible();
   });
 });

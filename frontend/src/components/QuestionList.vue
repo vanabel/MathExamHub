@@ -294,7 +294,7 @@
                 <div class="dropdown question-card__menu flex-shrink-0">
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-secondary question-card__menu-btn"
+                    class="btn btn-sm btn-outline-secondary question-card__menu-btn dropdown-toggle"
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                     :aria-label="'题目操作 ' + question._id"
