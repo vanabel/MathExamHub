@@ -28,6 +28,12 @@ const {
   parseTaggingOptions,
   loadQuestionsForKpTag,
 } = require('../services/llmKpTagService');
+const {
+  startKpTagJob,
+  getKpTagJob,
+  updateKpTagJobReview,
+  applyKpTagJob,
+} = require('../services/kpTagJobService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 
@@ -315,6 +321,51 @@ router.post('/llm-apply-knowledge-points', requireBankWrite, async (req, res) =>
   } catch (error) {
     console.error('llm-apply-knowledge-points failed', error);
     res.status(500).json({ error: '应用知识点失败' });
+  }
+});
+
+router.post('/kp-tag-jobs', requireBankWrite, async (req, res) => {
+  try {
+    const job = await startKpTagJob(req.bankId, req.user?.username, {
+      subject: req.body?.subject,
+      maxKpsPerQuestion: req.body?.maxKpsPerQuestion,
+      extraMinConfidence: req.body?.extraMinConfidence,
+      concurrency: req.body?.concurrency,
+    });
+    res.status(202).json({ jobId: job._id, status: job.status, total: job.total });
+  } catch (error) {
+    console.error('kp-tag-jobs start failed', error);
+    res.status(500).json({ error: error.message || '启动打标任务失败' });
+  }
+});
+
+router.get('/kp-tag-jobs/:jobId', requireBankWrite, async (req, res) => {
+  try {
+    const job = await getKpTagJob(req.bankId, req.params.jobId);
+    if (!job) return res.status(404).json({ error: '任务不存在' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: '读取任务失败' });
+  }
+});
+
+router.patch('/kp-tag-jobs/:jobId/review', requireBankWrite, async (req, res) => {
+  try {
+    const job = await updateKpTagJobReview(req.bankId, req.params.jobId, req.body?.rows);
+    if (!job) return res.status(404).json({ error: '任务不存在' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: '更新审核状态失败' });
+  }
+});
+
+router.post('/kp-tag-jobs/:jobId/apply', requireBankWrite, async (req, res) => {
+  try {
+    const result = await applyKpTagJob(req.bankId, req.params.jobId, req.user?.username);
+    res.json(result);
+  } catch (error) {
+    console.error('kp-tag-jobs apply failed', error);
+    res.status(500).json({ error: '写入知识点失败' });
   }
 });
 

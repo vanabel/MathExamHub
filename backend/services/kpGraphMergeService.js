@@ -105,10 +105,11 @@ async function mergeKpImport(bankId, subject, parsedNodes) {
 
     let doc = await KnowledgePoint.findOne({ bankId, subject, path: node.path });
     if (!doc) {
-      doc = await KnowledgePoint.create(payload);
+      doc = await KnowledgePoint.create({ ...payload, source: 'excel-import' });
       created += 1;
     } else {
       Object.assign(doc, payload);
+      if (!doc.source) doc.source = 'excel-import';
       await doc.save();
       updated += 1;
     }

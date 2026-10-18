@@ -105,6 +105,23 @@ function buildKpCatalog(knowledgePoints) {
   return rows;
 }
 
+function filterLeafKnowledgePoints(knowledgePoints) {
+  const catalog = buildKpCatalog(knowledgePoints);
+  const leafIds = new Set(catalog.filter((c) => c.isLeaf).map((c) => c.id));
+  return (knowledgePoints || []).filter((k) => leafIds.has(String(k._id)));
+}
+
+function buildCompactLeafKpCatalog(knowledgePoints) {
+  return buildKpCatalog(knowledgePoints)
+    .filter((c) => c.isLeaf)
+    .map((c) => ({
+      id: c.id,
+      path: c.path,
+      objective: c.objective,
+      description: c.description,
+    }));
+}
+
 function validateSuggestion(raw, kpCatalog) {
   if (!raw || typeof raw !== 'object') return null;
   const difficulty = normalizeDifficulty(raw.difficulty, '');
@@ -178,6 +195,8 @@ module.exports = {
   suggestQuestionMetadata,
   validateSuggestion,
   buildKpCatalog,
+  buildCompactLeafKpCatalog,
+  filterLeafKnowledgePoints,
   buildQuestionMetadataInput,
   buildLlmUserPayload,
   formatAnswerAndSolution,

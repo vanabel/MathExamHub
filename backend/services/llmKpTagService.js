@@ -1,7 +1,11 @@
 const KnowledgePoint = require('../models/KnowledgePoint');
 const Question = require('../models/Question');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
-const { buildQuestionMetadataInput, buildKpCatalog } = require('./llmAssistService');
+const {
+  buildQuestionMetadataInput,
+  buildKpCatalog,
+  filterLeafKnowledgePoints,
+} = require('./llmAssistService');
 const { suggestKnowledgePointsForQuestion } = require('./llmKpSuggestService');
 const { settingsForLlmAssist } = require('./llmProviderResolve');
 const { mapWithConcurrency } = require('./latexImportLlmHelper');
@@ -81,9 +85,12 @@ async function buildKpTagSuggestionsForQuestions(questions, bankId, platformSett
     questions,
     concurrency,
     async (q) => {
-      const scopedKps = opts.subject
+      let scopedKps = opts.subject
         ? kps.filter((k) => k.subject === opts.subject)
         : kps;
+      if (opts.leafOnlyCatalog) {
+        scopedKps = filterLeafKnowledgePoints(scopedKps);
+      }
       const result = await suggestKpWithTimeoutRetries(
         buildQuestionMetadataInput(q, scopedKps),
         settings,
@@ -135,6 +142,7 @@ async function applyKpTagUpdates(bankId, updates, { replace = false } = {}) {
         knowledgePointId: l.knowledgePointId,
         source: l.source === 'llm' ? 'llm' : 'manual',
         confidence: l.confidence,
+        reviewedBy: l.reviewedBy || row.reviewedBy || '',
       }));
     } else {
       const ids = row.knowledgePointIds

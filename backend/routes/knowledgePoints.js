@@ -8,9 +8,6 @@ const Question = require('../models/Question');
 const { activeQuestionFilter } = require('../constants/questionLifecycle');
 const { buildKnowledgePointPath } = require('../utils/knowledgePointPath');
 const { getSubtreeNodeIds } = require('../utils/knowledgePointTree');
-const platformSettingsService = require('../services/platformSettingsService');
-const { settingsForLlmAssist } = require('../services/llmProviderResolve');
-const { draftKnowledgePointTree } = require('../services/llmDraftKpTreeService');
 const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
 
@@ -23,21 +20,6 @@ const upload = multer({
 router.use(requireAuth);
 router.use(bankContext);
 
-router.post('/llm-draft-tree', requireBankWrite, async (req, res) => {
-  try {
-    const platformSettings = await platformSettingsService.getPlatformSettings();
-    const settings = settingsForLlmAssist(platformSettings);
-    const draft = await draftKnowledgePointTree(req.bankId, settings, {
-      subject: req.body?.subject || req.query?.subject,
-      maxQuestions: req.body?.maxQuestions,
-    });
-    res.json({ dryRun: true, draft });
-  } catch (error) {
-    console.error('llm-draft-tree failed', error);
-    res.status(500).json({ error: error.message || '草稿知识点树生成失败' });
-  }
-});
-
 router.post('/import/preview', requireBankWrite, upload.single('file'), async (req, res) => {
   try {
     if (!req.file?.buffer) {
@@ -46,11 +28,24 @@ router.post('/import/preview', requireBankWrite, upload.single('file'), async (r
     const parsed = parseKpExcelBuffer(req.file.buffer);
     const subject = req.body?.subject?.trim() || parsed.subject;
     const diff = await diffKpImport(req.bankId, subject, parsed.nodes);
+    const nameSet = new Set(parsed.nodes.map((n) => n.name));
+    const unresolvedRelationNames = [];
+    for (const node of parsed.nodes) {
+      for (const name of [...node.prerequisiteNames, ...node.successorNames, ...node.relatedNames]) {
+        if (name && !nameSet.has(name)) unresolvedRelationNames.push({ path: node.path, name });
+      }
+    }
     res.json({
       dryRun: true,
       fileName: req.file.originalname,
       title: parsed.title,
       subject,
+      treePreview: parsed.nodes.slice(0, 40).map((n) => ({
+        path: n.path,
+        tags: n.tags,
+        name: n.name,
+      })),
+      unresolvedRelationNames: unresolvedRelationNames.slice(0, 50),
       diff: {
         totalParsed: diff.totalParsed,
         existingCount: diff.existingCount,

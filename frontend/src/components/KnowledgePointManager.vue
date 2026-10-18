@@ -19,58 +19,61 @@
       <div class="col-md-2 d-flex align-items-end">
         <button class="btn btn-primary w-100" @click="loadTree">刷新</button>
       </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <button class="btn btn-outline-secondary w-100" :disabled="!canWrite || drafting" @click="draftTreeWithLlm">
-          {{ drafting ? '生成中…' : 'LLM 草稿知识点树' }}
-        </button>
-      </div>
-    </div>
-    <p v-if="draftMessage" class="small text-muted">{{ draftMessage }}</p>
-
-    <div class="card mb-4">
-      <div class="card-header">新增节点</div>
-      <div class="card-body row g-2">
-        <div class="col-md-4">
-          <input v-model="newName" class="form-control" placeholder="节点名称" />
-        </div>
-        <div class="col-md-4">
-          <select v-model="newParentId" class="form-select">
-            <option value="">（根节点）</option>
-            <option v-for="n in nodes" :key="n._id" :value="n._id">{{ n.path }}</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <button class="btn btn-success w-100" :disabled="!canWrite" @click="createNode">添加</button>
-        </div>
-      </div>
     </div>
 
-    <ul class="list-group">
-      <li v-for="n in nodes" :key="n._id" class="list-group-item">
-        <div class="d-flex justify-content-between align-items-start gap-2">
-          <div class="flex-grow-1 min-w-0">
-            <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
-              <code class="small">{{ n.path }}</code>
-              <span
-                v-for="tag in n.tags || []"
-                :key="tag"
-                class="badge"
-                :class="tagBadgeClass(tag)"
-              >{{ tag }}</span>
-              <span v-if="n.cognitiveLevel" class="badge text-bg-light border">{{ n.cognitiveLevel }}</span>
-              <span v-if="n.category" class="badge text-bg-light border">{{ n.category }}</span>
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <div class="card mb-4">
+          <div class="card-header">新增节点</div>
+          <div class="card-body row g-2">
+            <div class="col-12">
+              <input v-model="newName" class="form-control" placeholder="节点名称" />
             </div>
-            <p v-if="n.objective" class="small text-muted mb-1">{{ truncate(n.objective, 120) }}</p>
-            <p v-if="relationLine(n)" class="small mb-0 text-secondary">
-              {{ relationLine(n) }}
-            </p>
+            <div class="col-12">
+              <select v-model="newParentId" class="form-select">
+                <option value="">（根节点）</option>
+                <option v-for="n in nodes" :key="n._id" :value="n._id">{{ n.path }}</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-success w-100" :disabled="!canWrite" @click="createNode">添加</button>
+            </div>
           </div>
-          <button class="btn btn-sm btn-outline-danger flex-shrink-0" :disabled="!canWrite" @click="removeNode(n._id)">
-            删除
-          </button>
         </div>
-      </li>
-    </ul>
+        <ul class="list-group">
+          <li
+            v-for="n in nodes"
+            :key="n._id"
+            class="list-group-item list-group-item-action"
+            :class="{ active: selectedId === n._id }"
+            @click="selectNode(n)"
+          >
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <code class="small">{{ n.path }}</code>
+                <div class="mt-1">
+                  <span v-for="tag in n.tags || []" :key="tag" class="badge me-1" :class="tagBadge(tag)">{{ tag }}</span>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" :disabled="!canWrite" @click.stop="removeNode(n._id)">删</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div v-if="selected" class="col-lg-7">
+        <div class="card" data-testid="kp-detail-panel">
+          <div class="card-header">知识点详情</div>
+          <div class="card-body">
+            <h5 class="h6"><code>{{ selected.path }}</code></h5>
+            <p v-if="selected.objective" class="small"><strong>教学目标：</strong>{{ selected.objective }}</p>
+            <p v-if="selected.description" class="small"><strong>说明：</strong>{{ selected.description }}</p>
+            <p v-if="selected.cognitiveLevel" class="small text-muted">认知维度：{{ selected.cognitiveLevel }} · 分类：{{ selected.category || '—' }}</p>
+            <p v-if="relationLine(selected)" class="small">{{ relationLine(selected) }}</p>
+            <p v-if="selected.source" class="small text-muted">来源：{{ selected.source }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
     <p v-if="!canWrite" class="text-muted mt-2">当前角色为只读，无法编辑知识点树。</p>
   </div>
 </template>
@@ -84,13 +87,17 @@ export default {
     return {
       subject: '解析几何',
       nodes: [],
+      selectedId: '',
       idToName: {},
       newName: '',
       newParentId: '',
       canWrite: true,
-      drafting: false,
-      draftMessage: '',
     };
+  },
+  computed: {
+    selected() {
+      return this.nodes.find((n) => String(n._id) === String(this.selectedId)) || null;
+    },
   },
   mounted() {
     this.loadTree();
@@ -98,27 +105,26 @@ export default {
     this.canWrite = !bank.role || bank.role !== 'viewer';
   },
   methods: {
-    truncate(text, max) {
-      const s = String(text || '');
-      return s.length <= max ? s : `${s.slice(0, max)}…`;
-    },
-    tagBadgeClass(tag) {
+    tagBadge(tag) {
       if (tag === '重点') return 'text-bg-warning';
       if (tag === '难点') return 'text-bg-danger';
       return 'text-bg-secondary';
     },
     namesForIds(ids) {
-      return (ids || []).map((id) => this.idToName[id] || id).filter(Boolean);
+      return (ids || []).map((id) => this.idToName[id] || id);
     },
     relationLine(n) {
       const parts = [];
       const pre = this.namesForIds(n.prerequisiteIds);
-      const rel = this.namesForIds(n.relatedIds);
       const suc = this.namesForIds(n.successorIds);
+      const rel = this.namesForIds(n.relatedIds);
       if (pre.length) parts.push(`前置：${pre.join('；')}`);
       if (suc.length) parts.push(`后置：${suc.join('；')}`);
       if (rel.length) parts.push(`关联：${rel.join('；')}`);
       return parts.join(' · ');
+    },
+    selectNode(n) {
+      this.selectedId = n._id;
     },
     async loadTree() {
       const { data } = await axios.get('/knowledge-points/tree', {
@@ -126,9 +132,7 @@ export default {
       });
       this.nodes = data.nodes || [];
       const map = {};
-      for (const n of this.nodes) {
-        map[String(n._id)] = n.name;
-      }
+      for (const n of this.nodes) map[String(n._id)] = n.name;
       this.idToName = map;
     },
     async createNode() {
@@ -142,28 +146,8 @@ export default {
     },
     async removeNode(id) {
       await axios.delete(`/knowledge-points/${id}`);
+      if (String(this.selectedId) === String(id)) this.selectedId = '';
       await this.loadTree();
-    },
-    async draftTreeWithLlm() {
-      this.drafting = true;
-      this.draftMessage = '';
-      try {
-        const { data } = await axios.post('/knowledge-points/llm-draft-tree', {
-          subject: this.subject || undefined,
-        });
-        const blob = new Blob([JSON.stringify(data.draft, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `kp-draft-${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        this.draftMessage = `已下载草稿（${data.draft?.nodes?.length || 0} 个节点），请审核后再手动创建。`;
-      } catch (e) {
-        this.draftMessage = e.response?.data?.error || '草稿生成失败';
-      } finally {
-        this.drafting = false;
-      }
     },
   },
 };

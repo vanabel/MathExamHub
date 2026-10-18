@@ -49,6 +49,11 @@ const knowledgePointSchema = new mongoose.Schema({
   category: { type: String, trim: true, default: '' },
   objective: { type: String, trim: true, default: '' },
   description: { type: String, trim: true, default: '' },
+  source: {
+    type: String,
+    enum: ['excel-import', 'manual'],
+    default: 'manual',
+  },
 }, {
   timestamps: true,
 });

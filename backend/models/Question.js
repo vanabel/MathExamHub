@@ -71,6 +71,7 @@ const questionSchema = new mongoose.Schema({
       default: 'manual',
     },
     confidence: { type: Number, min: 0, max: 1 },
+    reviewedBy: { type: String, trim: true, default: '' },
   }],
   contentHash: {
     type: String,

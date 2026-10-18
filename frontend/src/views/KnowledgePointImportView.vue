@@ -105,6 +105,23 @@
             </ul>
           </div>
         </div>
+        <div v-if="preview.unresolvedRelationNames?.length" class="alert alert-warning small mt-2" data-testid="kp-import-unresolved">
+          导入后可能无法解析的关联名（前 {{ preview.unresolvedRelationNames.length }} 条）：
+          <ul class="mb-0">
+            <li v-for="(u, i) in preview.unresolvedRelationNames.slice(0, 10)" :key="'u' + i">
+              {{ u.path }} → {{ u.name }}
+            </li>
+          </ul>
+        </div>
+        <div v-if="preview.treePreview?.length" class="mt-3">
+          <h6 class="small text-muted">树预览（前 {{ preview.treePreview.length }} 节点）</h6>
+          <ul class="small mb-0" data-testid="kp-import-tree-preview">
+            <li v-for="(n, i) in preview.treePreview" :key="'t' + i">
+              <code>{{ n.path }}</code>
+              <span v-for="tag in n.tags || []" :key="tag" class="badge text-bg-secondary ms-1">{{ tag }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
@@ -116,7 +133,7 @@
     </div>
 
     <div v-show="step === 2">
-      <kp-workflow-llm-review
+      <kp-tag-job-review-panel
         :subject="subject"
         :kp-tree="kpTree"
         @applied="loadKpTree"
@@ -127,11 +144,11 @@
 
 <script>
 import axios from 'axios';
-import KpWorkflowLlmReview from '../components/KpWorkflowLlmReview.vue';
+import KpTagJobReviewPanel from '../components/KpTagJobReviewPanel.vue';
 
 export default {
   name: 'KnowledgePointImportView',
-  components: { KpWorkflowLlmReview },
+  components: { KpTagJobReviewPanel },
   data() {
     return {
       step: 1,
