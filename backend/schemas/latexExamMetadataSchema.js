@@ -16,6 +16,11 @@ const latexExamMetadataSchema = new mongoose.Schema({
   course: { type: String, trim: true },
   AorB: { type: String, trim: true },
   semester: { type: String, trim: true },
+  /** ISO date YYYY-MM-DD for mathexam \\examdate */
+  examDate: { type: String, trim: true },
+  /** Manual \\academicyear{start}{end} override (both required when set) */
+  academicYearStart: { type: String, trim: true },
+  academicYearEnd: { type: String, trim: true },
   finalmiddle: { type: String, trim: true },
   totaltime: { type: String, trim: true },
   openclose: { type: String, trim: true },

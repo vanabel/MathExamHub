@@ -44,6 +44,21 @@ export function buildExamHeaderHtmlPreview(meta) {
 </div>`;
 }
 
+function buildDateMacroPreviewLines(meta) {
+  const lines = [];
+  const examDate = pick(meta, 'examDate', '');
+  const m = examDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) {
+    lines.push(`\\examdate{${parseInt(m[1], 10)}}{${parseInt(m[2], 10)}}{${parseInt(m[3], 10)}}`);
+  }
+  const ay0 = pick(meta, 'academicYearStart', '');
+  const ay1 = pick(meta, 'academicYearEnd', '');
+  if (ay0 && ay1) {
+    lines.push(`\\academicyear{${ay0}}{${ay1}}`);
+  }
+  return lines;
+}
+
 export function buildExamHeaderPreamblePreview(meta) {
   const pkg = (meta?.packageOptions?.length ? meta.packageOptions : ['nospace']).join(',');
   const lines = [
@@ -55,6 +70,8 @@ export function buildExamHeaderPreamblePreview(meta) {
     `\\school{${pick(meta, 'school', '数学与统计学院')}}`,
     `\\course{${pick(meta, 'course', '高等代数')}}`,
     `\\AorB{${pick(meta, 'AorB', 'A')}}`,
+    ...buildDateMacroPreviewLines(meta),
+    `\\semester{${pick(meta, 'semester', '')}}`,
     `\\finalmiddle{${pick(meta, 'finalmiddle', '期末')}}`,
     `\\totaltime{${pick(meta, 'totaltime', '120')}}`,
     `\\openclose{${pick(meta, 'openclose', '闭卷')}}`,

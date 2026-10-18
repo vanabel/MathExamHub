@@ -129,12 +129,7 @@ and the derived files           mathexam.ins,
 \generate{
   \file{\jobname.ins}{\from{\jobname.dtx}{install}}
 }
-% ^^A No extra text add by DocStrip
-\nopreamble\nopostamble
-\usedir{doc/latex/mathexam}
-\generate{
-  \file{README.md}{\from{\jobname.dtx}{readme}}
-}
+% ^^A README.md 由仓库手写维护，勿从 dtx 再生成以免覆盖
 % ^^A if xetex then end process of DocStrip by \endbatchfile
 \ifx\nameoflatex\fmtname
   \expandafter\endbatchfile
@@ -145,13 +140,11 @@ and the derived files           mathexam.ins,
 %</internal>
 %
 %<*driver>
-\ProvidesFile{\jobname.dtx}
+\ProvidesFile{\jobname.dtx}[2026/10/18 v2.3.3 一个数学类考试宏包]
 %</driver>
 %<package>\NeedsTeXFormat{LaTeX2e}[2005/12/01]
 %<package>\ProvidesPackage{mathexam}
-%<*package>
-[2025/11/22 v.2.3.1 一个数学类考试宏包]
-%</package>
+%<package>[2026/10/18 v2.3.3 一个数学类考试宏包]
 %
 %<*driver>
 \documentclass{ltxdoc}%[draft]
@@ -341,6 +334,10 @@ and the derived files           mathexam.ins,
 %\changes{v2.3.0}{2020/12/12}{添加选项:设置nospace选项, 解答题不留空}
 %\changes{v2.3.1}{2025/11/22}{修复总页码、总分统计问题}
 %\changes{v2.3.1}{2025/11/22}{修复a3paper模式下的页眉/页脚线条定位和旋转表格显示问题}
+%\changes{v2.3.2}{2026/10/14}{为试卷信息宏提供默认空值，避免未设置时 Undefined control sequence}
+%\changes{v2.3.2}{2026/10/14}{移除错误的 showans 编译期 PDF 复制；修正包版本声明；避免覆盖 README.md}
+%\changes{v2.3.2}{2026/10/14}{修复 a3paper 中未加载 atbegshi 却使用 AtBeginShipout 的问题}
+%\changes{v2.3.3}{2026/10/18}{按考试日期（9 月 1 日起算学年）自动计算试卷头学年；新增 \cs{examdate} 与 \cs{academicyear}}
 %
 %\section{简明使用教程}
 % 基本上, 使用本宏包|mathexam|, 你只需要下载|mathexam.sty|并将其放到你的工作目录, 
@@ -397,6 +394,19 @@ and the derived files           mathexam.ins,
 % \marg{semester number}. 事实上, 本模版会自动根据出题时间计算正确的学期, 如果不正确可以用
 %\cs{semester}命令修改.
 %
+%\DescribeMacro{\examdate}
+% \cs{examdate}命令用来设置考试日期（用于自动计算学年与学期）, 它有三个主参数
+% \marg{year}\marg{month}\marg{day}. 未设置时以编译时的 \cs{today}（\cs{year}/\cs{month}/\cs{day}）为准.
+%
+%\DescribeMacro{\academicyear}
+% \cs{academicyear}命令用来手动指定试卷头显示的学年, 它有两个主参数
+% \marg{start year}\marg{end year}（完整四位年份, 如 \verb|2026| 与 \verb|2027|）.
+% 显式设置后优先于 \cs{examdate} 的自动推算.
+%
+%\DescribeMacro{\academicyearrange}
+% \cs{academicyearrange}输出当前（或 \cs{examdate} 指定的）考试日期对应的学年字符串,
+% 例如 \verb|2026至2027学年|, 便于测试或正文引用.
+%
 %\DescribeMacro{\finalmiddle}
 % \cs{semester}命令用来设置试卷是期中还是期末, 它有一个主参数
 % \marg{final or middle}.
@@ -440,7 +450,7 @@ and the derived files           mathexam.ins,
 %\DescribeMacro{\makehead}
 % \cs{makehead}用来根据以上信息生成试卷的页眉、页脚以及表头. 它不带参数.
 %\subsection{判断题打勾打叉}
-%\DescribeMacro{\ture}
+%\DescribeMacro{\true}
 %\DescribeMacro{\false}
 %这两个命令分别对应于判断题的答案是正确的和错误的.
 %\subsection{填空题的下划线}
@@ -543,7 +553,7 @@ and the derived files           mathexam.ins,
 %这会生成选择题部分的标题, 类似前面的判断题, 
 %会自动使用括号说明本部分小题的总数、分值情况. 
 %每个小题用|problem|环境出题, 其中正确答案用|\pickout|命令输出, 
-%而备选项用|aabcd|环境输出, 每个选项用|\item|输出.
+%而备选项用|abcd|环境输出, 每个选项用|\item|输出.
 %\subsection{填空题}
 %\begin{verbatim}
 %\begin{makepart}{填空题}
@@ -597,11 +607,6 @@ and the derived files           mathexam.ins,
 %\section{源码参考}
 %    \begin{macrocode}
 %<*package>
-\NeedsTeXFormat{LaTeX2e}[2005/12/01]
-\ProvidesPackage{mathexam}
-[2020/07/03 v.2.2.0 一个数学类考试宏包]
-\NeedsTeXFormat{LaTeX2e}[1996/06/01]
-\ProvidesPackage{mathexam}[2020/07/03 一个数学类考试宏包 v2.2.0]
 \RequirePackage{mathtools, amssymb, amsthm}
 \RequirePackage[contents={}]{background}
 \RequirePackage{ctex}
@@ -618,7 +623,6 @@ and the derived files           mathexam.ins,
 \RequirePackage{etoolbox,xparse,  multido, ifthen}
 \RequirePackage{zhnumber}
 \RequirePackage{datatool}
-\RequirePackage{ifplatform}
 \IfFileExists{\jobname.dat}{
   \DTLloaddb{\jobname}{\jobname.dat}
   }{
@@ -644,6 +648,17 @@ and the derived files           mathexam.ins,
 \newcommand{\course}[1]{\def\mathexam@value@course{#1}}
 \newcommand{\AorB}[1]{\def\mathexam@value@AorB{#1}}
 \newcommand{\semester}[1]{\def\mathexam@value@semester{#1}}
+\newcommand{\examdate}[3]{%
+  \mathexam@examdatesettrue
+  \def\mathexam@examy{#1}%
+  \def\mathexam@examm{#2}%
+  \def\mathexam@examd{#3}%
+}
+\newcommand{\academicyear}[2]{%
+  \mathexam@acyearoverridetrue
+  \def\mathexam@acyearstart{#1}%
+  \def\mathexam@acyearend{#2}%
+}
 \newcommand{\finalmiddle}[1]{\def\mathexam@value@finalmiddle{#1}}
 \newcommand{\totaltime}[1]{\def\mathexam@value@totaltime{#1}}
 \newcommand{\openclose}[1]{\def\mathexam@value@openclose{#1}}
@@ -655,11 +670,55 @@ and the derived files           mathexam.ins,
 \newcommand{\director}[1]{\def\mathexam@value@director{#1}}
 \newcommand{\dean}[1]{\def\mathexam@value@dean{#1}}
 
+% 默认空值：未显式设置时也不应触发 Undefined control sequence
+\def\mathexam@value@university{}
+\def\mathexam@value@school{}
+\def\mathexam@value@course{}
+\def\mathexam@value@AorB{A}
+\def\mathexam@value@finalmiddle{}
+\def\mathexam@value@totaltime{}
+\def\mathexam@value@openclose{}
+\def\mathexam@value@degree{}
+\def\mathexam@value@totalstudent{}
+\def\mathexam@value@major{}
+\def\mathexam@value@grade{}
+\def\mathexam@value@examiner{}
+\def\mathexam@value@director{}
+\def\mathexam@value@dean{}
+
+\newif\ifmathexam@examdateset\mathexam@examdatesetfalse
+\newif\ifmathexam@acyearoverride\mathexam@acyearoverridefalse
+\def\mathexam@examy{}
+\def\mathexam@examm{}
+\def\mathexam@examd{}
+\def\mathexam@acyearstart{}
+\def\mathexam@acyearend{}
+
+\newcommand{\mathexam@refreshdate}{%
+  \ifmathexam@examdateset\else
+    \edef\mathexam@examy{\the\year}%
+    \edef\mathexam@examm{\the\month}%
+    \edef\mathexam@examd{\the\day}%
+  \fi
+  \ifmathexam@acyearoverride\else
+    \ifnum\mathexam@examm<9\relax
+      \edef\mathexam@acyearstart{\number\numexpr\mathexam@examy-1\relax}%
+    \else
+      \edef\mathexam@acyearstart{\mathexam@examy}%
+    \fi
+  \fi
+}
 \newcommand{\mathexam@value@semester}{%
-\ifnum\the\month<9\ifnum\the\month>2 {2}\fi\else {1}\fi%
-}%
-\newcommand{\mathexam@lasttwoofyear}[1]{%#1 is the offset
-  \expandafter\mathexam@getlasttwo\number\numexpr\year+(#1)\relax\relax
+  \mathexam@refreshdate
+  \ifnum\mathexam@examm<9\ifnum\mathexam@examm>2 {2}\fi\else {1}\fi
+}
+\newcommand{\mathexam@lasttwoofyear}[1]{% #1 is offset from academic year start
+  \mathexam@refreshdate
+  \expandafter\mathexam@getlasttwo\number\numexpr\mathexam@acyearstart+(#1)\relax\relax
+}
+\newcommand{\academicyearrange}{%
+  \mathexam@refreshdate
+  20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年%
 }
 \def\mathexam@getlasttwo#1#2#3#4\relax{#3#4}
 \def\tobecalculate{\mbox{??}}
@@ -799,7 +858,7 @@ and the derived files           mathexam.ins,
     \begin{tabu}to \linewidth{|*{12}{X[c]|}}
       \hline
       \multicolumn{8}{|c}{
-        20\mathexam@lasttwoofyear{-1} 至 20\mathexam@lasttwoofyear{0} 学年
+        20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年
 	\qquad 第\mathexam@value@semester 学期
       }                                                            &
       \multicolumn{4}{|c|}{\mathexam@value@finalmiddle\quad 考试} \\
@@ -1238,42 +1297,31 @@ and the derived files           mathexam.ins,
       \thispagestyle{empty}
     }
   \fi
-  % Register hook for header/footer lines and rotated table on all pages
-  % Use \AtBeginShipout to ensure it works on all pages including the first page
-  \AtBeginShipout{%
-    \AddToShipoutPictureBG*{%
-      % Add background picture to every page/ *version for current page
-      \begin{tikzpicture}[overlay,remember picture]
-        % Use \ifodd for more reliable page number check
-        \ifodd\value{page}%
-          % Odd pages: header and footer lines
-          % Use absolute coordinates relative to page margins
-          % Header line: from left margin to right margin, at header height
-          \coordinate (header start) at ($(current page.north west)+(0.38\myleft,-\mytop-\myhead)$);
-          \coordinate (header end) at ($(current page.north east)+(-\myouter,-\mytop-\myhead)$);
-          % Footer line: from left margin to right margin, accounting for footskip
-          \coordinate (footer start) at ($(current page.south west)+(0.38\myleft,\mybottom+15pt)$);
-          \coordinate (footer end) at ($(current page.south east)+(-\myouter,\mybottom+15pt)$);
-          \draw [line width=1pt] (header start) -- (header end);
-          \draw [line width=1pt] (footer start) -- (footer end);
-        \else
-          % Even pages: header and footer lines with smaller offset
-          \coordinate (header start) at ($(current page.north west)+(0.5\myleft,-\mytop-\myhead)$);
-          \coordinate (header end) at ($(current page.north east)+(-2.4\myouter,-\mytop-\myhead)$);
-          \coordinate (footer start) at ($(current page.south west)+(0.5\myleft,\mybottom+15pt)$);
-          \coordinate (footer end) at ($(current page.south east)+(-2.5\myouter,\mybottom+15pt)$);
-          \draw [line width=1pt] (header start) -- (header end);
-          \draw [line width=1pt] (footer start) -- (footer end);
-        \fi
-      \end{tikzpicture}%
-    }%
-  }
-    % Check if page is odd - use \ifodd instead of \ifthenelse for more reliable check
-    % In a3paper mode with pgfpages, the page numbering might be affected
-  \AddEverypageHook{
+  % 页眉/页脚线：用 eso-pic 的每页背景（无需 atbegshi）
+  \AddToShipoutPictureBG{%
+    \begin{tikzpicture}[overlay,remember picture]
+      \ifodd\value{page}%
+        % Odd pages: header and footer lines
+        \coordinate (header start) at ($(current page.north west)+(0.38\myleft,-\mytop-\myhead)$);
+        \coordinate (header end) at ($(current page.north east)+(-\myouter,-\mytop-\myhead)$);
+        \coordinate (footer start) at ($(current page.south west)+(0.38\myleft,\mybottom+15pt)$);
+        \coordinate (footer end) at ($(current page.south east)+(-\myouter,\mybottom+15pt)$);
+        \draw [line width=1pt] (header start) -- (header end);
+        \draw [line width=1pt] (footer start) -- (footer end);
+      \else
+        % Even pages: header and footer lines with smaller offset
+        \coordinate (header start) at ($(current page.north west)+(0.5\myleft,-\mytop-\myhead)$);
+        \coordinate (header end) at ($(current page.north east)+(-2.4\myouter,-\mytop-\myhead)$);
+        \coordinate (footer start) at ($(current page.south west)+(0.5\myleft,\mybottom+15pt)$);
+        \coordinate (footer end) at ($(current page.south east)+(-2.5\myouter,\mybottom+15pt)$);
+        \draw [line width=1pt] (header start) -- (header end);
+        \draw [line width=1pt] (footer start) -- (footer end);
+      \fi
+    \end{tikzpicture}%
+  }%
+  % 旋转计分表：background 已加载 everypage，沿用其钩子
+  \AddEverypageHook{%
     \ifodd\value{page}%
-      % Odd pages: add rotated table on left side using backgroundsetup
-      % Check if the table is ready (it will be after \makehead is called)
       \ifx\mathexam@table@ready\relax
         \backgroundsetup{
           color=black,
@@ -1324,33 +1372,11 @@ and the derived files           mathexam.ins,
     }%
   \fi
 }
-\preto{\@enddocumenthook}{%
-  \@ifundefined{DTLwrite}{%
-    \PackageWarningNoLine{mathexam}{%
-      Older datatool without \string\DTLwrite\space detected; skipping CSV/dbtex export at end of document.%
-      Install TeX Live 2022+ (datatool v3.0+) for full grade export.%
-    }%
-  }{%
-    \DTLwrite[name=\jobname, overwrite=allow, format=csv, expand=none, add-delimiter=detect]{\jobname.dat}%
-    \DTLwrite[name=\jobname, overwrite=allow, format=dbtex-2, expand=full]{\jobname.dbtex}%
-  }%
-  \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}%
+\preto{\@enddocumenthook}{
+  \DTLwrite[name=\jobname, overwrite=allow, format=csv, expand=none, add-delimiter=detect]{\jobname.dat}
+  \DTLwrite[name=\jobname, overwrite=allow, format=dbtex-2, expand=full]{\jobname.dbtex}
+  \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}
 }
-\ifmathexam@showans{%
-    \ifnum\shellescape=1
-      \ifwindows
-      \immediate\write18{copy \jobname.pdf \jobname-Answer.pdf}
-      \else
-      \immediate\write18{cp \jobname.pdf \jobname-Answer.pdf}
-      \fi
-    \else
-      \message{^^J Warning: **********************^^J}
-      \message{^^J 请使用`xelatex -shell-escape \jobname.tex`%
-      编译来自动重命名^^J}
-      \message{^^J *******************************^^J}
-    \fi
-  }
-\fi
 %</package>
 %<*maintex>
 \documentclass[zihao=-4]{article}
@@ -1831,6 +1857,6 @@ and the derived files           mathexam.ins,
 \end{document}
 %</main>
 %    \end{macrocode}
-%\CheckSum{0}
+%\CheckSum{2060}
 %\Finale
 \endinput

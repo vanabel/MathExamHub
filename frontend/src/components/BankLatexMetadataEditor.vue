@@ -86,6 +86,32 @@
                         <span class="input-group-text">分钟</span>
                       </div>
                     </div>
+                    <div class="col-md-6">
+                      <label class="form-label">考试日期</label>
+                      <input v-model="form.examDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">学年起</label>
+                      <input
+                        v-model="form.academicYearStart"
+                        type="number"
+                        class="form-control form-control-sm"
+                        placeholder="2026"
+                        min="1900"
+                        max="2100"
+                      />
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">学年止</label>
+                      <input
+                        v-model="form.academicYearEnd"
+                        type="number"
+                        class="form-control form-control-sm"
+                        placeholder="2027"
+                        min="1900"
+                        max="2100"
+                      />
+                    </div>
                   </div>
                 </section>
 
@@ -174,6 +200,7 @@ import {
 
 const FIELD_KEYS = [
   'university', 'school', 'course', 'AorB', 'finalmiddle', 'totaltime',
+  'examDate', 'academicYearStart', 'academicYearEnd',
   'openclose', 'degree', 'major', 'grade', 'examiner', 'director', 'dean',
 ];
 

@@ -266,7 +266,45 @@
               </div>
 
               <div class="mb-3">
-                <label for="totaltime" class="form-label">考试时间（分钟）</label>
+                <label for="examDate" class="form-label">考试日期</label>
+                <input
+                  v-model="metadata.examDate"
+                  id="examDate"
+                  type="date"
+                  class="form-control"
+                />
+                <small class="text-muted">导出为 mathexam <code>\examdate</code>，用于试卷头学年（9 月 1 日起算）</small>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">学年覆盖（可选）</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <input
+                      v-model="metadata.academicYearStart"
+                      type="number"
+                      class="form-control"
+                      placeholder="起始年 2026"
+                      min="1900"
+                      max="2100"
+                    />
+                  </div>
+                  <div class="col-6">
+                    <input
+                      v-model="metadata.academicYearEnd"
+                      type="number"
+                      class="form-control"
+                      placeholder="结束年 2027"
+                      min="1900"
+                      max="2100"
+                    />
+                  </div>
+                </div>
+                <small class="text-muted">两者都填时导出 <code>\academicyear</code>，优先于自动推算</small>
+              </div>
+
+              <div class="mb-3">
+                <label for="totaltime" class="form-label">考试时长（分钟）</label>
                 <input
                   v-model="metadata.totaltime"
                   id="totaltime"
@@ -575,6 +613,9 @@ export default {
         school: "数学与统计学院",
         course: "高等代数",
         AorB: "A",
+        examDate: new Date().toISOString().split("T")[0],
+        academicYearStart: "",
+        academicYearEnd: "",
         totaltime: "120",
         openclose: "闭卷",
         degree: "本科",
@@ -777,6 +818,9 @@ export default {
         school: 'school',
         course: 'course',
         AorB: 'AorB',
+        examDate: 'examDate',
+        academicYearStart: 'academicYearStart',
+        academicYearEnd: 'academicYearEnd',
         finalmiddle: 'finalmiddle',
         totaltime: 'totaltime',
         openclose: 'openclose',
