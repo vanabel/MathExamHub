@@ -23,6 +23,7 @@ const {
   fillBankLatexMetadata,
   metadataForExportForm,
 } = require('../utils/latexExamMetadata');
+const { formatLocalIsoDate } = require('../utils/localIsoDate');
 const {
   applyPartTypeOverrides,
   summarizePartSections,
@@ -347,6 +348,11 @@ function registerLatexImportRoutes(router, opts = {}) {
           const bank = await QuestionBank.findById(req.bankId);
           if (bank) {
             bankMetadataUpdated = fillBankLatexMetadata(bank, documentMetadata);
+            if (!bank.latexExamMetadata) bank.latexExamMetadata = {};
+            if (!bank.latexExamMetadata.examDate) {
+              bank.latexExamMetadata.examDate = documentMetadata.examDate || formatLocalIsoDate();
+              bankMetadataUpdated = true;
+            }
             if (bankMetadataUpdated) {
               await bank.save();
             }

@@ -86,6 +86,14 @@ app.use('/api/admin', adminRoutes);
 const requireAuth = require('./middleware/requireAuth');
 app.use('/api/uploads', requireAuth, express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    error: 'API 路由不存在',
+    method: req.method,
+    path: req.originalUrl,
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('MathExamHub API. Use /api/health and /api/questions/*');
 });

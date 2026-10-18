@@ -57,6 +57,14 @@ export function normalizeAcademicYearOverride(start, end) {
   return { academicYearStart: String(sn), academicYearEnd: String(en), error: null };
 }
 
+/** Local calendar date YYYY-MM-DD (not UTC). */
+export function localIsoDateString(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function suggestedAcademicYearLabel(examDate) {
   const inf = inferAcademicYearFromExamDate(examDate);
   if (!inf) return '';

@@ -1,6 +1,7 @@
 const { normalizeDifficulty, DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { RELAXATION_ORDER, RELAXATION_LABELS } = require('../constants/examRelaxation');
 const { createSeededRandom, shuffleInPlace } = require('../utils/seededRandom');
+const { diagnoseEmptySlot } = require('../utils/slotCandidateDiagnostics');
 
 /**
  * @typedef {Object} WorkingSection
@@ -145,12 +146,23 @@ function tryGenerateOnce(workBlueprint, pool, kpExpansionMap, random) {
       );
       shuffleInPlace(candidates, random);
       if (candidates.length === 0) {
+        const diagnosis = diagnoseEmptySlot({
+          pool,
+          blueprintSubject: workBlueprint.subject,
+          section,
+          slotDifficulty,
+          usedIds: used,
+          kpAllowSet: kpSet,
+        });
         shortfalls.push({
           sectionIndex,
           sectionType: section.type,
           slot,
           neededDifficulty: slotDifficulty,
-          message: `section ${sectionIndex} (${section.type}) 第 ${slot + 1} 槽无可用题`,
+          message: `第 ${sectionIndex + 1} 大题（${section.type}）第 ${slot + 1} 槽无可用题：${diagnosis.message}`,
+          reasonCode: diagnosis.reasonCode,
+          suggestion: diagnosis.suggestion,
+          filterStages: diagnosis.filterStages,
         });
         continue;
       }
@@ -303,7 +315,8 @@ function applyNextRelaxation(work, sectionIndexHint) {
  * @param {Array} pool Question lean docs
  * @param {Map<string, string[]>} kpExpansionMap rootId -> [ids in subtree]
  */
-function generateExamPaper(blueprint, pool, kpExpansionMap) {
+function generateExamPaper(blueprint, pool, kpExpansionMap, options = {}) {
+  const allowScoreGap = options.allowScoreGap === true;
   const work = cloneBlueprintForWork(blueprint);
   const random = createSeededRandom(Number(work.randomSeed) || 1);
   const relaxations = [];
@@ -333,15 +346,37 @@ function generateExamPaper(blueprint, pool, kpExpansionMap) {
     };
   }
 
+  let scoreGap = null;
   if (work.totalScore != null && !work.totalScoreRelaxed) {
     const delta = Math.abs(attempt.stats.totalScore - work.totalScore);
     if (delta > 0.01) {
-      warnings.push(`实际总分 ${attempt.stats.totalScore} 与目标 ${work.totalScore} 相差 ${delta.toFixed(2)}`);
+      scoreGap = {
+        requested: work.totalScore,
+        actual: attempt.stats.totalScore,
+        delta,
+      };
+      const gapMsg = `实际总分 ${attempt.stats.totalScore} 与目标 ${work.totalScore} 相差 ${delta.toFixed(2)}`;
+      if (!allowScoreGap) {
+        warnings.push(gapMsg);
+        return {
+          success: false,
+          scoreGapRequiresConfirm: true,
+          scoreGap,
+          questionIds: attempt.questionIds,
+          sections: attempt.sectionResults,
+          stats: attempt.stats,
+          relaxations,
+          warnings,
+          shortfalls: [],
+        };
+      }
+      warnings.push(gapMsg);
     }
   }
 
   return {
     success: true,
+    scoreGap,
     questionIds: attempt.questionIds,
     sections: attempt.sectionResults,
     stats: attempt.stats,

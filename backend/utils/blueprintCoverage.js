@@ -3,6 +3,7 @@ const {
   cloneBlueprintForWork,
   tryGenerateOnce,
 } = require('../services/examGenerator');
+const { diagnoseEmptySlot } = require('./slotCandidateDiagnostics');
 
 function buildGapListQuery(section, slotDifficulty) {
   if (!section) return {};
@@ -36,6 +37,21 @@ function analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, opts = {}) {
 
   const gaps = (attempt.shortfalls || []).map((sf) => {
     const section = work.sections[sf.sectionIndex];
+    const kpSet = section && !section.knowledgeDisabled && section.knowledgePointIds?.length
+      ? new Set(
+        (section.knowledgePointIds || []).flatMap((id) => kpExpansionMap.get(String(id)) || [String(id)]),
+      )
+      : null;
+    const diagnosis = section && !sf.filterStages
+      ? diagnoseEmptySlot({
+        pool,
+        blueprintSubject: work.subject,
+        section,
+        slotDifficulty: sf.neededDifficulty,
+        usedIds: new Set(),
+        kpAllowSet: kpSet,
+      })
+      : null;
     return {
       ...sf,
       sectionType: sf.sectionType || section?.type,
@@ -43,6 +59,10 @@ function analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, opts = {}) {
       scoreTolerancePct: section?.scoreTolerancePct ?? 0.15,
       knowledgePointIds: section?.knowledgePointIds || [],
       listQuery: buildGapListQuery(section, sf.neededDifficulty),
+      reasonCode: sf.reasonCode || diagnosis?.reasonCode,
+      suggestion: sf.suggestion || diagnosis?.suggestion,
+      filterStages: sf.filterStages || diagnosis?.filterStages,
+      shortfall: true,
     };
   });
 
@@ -61,6 +81,7 @@ function analyzeBlueprintCoverage(blueprint, pool, kpExpansionMap, opts = {}) {
 
   return {
     ok: attempt.ok,
+    feasible: attempt.ok && gaps.length === 0,
     gaps,
     sectionSummaries,
     randomSeedUsed: seed,
@@ -108,6 +129,7 @@ function analyzeBlueprintCoverageMultiSeed(blueprint, pool, kpExpansionMap, opts
   const primary = worst || attempts[0];
   return {
     ok: primary.ok,
+    feasible: primary.ok && (primary.gaps?.length || 0) === 0,
     gaps: primary.gaps,
     sectionSummaries: primary.sectionSummaries,
     randomSeedUsed: primary.seed,

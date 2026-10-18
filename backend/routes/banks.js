@@ -14,6 +14,25 @@ const METADATA_KEYS = [
 
 router.use(requireAuth);
 
+router.get('/recycle-bin', async (req, res) => {
+  try {
+    const banks = await bankService.listArchivedBanksForUser(req.user._id);
+    res.json({ banks, count: banks.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message || '读取失败' });
+  }
+});
+
+router.post('/recycle-bin/:bankId/restore', async (req, res) => {
+  try {
+    const bank = await bankService.restoreBank(req.user._id, req.params.bankId);
+    res.json({ ok: true, bankId: bank._id, name: bank.name });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '恢复失败' });
+  }
+});
+
 router.get('/mine', async (req, res) => {
   try {
     const banks = await bankService.listBanksForUser(req.user._id);
@@ -35,6 +54,20 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create bank' });
+  }
+});
+
+router.delete('/:bankId', async (req, res) => {
+  try {
+    const bank = await bankService.softDeleteBank(
+      req.user._id,
+      req.params.bankId,
+      req.user.username,
+    );
+    res.json({ ok: true, bankId: bank._id, name: bank.name });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '删除失败' });
   }
 });
 

@@ -192,11 +192,11 @@
             </ul>
           </div>
           <div
-            v-if="coverageAnalysis?.ok"
+            v-if="coverageAnalysis?.feasible"
             class="alert alert-success small py-2 mb-3"
             data-testid="wizard-coverage-result"
           >
-            覆盖检查通过（{{ coverageAnalysis.gaps?.length || 0 }} 个缺口）。
+            覆盖检查通过：当前种子下可一次抽满（feasible）。
           </div>
           <div
             v-if="coverageAnalysis?.multiSeed && coverageAnalysis.multiSeed.seedTrials > 1"
@@ -212,7 +212,7 @@
             下方缺口按最差种子展示。
           </div>
           <div
-            v-if="coverageAnalysis && !coverageAnalysis.ok"
+            v-if="coverageAnalysis && coverageAnalysis.feasible === false"
             class="card border-danger shadow-sm mb-3"
             data-testid="wizard-coverage-result"
           >
@@ -228,15 +228,24 @@
               </button>
             </div>
             <ul class="list-group list-group-flush small">
-              <li v-for="(g, i) in coverageAnalysis.gaps" :key="'cov' + i" class="list-group-item d-flex justify-content-between gap-2">
-                <span>{{ g.message || g.sectionType }}</span>
-                <router-link
-                  v-if="g.listQuery"
-                  class="btn btn-sm btn-outline-primary shrink-0"
-                  :to="{ name: 'question-list', query: g.listQuery }"
-                >
-                  筛选题库
-                </router-link>
+              <li v-for="(g, i) in coverageAnalysis.gaps" :key="'cov' + i" class="list-group-item">
+                <div class="d-flex justify-content-between gap-2 align-items-start">
+                  <div class="min-w-0">
+                    <span v-if="g.reasonCode" class="badge bg-danger-subtle text-danger-emphasis me-1">{{ reasonCodeLabel(g.reasonCode) }}</span>
+                    <span>{{ g.message || g.sectionType }}</span>
+                    <div v-if="g.suggestion" class="text-muted mt-1">建议：{{ g.suggestion }}</div>
+                    <div v-if="g.filterStages" class="text-muted mt-1 font-monospace" style="font-size: 0.75rem">
+                      {{ formatFilterStageSummary(g.filterStages) }}
+                    </div>
+                  </div>
+                  <router-link
+                    v-if="g.listQuery"
+                    class="btn btn-sm btn-outline-primary shrink-0"
+                    :to="{ name: 'question-list', query: g.listQuery }"
+                  >
+                    筛选题库
+                  </router-link>
+                </div>
               </li>
             </ul>
           </div>
@@ -254,9 +263,53 @@
                 <span class="badge bg-info me-1">提示</span>{{ w }}
               </li>
               <li v-for="(s, i) in shortfalls" :key="'s' + i" class="list-group-item text-danger">
-                <span class="badge bg-danger me-1">缺口</span>{{ s.message || JSON.stringify(s) }}
+                <span class="badge bg-danger me-1">缺口</span>
+                <span v-if="s.reasonCode" class="badge bg-danger-subtle text-danger-emphasis me-1">{{ reasonCodeLabel(s.reasonCode) }}</span>
+                {{ s.message || JSON.stringify(s) }}
+                <div v-if="s.suggestion" class="text-muted mt-1">建议：{{ s.suggestion }}</div>
+                <div v-if="s.filterStages" class="text-muted mt-1 font-monospace" style="font-size: 0.75rem">
+                  {{ formatFilterStageSummary(s.filterStages) }}
+                </div>
               </li>
             </ul>
+          </div>
+          <div
+            v-if="scoreGapModalOpen && pendingScoreGap"
+            class="modal fade show d-block"
+            tabindex="-1"
+            data-testid="wizard-score-gap-modal"
+            style="background: rgba(0,0,0,0.45)"
+          >
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">总分与蓝图目标不一致</h5>
+                  <button type="button" class="btn-close" aria-label="关闭" @click="cancelScoreGapModal"></button>
+                </div>
+                <div class="modal-body small">
+                  <p>
+                    实际总分 <strong>{{ pendingScoreGap.actual }}</strong>，
+                    蓝图目标 <strong>{{ pendingScoreGap.requested }}</strong>，
+                    相差 <strong>{{ pendingScoreGap.delta?.toFixed?.(2) ?? pendingScoreGap.delta }}</strong> 分。
+                  </p>
+                  <p class="text-muted mb-0">
+                    确认后将保存试卷并进入预览；未确认前不会写入试卷记录。
+                  </p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" @click="cancelScoreGapModal">返回修改蓝图</button>
+                  <button
+                    type="button"
+                    class="btn btn-warning"
+                    data-testid="wizard-score-gap-confirm"
+                    :disabled="generating"
+                    @click="confirmScoreGapAndSave"
+                  >
+                    {{ generating ? '保存中…' : '确认保存并继续' }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div v-if="generateStats" class="card shadow-sm">
             <div class="card-header bg-light">生成统计</div>
@@ -374,6 +427,10 @@ import ChoiceOptionsList from './ChoiceOptionsList.vue';
 import { isChoiceQuestionType, shouldUseChoiceOptionLabels } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
+import {
+  formatFilterStageSummary,
+  reasonCodeLabel,
+} from '../utils/examSlotGapDisplay';
 
 const defaultSection = () => ({
   type: '填空题',
@@ -423,6 +480,9 @@ export default {
       coverageAnalysis: null,
       coverageLoading: false,
       coverageSeedTrials: 8,
+      scoreGapModalOpen: false,
+      pendingScoreGap: null,
+      pendingGeneratePreview: null,
     };
   },
   computed: {
@@ -438,6 +498,8 @@ export default {
     this.openFromRouteQuery();
   },
   methods: {
+    formatFilterStageSummary,
+    reasonCodeLabel,
     processQuestionTextToHTML,
     renderQuestionImagesHtml,
     isChoiceType: isChoiceQuestionType,
@@ -657,19 +719,26 @@ export default {
         this.coverageLoading = false;
       }
     },
-    async generateExam() {
-      await this.refreshCoverageAnalysis();
-      if (this.coverageAnalysis && !this.coverageAnalysis.ok && !this.blueprint.allowRelaxation) {
-        if (!confirm('当前蓝图在未放宽时存在缺口，仍要尝试生成吗？')) {
-          return;
-        }
-      }
+    cancelScoreGapModal() {
+      this.scoreGapModalOpen = false;
+      this.pendingScoreGap = null;
+      this.pendingGeneratePreview = null;
+    },
+    async confirmScoreGapAndSave() {
+      this.scoreGapModalOpen = false;
+      await this.runGenerate({ allowScoreGap: true });
+    },
+    async runGenerate({ allowScoreGap = false } = {}) {
       this.generating = true;
       this.relaxations = [];
       this.warnings = [];
       this.shortfalls = [];
-      this.variants = { A: null, B: null };
-      this.activeVariant = 'single';
+      if (!allowScoreGap) {
+        this.variants = { A: null, B: null };
+        this.activeVariant = 'single';
+        this.pendingScoreGap = null;
+        this.pendingGeneratePreview = null;
+      }
       try {
         if (!this.savedBlueprintId) {
           await this.saveBlueprint();
@@ -688,27 +757,53 @@ export default {
           this.variants.B = data.variants.B;
           this.activeVariant = 'A';
           this.applyGeneratePayload(data.variants.A, 'A');
+          this.maybeAdvanceAfterGenerate(data.variants.A);
         } else {
           const { data } = await axios.post('/exams/generate', {
             blueprintId: this.savedBlueprintId,
+            allowScoreGap,
           });
+          if (data.scoreGapRequiresConfirm && !allowScoreGap) {
+            this.pendingScoreGap = data.scoreGap;
+            this.pendingGeneratePreview = data;
+            this.applyGeneratePayload(data);
+            this.scoreGapModalOpen = true;
+            return;
+          }
           this.applyGeneratePayload(data);
-        }
-        if (this.paperQuestions.length) {
-          this.step = 2;
-          this.$nextTick(() => {
-            if (window.MathJax?.typesetPromise) {
-              window.MathJax.typesetPromise();
-            }
-          });
-        } else {
-          alert('未能抽到题目，请检查题库或放宽设置。');
+          this.maybeAdvanceAfterGenerate(data);
         }
       } catch (e) {
         alert(e.response?.data?.error || '生成失败');
       } finally {
         this.generating = false;
       }
+    },
+    maybeAdvanceAfterGenerate(data) {
+      if (data.scoreGapRequiresConfirm) return;
+      if (!data.success && !(data.questionIds?.length)) {
+        alert('未能抽到题目，请查看缺口说明或放宽设置。');
+        return;
+      }
+      if (this.paperQuestions.length && data.success) {
+        this.step = 2;
+        this.$nextTick(() => {
+          if (window.MathJax?.typesetPromise) {
+            window.MathJax.typesetPromise();
+          }
+        });
+      } else if (!this.paperQuestions.length) {
+        alert('未能抽到题目，请检查题库或放宽设置。');
+      }
+    },
+    async generateExam() {
+      await this.refreshCoverageAnalysis();
+      if (this.coverageAnalysis?.feasible === false && !this.blueprint.allowRelaxation) {
+        if (!confirm('当前蓝图在未放宽时存在缺口，仍要尝试生成吗？')) {
+          return;
+        }
+      }
+      await this.runGenerate({ allowScoreGap: false });
     },
     occupiedIds(excludeId) {
       return this.paperQuestions

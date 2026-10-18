@@ -39,7 +39,9 @@ describe('blueprintCoverage', () => {
     };
     const analysis = analyzeBlueprintCoverage(blueprint, pool, new Map());
     assert.equal(analysis.ok, false);
+    assert.equal(analysis.feasible, false);
     assert.ok(analysis.gaps.length >= 1);
+    assert.equal(analysis.gaps[0].shortfall, true);
     assert.ok(analysis.gaps[0].listQuery.type === '填空题');
   });
 

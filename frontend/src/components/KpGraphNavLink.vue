@@ -5,6 +5,7 @@
       v-if="pendingCount > 0"
       class="badge rounded-pill text-bg-danger ms-1"
       data-testid="kp-pending-badge"
+    :title="`待审核 ${pendingCount} 条 KP 建议`"
     >{{ pendingCount }}</span>
   </router-link>
 </template>
