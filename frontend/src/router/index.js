@@ -129,14 +129,6 @@ const router = createRouter({
   routes,
 });
 
-function readStoredUser() {
-  try {
-    return JSON.parse(localStorage.getItem('currentUser') || 'null');
-  } catch {
-    return null;
-  }
-}
-
 router.beforeEach((to, from, next) => {
   const isAuthed = !!localStorage.getItem('currentUser');
   if (to.meta.requiresAuth && !isAuthed) {
