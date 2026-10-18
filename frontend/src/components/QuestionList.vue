@@ -501,7 +501,7 @@ export default {
           return;
         }
         canvas.dataset.rendering = "true";
-        window.pdfjsLib.getDocument(pdfUrl).promise
+        window.pdfjsLib.getDocument({ url: pdfUrl, withCredentials: true }).promise
           .then((pdf) => pdf.getPage(1))
           .then((page) => {
             const viewport = page.getViewport({ scale: 1.2 });

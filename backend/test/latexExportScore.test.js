@@ -36,8 +36,14 @@ describe('latex export scoring', () => {
     assert.match(judgeSection, /\\begin\{problem\}\s*\n/);
   });
 
-  it('compiled export PDF reports total 100 points (not double-counted 140)', () => {
-    if (process.env.SKIP_LATEX_COMPILE === '1' || !hasXeLaTeX()) {
+  it('compiled export PDF reports total 90 points (fixture sum; not double-counted 140)', () => {
+    if (process.env.SKIP_LATEX_COMPILE === '1') {
+      return;
+    }
+    if (!hasXeLaTeX()) {
+      if (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true') {
+        throw new Error('xelatex required for latexExportScore compile test (install texlive-xetex before npm test)');
+      }
       return;
     }
     const { questions, metadata } = loadQuestions();
@@ -65,7 +71,7 @@ describe('latex export scoring', () => {
       const logPath = pdfPath.replace(/\.pdf$/i, '.log');
       pdfText = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
     }
-    assert.match(pdfText, /100/);
+    assert.match(pdfText, /90/);
     assert.doesNotMatch(pdfText, /140/);
   });
 });

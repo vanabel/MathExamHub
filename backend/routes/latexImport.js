@@ -32,6 +32,10 @@ const {
   pickMainTexFile,
 } = require('../utils/latexTexBundle');
 const { extractZipBundle, rmTempDir } = require('../utils/latexZipExtract');
+const {
+  collectIncludegraphicsRefs,
+  filterZipImageAssetsByRefs,
+} = require('../utils/latexIncludegraphicsRefs');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -181,8 +185,10 @@ async function parseTexUpload(req) {
     const { fileContent, sourceFileName, warnings: bundleWarnings } = bundle;
     const texFileName = sourceFileName.replace(/\.tex$/i, '');
     const filePrefix = generateFilePrefix(texFileName, fileContent);
+    const graphicsRefs = collectIncludegraphicsRefs(fileContent);
+    const zipAssets = filterZipImageAssetsByRefs(bundle.zipImageAssets, graphicsRefs);
     let imageMap = processUploadedImages(imageFiles, filePrefix);
-    imageMap = { ...imageMap, ...processZipImageAssets(bundle.zipImageAssets, filePrefix) };
+    imageMap = { ...imageMap, ...processZipImageAssets(zipAssets, filePrefix) };
     const parser = new LatexParser();
     let questions = parser.parse(fileContent, { imageMap, filePrefix });
     const partTypeOverrides = parsePartTypeOverrides(req.body || {});

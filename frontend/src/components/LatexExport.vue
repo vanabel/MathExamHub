@@ -733,7 +733,7 @@ export default {
           
           let renderTask = null;
           
-          window.pdfjsLib.getDocument(pdfUrl).promise
+          window.pdfjsLib.getDocument({ url: pdfUrl, withCredentials: true }).promise
             .then((pdf) => {
               return pdf.getPage(1);
             })
