@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <nav aria-label="breadcrumb" class="mb-3">
       <ol class="breadcrumb">
         <li class="breadcrumb-item"><router-link to="/knowledge-points">章节 / 知识点</router-link></li>

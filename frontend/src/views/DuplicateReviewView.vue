@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <h2 class="mb-3">重复题目审查</h2>
     <p class="text-muted">
       当前题库内按 <code>contentHash</code> 精确重复与近似相似度分组（默认阈值 0.85）。

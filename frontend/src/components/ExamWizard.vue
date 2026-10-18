@@ -1,6 +1,6 @@
 <template>
-  <div class="exam-wizard-container">
-    <div class="container py-4">
+  <div class="exam-wizard-container app-page">
+    <div class="app-container container-xl py-4">
       <div class="page-header mb-4">
         <nav aria-label="breadcrumb" class="mb-3">
           <ol class="breadcrumb">

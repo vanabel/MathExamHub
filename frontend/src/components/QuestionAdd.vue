@@ -1,6 +1,6 @@
 <template>
-  <div class="question-add-container">
-    <div class="container">
+  <div class="question-add-container app-page">
+    <div class="app-container container-xl">
       <!-- 页面头部：面包屑 + 标题 -->
       <div class="page-header mb-4">
         <nav aria-label="breadcrumb" class="mb-3">

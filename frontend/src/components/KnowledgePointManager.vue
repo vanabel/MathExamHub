@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h1 class="page-title mb-0"><i class="bi bi-diagram-3"></i> 章节 / 知识点</h1>
       <kp-graph-nav-link

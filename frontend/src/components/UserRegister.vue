@@ -1,6 +1,6 @@
 <template>
-  <div class="register-container">
-    <div class="register-card">
+  <div class="auth-layout">
+    <div class="auth-card register-card">
       <div class="register-header">
         <div class="logo-circle">
           <i class="bi bi-person-plus"></i>

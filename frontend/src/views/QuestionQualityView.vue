@@ -1,7 +1,11 @@
 <template>
-  <div class="container py-4">
-    <h1 class="h3 mb-3"><i class="bi bi-shield-check"></i> 题目质量</h1>
-    <p class="text-muted">标记缺少答案、解答、知识点或难度的题目，支持批量补全元数据。</p>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      title="题目质量"
+      subtitle="标记缺少答案、解答、知识点或难度的题目，支持批量补全元数据"
+      icon="bi-shield-check"
+      test-id="question-quality-header"
+    />
 
     <div class="row g-2 mb-3 align-items-end">
       <div class="col-md-4">
@@ -27,7 +31,8 @@
 
     <div v-if="loading" class="text-muted">加载中…</div>
     <div v-else class="table-responsive">
-      <table class="table table-sm table-hover">
+      <div class="table-responsive app-table-scroll">
+      <table class="table table-sm table-hover app-table">
         <thead>
           <tr>
             <th><input type="checkbox" :checked="allSelected" @change="toggleAll" /></th>
@@ -57,6 +62,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <button type="button" class="btn btn-success mt-2" :disabled="!selected.length || saving" @click="saveBatch">
@@ -67,9 +73,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'QuestionQualityView',
+  components: { PageHeader },
   data() {
     return {
       qualityFilter: 'incomplete',

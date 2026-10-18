@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <div class="page-header mb-4">
       <h1 class="h3 mb-1"><i class="bi bi-clock-history"></i> 组卷历史</h1>
       <p class="text-muted mb-0">按蓝图 / 卷别查看；A/B 成对展示，可回到向导继续编辑</p>

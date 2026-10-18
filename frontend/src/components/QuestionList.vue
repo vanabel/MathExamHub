@@ -1,6 +1,6 @@
 <template>
   <div class="question-list-container">
-    <div class="container">
+    <div class="app-container container-xl">
       <div class="page-header mb-4">
         <div class="list-header-row list-header-row--top">
           <div>

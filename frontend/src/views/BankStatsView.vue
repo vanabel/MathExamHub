@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
       <div>
         <h1 class="h3 mb-1"><i class="bi bi-bar-chart"></i> 题库统计</h1>

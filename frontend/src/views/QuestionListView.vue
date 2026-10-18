@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="app-page">
     <question-list></question-list>
   </div>
 </template>

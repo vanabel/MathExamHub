@@ -1,6 +1,6 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
+  <div class="auth-layout">
+    <div class="auth-card login-card">
       <div class="login-header">
         <div class="logo-circle">
           <i class="bi bi-book"></i>

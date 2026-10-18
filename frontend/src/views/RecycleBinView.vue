@@ -1,8 +1,13 @@
 <template>
-  <div class="container py-4">
-    <h2 class="mb-3">回收站</h2>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      title="回收站"
+      subtitle="恢复已删除的题目或已归档的题库"
+      icon="bi-trash"
+      test-id="recycle-bin-header"
+    />
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs app-tabs mb-3">
       <li class="nav-item">
         <button
           type="button"
@@ -126,9 +131,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'RecycleBinView',
+  components: { PageHeader },
   data() {
     return {
       tab: 'questions',
