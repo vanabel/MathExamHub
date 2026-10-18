@@ -1,10 +1,22 @@
 const fs = require('fs');
 const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const { compileExportZip, hasXeLaTeX } = require('../../backend/test/scenario/latexCompileHelper');
 
+function hasPdftotext() {
+  return spawnSync('pdftotext', ['-v'], { encoding: 'utf8' }).status === 0
+    || spawnSync('pdftotext', ['-h'], { encoding: 'utf8' }).status === 0;
+}
+
 function assertExportZipBuffer(zipBuffer, { expectAcademicYear } = {}) {
+  if (process.env.E2E_COMPILE_TEX === '0') {
+    return { skipped: true, reason: 'E2E_COMPILE_TEX=0' };
+  }
   if (!hasXeLaTeX()) {
     return { skipped: true, reason: 'xelatex missing' };
+  }
+  if (!hasPdftotext()) {
+    return { skipped: true, reason: 'pdftotext missing' };
   }
   const { pdfPath } = compileExportZip(zipBuffer);
   const text = execSync(`pdftotext -layout "${pdfPath}" -`, { encoding: 'utf8' });
