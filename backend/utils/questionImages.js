@@ -75,10 +75,50 @@ function imagesEqualIgnoringIds(a, b) {
   return JSON.stringify(comparableImages(a)) === JSON.stringify(comparableImages(b));
 }
 
+/**
+ * Basename for \\includegraphics{…} in export (matches legacy stem / figN extraction).
+ */
+function includegraphicsBasenameFromUrl(url) {
+  let originalName = String(url || '').trim();
+  if (!originalName) return '';
+  if (originalName.includes('-')) {
+    const figMatch = originalName.match(/fig(\d+)/i);
+    if (figMatch) originalName = `fig${figMatch[1]}`;
+    else {
+      const parts = originalName.split('-');
+      originalName = parts[parts.length - 1];
+    }
+  }
+  return originalName.replace(/\.(png|jpg|jpeg|gif|pdf)$/i, '');
+}
+
+/**
+ * Label suffix for \\label{fig:…} (stored images[].label without fig: prefix).
+ */
+function latexExportFigureLabelSuffix(image) {
+  const n = normalizeImageEntry(image);
+  if (!n?.label) return '';
+  return n.label.replace(/^fig:/, '');
+}
+
+/**
+ * Dedupe key for one export document: same label or same file URL → emit once.
+ */
+function exportFigureDedupeKey(image) {
+  const n = normalizeImageEntry(image);
+  if (!n) return null;
+  if (n.label) return `label:${n.label}`;
+  if (n.url) return `url:${n.url}`;
+  return null;
+}
+
 module.exports = {
   extractImagesFromStem,
   normalizeImageEntry,
   parseImageTagAttrs,
   comparableImages,
   imagesEqualIgnoringIds,
+  includegraphicsBasenameFromUrl,
+  latexExportFigureLabelSuffix,
+  exportFigureDedupeKey,
 };

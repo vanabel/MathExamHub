@@ -11,4 +11,14 @@ describe('generateImagesLaTeX export', () => {
     assert.match(latex, /\\includegraphics\[width=0\.5\\textwidth\]\{fig3\}/);
     assert.match(latex, /\\label\{fig:3\}/);
   });
+
+  it('dedupes by label when emittedKeys is provided', () => {
+    const gen = new LatexGenerator();
+    const emitted = new Set();
+    const img = { url: 'course-fig3.pdf', label: '3' };
+    const a = gen.generateImagesLaTeX([img], { emittedKeys: emitted });
+    const b = gen.generateImagesLaTeX([img], { emittedKeys: emitted });
+    assert.ok(a.includes('\\label{fig:3}'));
+    assert.equal(b, '');
+  });
 });
