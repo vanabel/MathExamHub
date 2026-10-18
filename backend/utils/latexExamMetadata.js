@@ -1,4 +1,5 @@
 const { MATHEXAM_HEAD_MACROS } = require('./latexParser');
+const { MATHEXAM_DATE_METADATA_KEYS } = require('./mathexamDateMacros');
 
 const HEAD_FIELD_MAP = {
   university: 'university',
@@ -29,6 +30,11 @@ function normalizeDocumentMetadata(documentMetadata) {
   for (const key of MATHEXAM_HEAD_MACROS) {
     if (!isEmptyValue(head[key])) {
       flat[key] = String(head[key]).trim();
+    }
+  }
+  for (const key of MATHEXAM_DATE_METADATA_KEYS) {
+    if (!isEmptyValue(documentMetadata[key])) {
+      flat[key] = String(documentMetadata[key]).trim();
     }
   }
   if (documentMetadata.packageOptions?.length) {
@@ -83,7 +89,15 @@ function fillBankLatexMetadata(bankDoc, documentMetadata) {
 function layerToExportShape(layer) {
   if (!layer) return {};
   const out = {};
-  for (const key of [...Object.keys(HEAD_FIELD_MAP), 'packageOptions', 'documentClass', 'documentClassOptions', 'preambleLines', 'exportMode']) {
+  for (const key of [
+    ...Object.keys(HEAD_FIELD_MAP),
+    ...MATHEXAM_DATE_METADATA_KEYS,
+    'packageOptions',
+    'documentClass',
+    'documentClassOptions',
+    'preambleLines',
+    'exportMode',
+  ]) {
     if (!isEmptyValue(layer[key])) {
       out[key] = layer[key];
     }

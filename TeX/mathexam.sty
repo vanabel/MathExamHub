@@ -15,7 +15,7 @@
 %% 
 \NeedsTeXFormat{LaTeX2e}[2005/12/01]
 \ProvidesPackage{mathexam}
-[2026/10/14 v2.3.2 一个数学类考试宏包]
+[2026/10/18 v2.3.3 一个数学类考试宏包]
 \RequirePackage{mathtools, amssymb, amsthm}
 \RequirePackage[contents={}]{background}
 \RequirePackage{ctex}
@@ -32,7 +32,6 @@
 \RequirePackage{etoolbox,xparse,  multido, ifthen}
 \RequirePackage{zhnumber}
 \RequirePackage{datatool}
-\RequirePackage{ifplatform}
 \IfFileExists{\jobname.dat}{
   \DTLloaddb{\jobname}{\jobname.dat}
   }{
@@ -57,6 +56,17 @@
 \newcommand{\course}[1]{\def\mathexam@value@course{#1}}
 \newcommand{\AorB}[1]{\def\mathexam@value@AorB{#1}}
 \newcommand{\semester}[1]{\def\mathexam@value@semester{#1}}
+\newcommand{\examdate}[3]{%
+  \mathexam@examdatesettrue
+  \def\mathexam@examy{#1}%
+  \def\mathexam@examm{#2}%
+  \def\mathexam@examd{#3}%
+}
+\newcommand{\academicyear}[2]{%
+  \mathexam@acyearoverridetrue
+  \def\mathexam@acyearstart{#1}%
+  \def\mathexam@acyearend{#2}%
+}
 \newcommand{\finalmiddle}[1]{\def\mathexam@value@finalmiddle{#1}}
 \newcommand{\totaltime}[1]{\def\mathexam@value@totaltime{#1}}
 \newcommand{\openclose}[1]{\def\mathexam@value@openclose{#1}}
@@ -68,11 +78,54 @@
 \newcommand{\director}[1]{\def\mathexam@value@director{#1}}
 \newcommand{\dean}[1]{\def\mathexam@value@dean{#1}}
 
+\def\mathexam@value@university{}
+\def\mathexam@value@school{}
+\def\mathexam@value@course{}
+\def\mathexam@value@AorB{A}
+\def\mathexam@value@finalmiddle{}
+\def\mathexam@value@totaltime{}
+\def\mathexam@value@openclose{}
+\def\mathexam@value@degree{}
+\def\mathexam@value@totalstudent{}
+\def\mathexam@value@major{}
+\def\mathexam@value@grade{}
+\def\mathexam@value@examiner{}
+\def\mathexam@value@director{}
+\def\mathexam@value@dean{}
+
+\newif\ifmathexam@examdateset\mathexam@examdatesetfalse
+\newif\ifmathexam@acyearoverride\mathexam@acyearoverridefalse
+\def\mathexam@examy{}
+\def\mathexam@examm{}
+\def\mathexam@examd{}
+\def\mathexam@acyearstart{}
+\def\mathexam@acyearend{}
+
+\newcommand{\mathexam@refreshdate}{%
+  \ifmathexam@examdateset\else
+    \edef\mathexam@examy{\the\year}%
+    \edef\mathexam@examm{\the\month}%
+    \edef\mathexam@examd{\the\day}%
+  \fi
+  \ifmathexam@acyearoverride\else
+    \ifnum\mathexam@examm<9\relax
+      \edef\mathexam@acyearstart{\number\numexpr\mathexam@examy-1\relax}%
+    \else
+      \edef\mathexam@acyearstart{\mathexam@examy}%
+    \fi
+  \fi
+}
 \newcommand{\mathexam@value@semester}{%
-\ifnum\the\month<9\ifnum\the\month>2 {2}\fi\else {1}\fi%
-}%
-\newcommand{\mathexam@lasttwoofyear}[1]{%#1 is the offset
-  \expandafter\mathexam@getlasttwo\number\numexpr\year+(#1)\relax\relax
+  \mathexam@refreshdate
+  \ifnum\mathexam@examm<9\ifnum\mathexam@examm>2 {2}\fi\else {1}\fi
+}
+\newcommand{\mathexam@lasttwoofyear}[1]{% #1 is offset from academic year start
+  \mathexam@refreshdate
+  \expandafter\mathexam@getlasttwo\number\numexpr\mathexam@acyearstart+(#1)\relax\relax
+}
+\newcommand{\academicyearrange}{%
+  \mathexam@refreshdate
+  20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年%
 }
 \def\mathexam@getlasttwo#1#2#3#4\relax{#3#4}
 \def\tobecalculate{\mbox{??}}
@@ -211,7 +264,7 @@
     \begin{tabu}to \linewidth{|*{12}{X[c]|}}
       \hline
       \multicolumn{8}{|c}{
-        20\mathexam@lasttwoofyear{-1} 至 20\mathexam@lasttwoofyear{0} 学年
+        20\mathexam@lasttwoofyear{0} 至 20\mathexam@lasttwoofyear{1} 学年
 \qquad 第\mathexam@value@semester 学期
       }                                                            &
       \multicolumn{4}{|c|}{\mathexam@value@finalmiddle\quad 考试} \\
@@ -649,42 +702,31 @@
       \thispagestyle{empty}
     }
   \fi
-  % Register hook for header/footer lines and rotated table on all pages
-  % Use \AtBeginShipout to ensure it works on all pages including the first page
-  \AtBeginShipout{%
-    \AddToShipoutPictureBG*{%
-      % Add background picture to every page/ *version for current page
-      \begin{tikzpicture}[overlay,remember picture]
-        % Use \ifodd for more reliable page number check
-        \ifodd\value{page}%
-          % Odd pages: header and footer lines
-          % Use absolute coordinates relative to page margins
-          % Header line: from left margin to right margin, at header height
-          \coordinate (header start) at ($(current page.north west)+(0.38\myleft,-\mytop-\myhead)$);
-          \coordinate (header end) at ($(current page.north east)+(-\myouter,-\mytop-\myhead)$);
-          % Footer line: from left margin to right margin, accounting for footskip
-          \coordinate (footer start) at ($(current page.south west)+(0.38\myleft,\mybottom+15pt)$);
-          \coordinate (footer end) at ($(current page.south east)+(-\myouter,\mybottom+15pt)$);
-          \draw [line width=1pt] (header start) -- (header end);
-          \draw [line width=1pt] (footer start) -- (footer end);
-        \else
-          % Even pages: header and footer lines with smaller offset
-          \coordinate (header start) at ($(current page.north west)+(0.5\myleft,-\mytop-\myhead)$);
-          \coordinate (header end) at ($(current page.north east)+(-2.4\myouter,-\mytop-\myhead)$);
-          \coordinate (footer start) at ($(current page.south west)+(0.5\myleft,\mybottom+15pt)$);
-          \coordinate (footer end) at ($(current page.south east)+(-2.5\myouter,\mybottom+15pt)$);
-          \draw [line width=1pt] (header start) -- (header end);
-          \draw [line width=1pt] (footer start) -- (footer end);
-        \fi
-      \end{tikzpicture}%
-    }%
-  }
-    % Check if page is odd - use \ifodd instead of \ifthenelse for more reliable check
-    % In a3paper mode with pgfpages, the page numbering might be affected
-  \AddEverypageHook{
+  % 页眉/页脚线：用 eso-pic 的每页背景（无需 atbegshi）
+  \AddToShipoutPictureBG{%
+    \begin{tikzpicture}[overlay,remember picture]
+      \ifodd\value{page}%
+        % Odd pages: header and footer lines
+        \coordinate (header start) at ($(current page.north west)+(0.38\myleft,-\mytop-\myhead)$);
+        \coordinate (header end) at ($(current page.north east)+(-\myouter,-\mytop-\myhead)$);
+        \coordinate (footer start) at ($(current page.south west)+(0.38\myleft,\mybottom+15pt)$);
+        \coordinate (footer end) at ($(current page.south east)+(-\myouter,\mybottom+15pt)$);
+        \draw [line width=1pt] (header start) -- (header end);
+        \draw [line width=1pt] (footer start) -- (footer end);
+      \else
+        % Even pages: header and footer lines with smaller offset
+        \coordinate (header start) at ($(current page.north west)+(0.5\myleft,-\mytop-\myhead)$);
+        \coordinate (header end) at ($(current page.north east)+(-2.4\myouter,-\mytop-\myhead)$);
+        \coordinate (footer start) at ($(current page.south west)+(0.5\myleft,\mybottom+15pt)$);
+        \coordinate (footer end) at ($(current page.south east)+(-2.5\myouter,\mybottom+15pt)$);
+        \draw [line width=1pt] (header start) -- (header end);
+        \draw [line width=1pt] (footer start) -- (footer end);
+      \fi
+    \end{tikzpicture}%
+  }%
+  % 旋转计分表：background 已加载 everypage，沿用其钩子
+  \AddEverypageHook{%
     \ifodd\value{page}%
-      % Odd pages: add rotated table on left side using backgroundsetup
-      % Check if the table is ready (it will be after \makehead is called)
       \ifx\mathexam@table@ready\relax
         \backgroundsetup{
           color=black,
@@ -746,21 +788,6 @@
   }%
   \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}%
 }
-\ifmathexam@showans{%
-    \ifnum\shellescape=1
-      \ifwindows
-      \immediate\write18{copy \jobname.pdf \jobname-Answer.pdf}
-      \else
-      \immediate\write18{cp \jobname.pdf \jobname-Answer.pdf}
-      \fi
-    \else
-      \message{^^J Warning: **********************^^J}
-      \message{^^J 请使用`xelatex -shell-escape \jobname.tex`%
-      编译来自动重命名^^J}
-      \message{^^J *******************************^^J}
-    \fi
-  }
-\fi
 %% 
 %% Copyright (C) 2009 by You <van141.abel(AT)gmail.com>
 %% 

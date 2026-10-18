@@ -1,6 +1,6 @@
 # mathexam 宏包 vendoring 说明
 
-MathExamHub 在仓库内固定（pin）上游 [vanabel/mathexam](https://github.com/vanabel/mathexam) 的 **mathexam v2.3.1**，作为导入/导出 round-trip 与本地 XeLaTeX 编译的对照源。
+MathExamHub 在仓库内固定（pin）上游 [vanabel/mathexam](https://github.com/vanabel/mathexam) 的 **mathexam v2.3.3**，作为导入/导出 round-trip 与本地 XeLaTeX 编译的对照源。
 
 ## 仓库内路径
 
@@ -8,14 +8,14 @@ MathExamHub 在仓库内固定（pin）上游 [vanabel/mathexam](https://github.
 |------|------|
 | `TeX/mathexam.dtx` | 权威源码（docstrip 入口） |
 | `TeX/mathexam.sty` | 由 `mathexam.dtx` 生成的宏包（编译/导出打包用） |
-| `TeX/VERSION` | 当前 pin 的版本号（单行，如 `2.3.1`） |
+| `TeX/VERSION` | 当前 pin 的版本号（单行，如 `2.3.3`） |
 | `docs/vendor/mathexam.sty` | 与 `TeX/mathexam.sty` 同步的副本，便于文档引用 |
 
 **不要**将 Hub 切换到同仓库中的 `mathquiz.sty`（旧版兄弟包）；导入/导出始终以 **mathexam** 为准。
 
 ## 从上游刷新
 
-1. 查看上游发布：<https://github.com/vanabel/mathexam/releases>（当前 canonical README 标注 v2.3.1）。
+1. 查看上游发布：<https://github.com/vanabel/mathexam/releases>（或 `master` 上 `mathexam.dtx` 版本行）。
 2. 下载发布包 `mathexam-vX.Y.Z.zip`，或克隆仓库后 checkout 对应 tag。
 3. 覆盖本仓库文件：
    - `mathexam.dtx` → `TeX/mathexam.dtx`
@@ -33,11 +33,11 @@ MathExamHub 在仓库内固定（pin）上游 [vanabel/mathexam](https://github.
 
 ```bash
 cd TeX
-latex mathexam.dtx
-# 生成 mathexam.sty 后复制到 docs/vendor/
+xetex mathexam.dtx
+# 生成 mathexam.sty 后复制到 docs/vendor/，并重新应用 docs/upstream/mathexam-dtlwrite-guard.patch（若上游尚未内置）
 ```
 
-## Hub 本地补丁（相对上游 v2.3.1）
+## Hub 本地补丁（相对上游 v2.3.3）
 
 - **`\\DTLwrite` 兼容**：`TeX/mathexam.sty` 在 `\\@ifundefined{DTLwrite}` 时跳过期末 CSV/dbtex 导出并给出警告，避免 Ubuntu/旧 TeX Live 上编译失败。建议上游 [vanabel/mathexam](https://github.com/vanabel/mathexam) 合并同等 guard 后，Hub 刷新 pin 时可还原为纯上游 sty。
 

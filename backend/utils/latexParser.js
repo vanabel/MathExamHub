@@ -10,6 +10,10 @@ const {
   isPerBlankMakepart,
   resolveMakepartUnitScore,
 } = require('./fillinPartScoring');
+const {
+  buildMathexamDateMacroLines,
+  extractMathexamDateMetadata,
+} = require('./mathexamDateMacros');
 
 const MATHEXAM_HEAD_MACROS = [
   'university', 'school', 'course', 'AorB', 'semester', 'finalmiddle',
@@ -164,6 +168,8 @@ class LatexParser {
         metadata.head[field] = m[1].trim();
       }
     }
+
+    Object.assign(metadata, extractMathexamDateMetadata(preamble));
 
     const preambleLineRegex = /^\\(DeclareMathOperator|newcommand|renewcommand|def)\b.*$/gm;
     const ignorePreamble = [
@@ -1318,6 +1324,9 @@ class LatexGenerator {
     ].join('\n');
     const preambleBlock = [defaultMacroLines, preambleExtras].filter(Boolean).join('\n') + (defaultMacroLines || preambleExtras ? '\n' : '');
 
+    const dateMacroLines = buildMathexamDateMacroLines(metadata);
+    const dateMacroBlock = dateMacroLines.length ? `${dateMacroLines.join('\n')}\n` : '';
+
     const docClass = metadata.documentClass || 'article';
     const docOpts = metadata.documentClassOptions?.length
       ? `[${metadata.documentClassOptions.join(',')}]`
@@ -1334,7 +1343,7 @@ ${preambleBlock}
 \\school{${pick('school', '数学与统计学院')}}
 \\course{${pick('course', '高等代数')}}
 \\AorB{${pick('AorB', 'A')}}
-\\semester{${pick('semester', '')}}
+${dateMacroBlock}\\semester{${pick('semester', '')}}
 \\finalmiddle{${pick('finalmiddle', '期末')}}
 \\totaltime{${pick('totaltime', '120')}}
 \\openclose{${pick('openclose', '闭卷')}}

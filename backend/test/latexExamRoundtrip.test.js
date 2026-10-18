@@ -22,7 +22,7 @@ function loadExamBundle() {
   return expanded.content;
 }
 
-describe('exam-structure fixture (mathexam v2.3.2 layout)', () => {
+describe('exam-structure fixture (mathexam v2.3.3 layout)', () => {
   it('imports 21/21 via input bundle with fuzzy part titles', () => {
     const content = loadExamBundle();
     const parser = new LatexParser();

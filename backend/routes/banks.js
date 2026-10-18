@@ -7,6 +7,7 @@ const router = express.Router();
 const METADATA_KEYS = [
   'packageOptions', 'documentClass', 'documentClassOptions',
   'university', 'school', 'course', 'AorB', 'semester',
+  'examDate', 'academicYearStart', 'academicYearEnd',
   'finalmiddle', 'totaltime', 'openclose', 'degree', 'totalstu', 'major',
   'grade', 'examiner', 'director', 'dean', 'preambleLines', 'exportMode',
 ];
