@@ -2,6 +2,10 @@ const express = require('express');
 const ExamBlueprint = require('../models/ExamBlueprint');
 const requireAuth = require('../middleware/requireAuth');
 const { bankContext, requireBankWrite } = require('../middleware/bankContext');
+const {
+  normalizeBlueprintBody,
+  formatBlueprintValidationError,
+} = require('../utils/blueprintInput');
 
 const router = express.Router();
 
@@ -44,14 +48,17 @@ router.get('/library', async (req, res) => {
 
 router.post('/', requireBankWrite, async (req, res) => {
   try {
+    const body = normalizeBlueprintBody(req.body);
     const doc = new ExamBlueprint({
-      ...req.body,
+      ...body,
       bankId: req.bankId,
       createdBy: req.user.username,
     });
     await doc.save();
     res.status(201).json(doc);
   } catch (error) {
+    const formatted = formatBlueprintValidationError(error);
+    if (formatted) return res.status(400).json(formatted);
     res.status(400).json({ error: error.message || 'Invalid blueprint' });
   }
 });
@@ -109,8 +116,9 @@ router.put('/:id', requireBankWrite, async (req, res) => {
       'title', 'subject', 'totalScore', 'sections', 'randomSeed', 'allowRelaxation',
       'maxVariantOverlapPct', 'isTemplate', 'sharedWithBank',
     ];
+    const body = normalizeBlueprintBody(req.body);
     for (const key of fields) {
-      if (typeof req.body[key] !== 'undefined') doc[key] = req.body[key];
+      if (typeof body[key] !== 'undefined') doc[key] = body[key];
     }
     if (doc.isTemplate && doc.sharedWithBank && doc.createdBy !== req.user.username) {
       return res.status(403).json({ error: '仅模板创建者可修改共享设置' });
@@ -118,6 +126,8 @@ router.put('/:id', requireBankWrite, async (req, res) => {
     await doc.save();
     res.json(doc);
   } catch (error) {
+    const formatted = formatBlueprintValidationError(error);
+    if (formatted) return res.status(400).json(formatted);
     res.status(400).json({ error: error.message || 'Update failed' });
   }
 });

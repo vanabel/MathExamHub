@@ -24,6 +24,25 @@ const { analyzeBlueprintCoverageMultiSeed } = require('../utils/blueprintCoverag
 
 const router = express.Router();
 
+router.get('/', (req, res) => {
+  res.status(404).json({
+    error: '请使用具体子路径',
+    try: [
+      'GET /api/exams/papers',
+      'POST /api/exams/generate',
+      'POST /api/exams/coverage-analysis',
+      'POST /api/exams/generate-variants',
+    ],
+  });
+});
+
+router.post('/', (req, res) => {
+  res.status(404).json({
+    error: '请使用 POST /api/exams/generate 生成试卷',
+    try: ['POST /api/exams/generate', 'POST /api/exams/coverage-analysis'],
+  });
+});
+
 router.use(requireAuth);
 router.use(bankContext);
 
@@ -87,19 +106,21 @@ router.post('/generate', requireBankWrite, async (req, res) => {
 
     const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
     const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
-    const result = generateExamPaper(blueprint, pool, kpExpansionMap);
-
-    if (result.success && result.questionIds.length) {
-      await recordQuestionUsage(req.bankId, result.questionIds);
-    }
-
-    const paper = await createExamPaperDoc({
-      bankId: req.bankId,
-      blueprintId,
-      blueprint,
-      result,
-      username: req.user.username,
+    const result = generateExamPaper(blueprint, pool, kpExpansionMap, {
+      allowScoreGap: req.body.allowScoreGap === true,
     });
+
+    let paper = null;
+    if (result.success && !result.scoreGapRequiresConfirm && result.questionIds.length) {
+      await recordQuestionUsage(req.bankId, result.questionIds);
+      paper = await createExamPaperDoc({
+        bankId: req.bankId,
+        blueprintId,
+        blueprint,
+        result,
+        username: req.user.username,
+      });
+    }
 
     const questions = mapQuestionsForApi(pool, result.questionIds);
     res.status(200).json(buildGeneratePayload(paper, result, questions));

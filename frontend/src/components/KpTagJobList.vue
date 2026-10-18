@@ -26,10 +26,16 @@
               @click="$emit('select', j._id)"
             >
               <td class="small">{{ j.subject || '—' }}</td>
-              <td class="small">{{ j.status }}{{ j.appliedAt ? ' · 已写入' : '' }}</td>
+              <td class="small">
+                <span data-testid="kp-job-status-label">{{ jobStatusLabel(j) }}</span>
+              </td>
               <td class="small text-muted">{{ formatDate(j.createdAt) }}</td>
               <td class="small">
-                待 {{ j.reviewCounts.pending }} /
+                <span
+                  v-if="j.reviewCounts.pending > 0"
+                  class="badge text-bg-warning text-dark me-1"
+                  data-testid="kp-job-pending-badge"
+                >待审核 {{ j.reviewCounts.pending }}</span>
                 接 {{ j.reviewCounts.accepted + j.reviewCounts.edited }} /
                 拒 {{ j.reviewCounts.rejected }}
               </td>
@@ -73,6 +79,16 @@ export default {
     formatDate(iso) {
       if (!iso) return '';
       return new Date(iso).toLocaleString();
+    },
+    jobStatusLabel(j) {
+      if (j.appliedAt) return '已写入题库';
+      if (j.status === 'completed' && (j.reviewCounts?.pending || 0) > 0) {
+        return `LLM 已完成 · 待审核 ${j.reviewCounts.pending}`;
+      }
+      if (j.status === 'completed') return 'LLM 已完成 · 无待审';
+      if (j.status === 'running' || j.status === 'queued') return 'LLM 运行中';
+      if (j.status === 'failed') return 'LLM 失败';
+      return j.status || '—';
     },
     async refresh() {
       try {

@@ -57,8 +57,10 @@ async function createExamPaperDoc({
 
 function buildGeneratePayload(paper, result, questions) {
   return {
-    paperId: paper._id,
+    paperId: paper?._id ?? null,
     success: result.success,
+    scoreGapRequiresConfirm: Boolean(result.scoreGapRequiresConfirm),
+    scoreGap: result.scoreGap || null,
     questionIds: result.questionIds,
     questions,
     sections: result.sections,
@@ -66,7 +68,7 @@ function buildGeneratePayload(paper, result, questions) {
     relaxations: result.relaxations,
     warnings: result.warnings,
     shortfalls: result.shortfalls,
-    randomSeed: result.randomSeed ?? paper.randomSeed,
+    randomSeed: result.randomSeed ?? paper?.randomSeed,
   };
 }
 

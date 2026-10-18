@@ -572,6 +572,7 @@ import { answerForDisplay, showAnswerBlock } from "../utils/questionAnswerDispla
 import {
   normalizeAcademicYearOverride,
   suggestedAcademicYearLabel,
+  localIsoDateString,
 } from "../utils/latexExamDateForm";
 
 export default {
@@ -631,7 +632,7 @@ export default {
         school: "数学与统计学院",
         course: "高等代数",
         AorB: "A",
-        examDate: new Date().toISOString().split("T")[0],
+        examDate: localIsoDateString(),
         academicYearStart: "",
         academicYearEnd: "",
         totaltime: "120",
@@ -866,6 +867,9 @@ export default {
           this.metadata[to] = defaults[from];
         }
       });
+      if (!this.metadata.examDate) {
+        this.metadata.examDate = localIsoDateString();
+      }
       if (defaults.packageOptions?.length) {
         this.metadata.packageOptions = defaults.packageOptions;
       }

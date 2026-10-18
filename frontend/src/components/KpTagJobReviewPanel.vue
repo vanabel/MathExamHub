@@ -6,9 +6,8 @@
         <span v-if="job?._id" class="text-muted small ms-1">#{{ String(job._id).slice(-6) }}</span>
       </span>
       <div class="d-flex gap-2 flex-wrap align-items-center">
-        <span v-if="job" class="small text-muted">
-          {{ job.processed }}/{{ job.total }} · {{ job.status }}
-          <span v-if="job.appliedAt"> · 已写入</span>
+        <span v-if="job" class="small text-muted" data-testid="kp-review-status-label">
+          {{ job.processed }}/{{ job.total }} · {{ reviewStatusLabel }}
         </span>
         <span v-if="saveState === 'saving'" class="small text-muted">保存中…</span>
         <span v-if="saveState === 'saved'" class="small text-success">已保存</span>
@@ -20,6 +19,15 @@
           @click="startJob"
         >
           {{ starting ? '启动中…' : '后台打标' }}
+        </button>
+        <button
+          v-if="job && job.status === 'completed' && !job.appliedAt"
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          data-testid="kp-tag-bulk-accept-all"
+          @click="bulkAcceptAllSuggestions"
+        >
+          一键接受全部建议
         </button>
         <button
           v-if="job && job.status === 'completed' && !job.appliedAt"
@@ -171,6 +179,18 @@ export default {
     },
     acceptedCount() {
       return this.localRows.filter((r) => r.status === 'accepted' || r.status === 'edited').length;
+    },
+    pendingReviewCount() {
+      return this.localRows.filter((r) => r.status === 'pending').length;
+    },
+    reviewStatusLabel() {
+      if (!this.job) return '';
+      if (this.job.appliedAt) return '已写入题库';
+      if (this.job.status === 'completed' && this.pendingReviewCount > 0) {
+        return `LLM 已完成 · 待审核 ${this.pendingReviewCount}`;
+      }
+      if (this.job.status === 'completed') return 'LLM 已完成 · 无待审';
+      return this.job.status;
     },
     activeJobId() {
       return this.jobId || (this.job?._id ? String(this.job._id) : '');
@@ -325,6 +345,20 @@ export default {
           row.status = 'accepted';
         }
       }
+      this.flashRowAction('已批量接受高置信度建议');
+      this.schedulePersist();
+    },
+    bulkAcceptAllSuggestions() {
+      let n = 0;
+      for (const row of this.localRows) {
+        if (row.status !== 'pending') continue;
+        const ids = (row.suggestions || []).map((s) => s.knowledgePointId).filter(Boolean);
+        if (!ids.length) continue;
+        row.acceptedKnowledgePointIds = ids;
+        row.status = 'accepted';
+        n += 1;
+      }
+      this.flashRowAction(n ? `已接受 ${n} 题的全部建议` : '没有可接受的待审条目');
       this.schedulePersist();
     },
     async applyAccepted() {

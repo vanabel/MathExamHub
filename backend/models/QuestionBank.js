@@ -25,10 +25,13 @@ const questionBankSchema = new mongoose.Schema({
     type: latexExamMetadataSchema,
     default: () => ({}),
   },
+  deletedAt: { type: Date, default: null },
+  deletedBy: { type: String, trim: true },
 }, {
   timestamps: true,
 });
 
 questionBankSchema.index({ ownerId: 1, isPersonalDefault: 1 });
+questionBankSchema.index({ ownerId: 1, deletedAt: 1 });
 
 module.exports = mongoose.model('QuestionBank', questionBankSchema);

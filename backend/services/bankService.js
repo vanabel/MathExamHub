@@ -30,7 +30,10 @@ async function createPersonalBank(user) {
 async function listBanksForUser(userId) {
   const memberships = await BankMember.find({ userId }).lean();
   const bankIds = memberships.map((m) => m.bankId);
-  const banks = await QuestionBank.find({ _id: { $in: bankIds } }).lean();
+  const banks = await QuestionBank.find({
+    _id: { $in: bankIds },
+    $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
+  }).lean();
   const roleByBank = Object.fromEntries(
     memberships.map((m) => [String(m.bankId), m.role]),
   );
@@ -54,14 +57,70 @@ async function getMemberRole(userId, bankId) {
   return member ? member.role : null;
 }
 
-async function assertBankAccess(userId, bankId, minRole = 'viewer') {
+async function assertBankAccess(userId, bankId, minRole = 'viewer', opts = {}) {
+  const allowDeleted = opts.allowDeleted === true;
   const role = await getMemberRole(userId, bankId);
   if (!role || !hasMinRole(role, minRole)) {
     const err = new Error('无权访问该题库');
     err.status = 403;
     throw err;
   }
+  const bank = await QuestionBank.findById(bankId).select('deletedAt isPersonalDefault').lean();
+  if (bank?.deletedAt && !allowDeleted) {
+    const err = new Error('题库已移入回收站，请先恢复');
+    err.status = 403;
+    throw err;
+  }
   return role;
+}
+
+async function softDeleteBank(userId, bankId, deletedByUsername) {
+  await assertBankAccess(userId, bankId, 'owner');
+  const bank = await QuestionBank.findById(bankId);
+  if (!bank) {
+    const err = new Error('题库不存在');
+    err.status = 404;
+    throw err;
+  }
+  if (bank.isPersonalDefault) {
+    const err = new Error('个人默认题库不能删除');
+    err.status = 400;
+    throw err;
+  }
+  if (bank.deletedAt) {
+    const err = new Error('题库已在回收站');
+    err.status = 409;
+    throw err;
+  }
+  bank.deletedAt = new Date();
+  bank.deletedBy = deletedByUsername || String(userId);
+  await bank.save();
+  return bank;
+}
+
+async function restoreBank(userId, bankId) {
+  await assertBankAccess(userId, bankId, 'owner', { allowDeleted: true });
+  const bank = await QuestionBank.findById(bankId);
+  if (!bank || !bank.deletedAt) {
+    const err = new Error('回收站中未找到该题库');
+    err.status = 404;
+    throw err;
+  }
+  bank.deletedAt = null;
+  bank.deletedBy = undefined;
+  await bank.save();
+  return bank;
+}
+
+async function listArchivedBanksForUser(userId) {
+  const memberships = await BankMember.find({ userId, role: 'owner' }).lean();
+  const bankIds = memberships.map((m) => m.bankId);
+  return QuestionBank.find({
+    _id: { $in: bankIds },
+    deletedAt: { $ne: null },
+  })
+    .sort({ deletedAt: -1 })
+    .lean();
 }
 
 async function createSharedBank(user, name) {
@@ -104,4 +163,7 @@ module.exports = {
   assertBankAccess,
   createSharedBank,
   addMember,
+  softDeleteBank,
+  restoreBank,
+  listArchivedBanksForUser,
 };

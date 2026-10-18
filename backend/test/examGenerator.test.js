@@ -28,7 +28,7 @@ describe('examGenerator', () => {
     const blueprint = {
       title: 'test',
       subject: '解析几何',
-      totalScore: 20,
+      totalScore: 12,
       randomSeed: 42,
       allowRelaxation: false,
       sections: [{ type: '填空题', count: 3, scoreEach: 4 }],
@@ -60,6 +60,50 @@ describe('examGenerator', () => {
     const result = generateExamPaper(blueprint, pool, new Map());
     assert.equal(result.success, true);
     assert.ok(result.relaxations.some((r) => r.step === 'difficulty_mix'));
+  });
+
+  it('returns subject_mismatch shortfall with filterStages', () => {
+    const pool = [
+      q('1', { type: '判断题', totalScore: 2, subject: '解析几何' }),
+    ];
+    const result = generateExamPaper(
+      {
+        title: 'wrong subject',
+        subject: '高等代数',
+        randomSeed: 1,
+        allowRelaxation: false,
+        sections: [{ type: '判断题', count: 1, scoreEach: 2 }],
+      },
+      pool,
+      new Map(),
+    );
+    assert.equal(result.success, false);
+    assert.equal(result.shortfalls[0].reasonCode, 'subject_mismatch');
+    assert.ok(result.shortfalls[0].filterStages);
+  });
+
+  it('requires allowScoreGap when total score differs from blueprint target', () => {
+    const pool = [
+      q('1', { totalScore: 4 }),
+      q('2', { totalScore: 4 }),
+      q('3', { totalScore: 4 }),
+    ];
+    const blueprint = {
+      title: 'gap',
+      totalScore: 100,
+      randomSeed: 3,
+      allowRelaxation: false,
+      sections: [{ type: '填空题', count: 3, scoreEach: 4 }],
+    };
+    const strict = generateExamPaper(blueprint, pool, new Map(), { allowScoreGap: false });
+    assert.equal(strict.success, false);
+    assert.equal(strict.scoreGapRequiresConfirm, true);
+    assert.ok(strict.scoreGap);
+    assert.equal(strict.scoreGap.actual, 12);
+
+    const allowed = generateExamPaper(blueprint, pool, new Map(), { allowScoreGap: true });
+    assert.equal(allowed.success, true);
+    assert.ok(allowed.scoreGap);
   });
 
   it('returns shortfall when pool is empty', () => {

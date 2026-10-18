@@ -19,6 +19,16 @@
       </option>
     </select>
     <BankLatexMetadataEditor :bank-id="currentBankId" variant="navbar" />
+    <button
+      v-if="canArchiveCurrentBank"
+      type="button"
+      class="btn btn-sm btn-outline-light bank-archive-btn"
+      title="将题库移入回收站"
+      data-testid="bank-archive-btn"
+      @click="archiveCurrentBank"
+    >
+      归档
+    </button>
   </div>
 </template>
 
@@ -47,6 +57,10 @@ export default {
     },
     selectedBankTitle() {
       return this.currentBank ? this.formatBankTitle(this.currentBank) : '';
+    },
+    canArchiveCurrentBank() {
+      const b = this.currentBank;
+      return b && b.role === 'owner' && !b.isPersonalDefault;
     },
   },
   async mounted() {
@@ -93,6 +107,26 @@ export default {
         localStorage.setItem('currentBank', JSON.stringify({ role: current.role, name: current.name }));
       }
       this.$emit('bank-changed', this.currentBankId);
+    },
+    async archiveCurrentBank() {
+      const b = this.currentBank;
+      if (!b || !this.canArchiveCurrentBank) return;
+      const msg = `确定将题库「${b.name}」移入回收站？可在回收站 → 题库 中恢复。`;
+      if (!window.confirm(msg)) return;
+      try {
+        await axios.delete(`/banks/${this.currentBankId}`);
+        const archivedId = this.currentBankId;
+        await this.loadBanks();
+        if (this.currentBankId === archivedId) {
+          const personal = this.banks.find((x) => x.isPersonalDefault) || this.banks[0];
+          if (personal) {
+            this.currentBankId = personal._id;
+            this.onChange();
+          }
+        }
+      } catch (e) {
+        alert(e.response?.data?.error || e.message || '归档失败');
+      }
     },
   },
 };
