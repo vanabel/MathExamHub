@@ -465,11 +465,10 @@ export default {
 
 .navbar-user-nav {
   flex-shrink: 0;
-  margin-left: auto;
+  margin-left: 0.5rem;
 }
 
-/* Avoid bank toolbar overlapping the user menu on typical laptop widths (e2e viewport). */
-@media (min-width: 992px) and (max-width: 1399px) {
+@media (min-width: 992px) {
   .navbar-collapse-main {
     flex-wrap: wrap;
     row-gap: 0.35rem;
@@ -482,19 +481,17 @@ export default {
     border-left: none;
     margin-left: 0;
     padding-left: 0;
-    justify-content: space-between;
-    gap: 0.5rem 0.75rem;
-  }
-}
-
-@media (max-width: 1399px) {
-  .navbar-user-nav .user-name {
-    display: none;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.65rem 1rem;
   }
 }
 
 .navbar-user-nav .user-nav-link {
-  max-width: 11rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 10rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
@@ -504,6 +501,26 @@ export default {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+  max-width: 6.5rem;
+}
+
+@media (max-width: 1199.98px) {
+  .navbar-user-nav .user-name {
+    display: none;
+  }
+
+  .navbar-user-nav .user-nav-link {
+    max-width: 2.75rem;
+    justify-content: center;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .navbar-user-nav .user-nav-link {
+    max-width: 9rem;
+  }
 }
 
 .dropdown-item.active,

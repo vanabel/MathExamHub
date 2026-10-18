@@ -5,14 +5,11 @@
 const { test } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const { execSync } = require('child_process');
+const { seedUiV2ScreenshotBank, kpFixture } = require('../helpers/uiV2ScreenshotSeed');
 
 const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
 const phase = process.env.UI_V2_PHASE || 'after';
 const outRoot = path.join(__dirname, '../../docs/screenshots/ui-v2', phase);
-const fixtureDir = path.join(__dirname, '../../backend/test/fixtures/exam-structure');
-const kpFixture = path.join(__dirname, '../../backend/test/fixtures/analytic-geometry-kp.xls');
 
 const VIEWPORTS = [
   { name: '1440', width: 1440, height: 900 },
@@ -43,17 +40,39 @@ async function registerAndLogin(page, { uid, password, email }) {
   }, { apiBase, username: uid, pass: password, mail: email });
 }
 
-function buildMathexamZip() {
-  const zipPath = path.join(os.tmpdir(), `ui-v2-${Date.now()}.zip`);
-  execSync(`zip -j "${zipPath}" exam.tex exam-body.tex`, { cwd: fixtureDir });
-  return zipPath;
+async function waitForKpJob(page, jobId, maxMs = 120000) {
+  const started = Date.now();
+  while (Date.now() - started < maxMs) {
+    const status = await page.evaluate(async ({ base, id }) => {
+      const bankId = localStorage.getItem('currentBankId');
+      const res = await fetch(`${base}/questions/kp-tag-jobs/${id}`, {
+        credentials: 'include',
+        headers: bankId ? { 'X-Bank-Id': bankId } : {},
+      });
+      const job = await res.json();
+      return { status: job.status, rows: (job.rows || []).length };
+    }, { base: apiBase, id: jobId });
+    if (status.status === 'review' || (status.rows > 0 && status.status === 'completed')) {
+      return;
+    }
+    if (status.status === 'failed') break;
+    await page.waitForTimeout(1500);
+  }
 }
 
 async function snap(page, slug, vp) {
   const dir = path.join(outRoot, vp.name);
   fs.mkdirSync(dir, { recursive: true });
   await page.setViewportSize({ width: vp.width, height: vp.height });
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    if (window.MathJax?.Hub) {
+      return new Promise((resolve) => {
+        window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub], resolve);
+      });
+    }
+    return undefined;
+  }).catch(() => {});
   await page.screenshot({
     path: path.join(dir, `${slug}.png`),
     fullPage: true,
@@ -62,50 +81,64 @@ async function snap(page, slug, vp) {
 
 async function captureAll(page, ctx) {
   page.on('dialog', (d) => d.accept());
+
+  await registerAndLogin(page, ctx);
+  const seedMeta = await page.evaluate(
+    async ({ base, fnBody }) => {
+      // eslint-disable-next-line no-eval
+      const fn = eval(`(${fnBody})`);
+      return fn({ base });
+    },
+    { base: apiBase, fnBody: seedUiV2ScreenshotBank.toString() },
+  );
+
+  if (seedMeta?.jobId) {
+    await waitForKpJob(page, seedMeta.jobId);
+  }
+
+  const skipTour = page.getByTestId('onboarding-skip');
+  if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
+
   for (const vp of VIEWPORTS) {
     await snap(page, 'login', vp);
     await page.goto('/register', { waitUntil: 'domcontentloaded' });
     await snap(page, 'register', vp);
 
-    await registerAndLogin(page, ctx);
-    const skipTour = page.getByTestId('onboarding-skip');
-    if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
-
-    await page.goto('/latex-import', { waitUntil: 'domcontentloaded' });
-    await snap(page, 'latex-import', vp);
-
-    try {
-      const zipPath = buildMathexamZip();
-      await page.locator('#fileInput').setInputFiles(zipPath);
-      await page.getByRole('button', { name: '直接导入' }).click({ timeout: 120000 });
-      await page.getByTestId('latex-import-success-link').waitFor({ timeout: 240000 });
-      await snap(page, 'latex-import-done', vp);
-    } catch (err) {
-      console.warn('latex import skipped for screenshots:', err.message);
-    }
-
     await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
     if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
+    await page.waitForSelector('.question-card', { timeout: 60000 }).catch(() => {});
     await snap(page, 'question-list', vp);
 
     await page.goto('/question-add', { waitUntil: 'domcontentloaded' });
     await snap(page, 'question-add', vp);
 
-    const firstEdit = page.locator('[data-testid="question-list-edit"]').first();
-    if (await firstEdit.isVisible().catch(() => false)) {
-      await firstEdit.click();
-      await page.waitForURL(/question-edit/);
+    await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+    const menuBtn = page.locator('[data-testid^="question-list-row-menu-"]').first();
+    if (await menuBtn.isVisible().catch(() => false)) {
+      await menuBtn.click();
+      const editLink = page.locator('[data-testid="question-list-edit"]').first();
+      await editLink.click();
+      await page.waitForURL(/question-edit/, { timeout: 30000 });
       await snap(page, 'question-edit', vp);
     }
 
     await page.goto('/latex-export', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.export-question-row, .export-question-list', { timeout: 60000 }).catch(() => {});
     await snap(page, 'latex-export', vp);
+
+    await page.goto('/latex-import', { waitUntil: 'domcontentloaded' });
+    await snap(page, 'latex-import', vp);
 
     if (fs.existsSync(kpFixture)) {
       await page.goto('/knowledge-points/import', { waitUntil: 'domcontentloaded' });
       await snap(page, 'kp-import', vp);
       await page.goto('/knowledge-points', { waitUntil: 'domcontentloaded' });
       await snap(page, 'knowledge-points', vp);
+    }
+
+    if (seedMeta?.jobId) {
+      await page.goto(`/knowledge-points/review/${seedMeta.jobId}`, { waitUntil: 'domcontentloaded' });
+      await snap(page, 'kp-tag-review', vp);
     }
 
     await page.goto('/duplicates', { waitUntil: 'domcontentloaded' });
@@ -122,12 +155,16 @@ async function captureAll(page, ctx) {
     await snap(page, 'bank-stats', vp);
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await snap(page, 'admin-forbidden', vp);
+    await page.goto('/this-route-does-not-exist-ui-v2', { waitUntil: 'domcontentloaded' });
+    await snap(page, 'not-found', vp);
   }
 }
 
 test.describe('UI v2 screenshots', () => {
+  test.skip(!process.env.UI_V2_PHASE, 'Set UI_V2_PHASE=before|after to capture screenshots');
+
   test(`capture ${phase}`, async ({ page }) => {
-    test.setTimeout(600000);
+    test.setTimeout(900000);
     fs.mkdirSync(outRoot, { recursive: true });
     const uid = `ui_v2_${Date.now()}`;
     await captureAll(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
