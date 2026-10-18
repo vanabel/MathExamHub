@@ -1,5 +1,5 @@
 const PlatformSettings = require('../models/PlatformSettings');
-const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
+const { DEFAULT_LLM_MODEL, DEFAULT_LLM_TIMEOUT_MS, MAX_LLM_TIMEOUT_MS } = require('./llmProviderResolve');
 
 function toPublicSettings(doc) {
   return {
@@ -7,7 +7,7 @@ function toPublicSettings(doc) {
     llmProvider: doc.llmProvider || 'mock',
     llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
     llmModel: doc.llmModel || DEFAULT_LLM_MODEL,
-    llmTimeoutMs: doc.llmTimeoutMs ?? 12000,
+    llmTimeoutMs: doc.llmTimeoutMs ?? DEFAULT_LLM_TIMEOUT_MS,
     llmPreviewMaxQuestions: doc.llmPreviewMaxQuestions ?? 20,
     llmPreviewConcurrency: doc.llmPreviewConcurrency ?? 3,
     hasApiKey: Boolean(doc.llmApiKey),
@@ -57,7 +57,7 @@ async function updatePlatformSettings(patch) {
     update.llmModel = patch.llmModel.trim();
   }
   if (typeof patch.llmTimeoutMs === 'number' && patch.llmTimeoutMs >= 3000) {
-    update.llmTimeoutMs = Math.min(patch.llmTimeoutMs, 60000);
+    update.llmTimeoutMs = Math.min(patch.llmTimeoutMs, MAX_LLM_TIMEOUT_MS);
   }
   if (typeof patch.llmPreviewMaxQuestions === 'number') {
     update.llmPreviewMaxQuestions = Math.min(Math.max(patch.llmPreviewMaxQuestions, 1), 200);

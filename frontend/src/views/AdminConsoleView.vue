@@ -66,6 +66,10 @@
             <label class="form-label small">LaTeX 预览并发数</label>
             <input v-model.number="settings.llmPreviewConcurrency" type="number" min="1" max="10" class="form-control form-control-sm" />
           </div>
+          <div class="col-md-4">
+            <label class="form-label small">LLM 请求超时（秒，3–300）</label>
+            <input v-model.number="llmTimeoutSec" type="number" min="3" max="300" class="form-control form-control-sm" />
+          </div>
           <div class="col-md-4 d-flex align-items-end">
             <button type="button" class="btn btn-primary btn-sm" :disabled="savingSettings" @click="saveSettings">
               {{ savingSettings ? '保存中…' : '保存 LLM 设置' }}
@@ -146,6 +150,19 @@ export default {
       llmApiKeyInput: '',
       savingSettings: false,
     };
+  },
+  computed: {
+    llmTimeoutSec: {
+      get() {
+        const ms = this.settings.llmTimeoutMs;
+        return ms != null ? Math.round(ms / 1000) : 120;
+      },
+      set(sec) {
+        const n = Number(sec);
+        if (Number.isNaN(n)) return;
+        this.settings.llmTimeoutMs = Math.min(300, Math.max(3, n)) * 1000;
+      },
+    },
   },
   mounted() {
     this.loadAll();

@@ -11,7 +11,7 @@ const { requireBankWrite } = require('../middleware/bankContext');
 const QuestionBank = require('../models/QuestionBank');
 const KnowledgePoint = require('../models/KnowledgePoint');
 const platformSettingsService = require('../services/platformSettingsService');
-const { suggestQuestionMetadata } = require('../services/llmAssistService');
+const { suggestQuestionMetadata, buildQuestionMetadataInput } = require('../services/llmAssistService');
 const { settingsForLlmAssist } = require('../services/llmProviderResolve');
 const { extractImagesFromStem } = require('../utils/questionImages');
 const latexImportLlmHelper = require('../services/latexImportLlmHelper');
@@ -259,12 +259,10 @@ function registerLatexImportRoutes(router, opts = {}) {
               llmAssistApplied += 1;
             } else if (applyLlmAssist) {
               const suggestion = await suggestQuestionMetadata(
-                {
-                  questionText: q.questionText,
-                  type: q.type,
-                  subject: q.subject || '解析几何',
-                  knowledgePoints: kpNodes,
-                },
+                buildQuestionMetadataInput(
+                  { ...q, subject: q.subject || '解析几何' },
+                  kpNodes,
+                ),
                 settingsForLlmAssist(platformSettings),
               );
               if (suggestion) {

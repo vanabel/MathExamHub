@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractImagesFromStem } = require('../utils/questionImages');
+const { extractImagesFromStem, imagesEqualIgnoringIds } = require('../utils/questionImages');
 
 describe('questionImages', () => {
   it('moves img tags from stem into images array', () => {
@@ -10,6 +10,12 @@ describe('questionImages', () => {
     assert.doesNotMatch(cleaned, /<img/i);
     assert.equal(images.length, 1);
     assert.equal(images[0].url, 'fig1.png');
+  });
+
+  it('imagesEqualIgnoringIds ignores Mongo subdocument _id', () => {
+    const normalized = [{ url: 'a.pdf', caption: '', label: '1', width: '' }];
+    const withIds = normalized.map((e) => ({ ...e, _id: '507f1f77bcf86cd799439011' }));
+    assert.equal(imagesEqualIgnoringIds(normalized, withIds), true);
   });
 
   it('is idempotent when images already structured', () => {

@@ -237,7 +237,7 @@ router.post('/llm-relabel-difficulty', requireBankWrite, async (req, res) => {
       query: req.body?.filters || req.query || {},
     });
     const questions = await Question.find(query)
-      .select('_id questionText type subject difficulty totalScore')
+      .select('_id questionText type subject difficulty totalScore correctAnswer solution options')
       .lean();
     const platformSettings = await platformSettingsService.getPlatformSettings();
     const suggestions = await buildRelabelSuggestionsForQuestions(

@@ -1,6 +1,62 @@
 const { normalizeDifficulty, DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { chatCompletionJson } = require('./llmChatClient');
-const { DEFAULT_LLM_MODEL } = require('./llmProviderResolve');
+const { DEFAULT_LLM_MODEL, DEFAULT_LLM_TIMEOUT_MS } = require('./llmProviderResolve');
+const { sumStepScoresForQuestion } = require('../utils/stepScoreUtils');
+
+const ANSWER_SOLUTION_MAX_CHARS = 3000;
+const STEM_MAX_CHARS = 4000;
+
+function truncateText(value, max) {
+  const s = String(value ?? '');
+  if (s.length <= max) return s;
+  return `${s.slice(0, max)}…`;
+}
+
+function formatAnswerAndSolution(input) {
+  const parts = [];
+  if (input.correctAnswer != null && input.correctAnswer !== '') {
+    const ca = Array.isArray(input.correctAnswer)
+      ? input.correctAnswer.join('\n')
+      : String(input.correctAnswer);
+    parts.push(`参考答案：\n${ca}`);
+  }
+  if (input.solution) {
+    parts.push(`解答过程：\n${String(input.solution)}`);
+  }
+  return truncateText(parts.join('\n\n'), ANSWER_SOLUTION_MAX_CHARS);
+}
+
+function buildQuestionMetadataInput(question, knowledgePoints) {
+  const q = question || {};
+  const stepInfo = sumStepScoresForQuestion(q);
+  return {
+    questionText: q.questionText,
+    type: q.type,
+    subject: q.subject,
+    options: q.options,
+    totalScore: q.totalScore,
+    stepScoreSum: stepInfo.sum,
+    stepScores: stepInfo.scores,
+    correctAnswer: q.correctAnswer,
+    solution: q.solution,
+    knowledgePoints,
+  };
+}
+
+function buildLlmUserPayload(input) {
+  const kpCatalog = buildKpCatalog(input.knowledgePoints);
+  return {
+    questionText: truncateText(input.questionText, STEM_MAX_CHARS),
+    type: input.type,
+    subject: input.subject,
+    options: input.options ?? null,
+    totalScore: input.totalScore ?? null,
+    stepScoreSum: input.stepScoreSum ?? null,
+    stepScores: input.stepScores?.length ? input.stepScores : null,
+    answerAndSolution: formatAnswerAndSolution(input),
+    knowledgePointCatalog: kpCatalog,
+  };
+}
 
 async function suggestQuestionMetadata(input, settings) {
   const provider = settings?.llmProvider || 'mock';
@@ -62,29 +118,28 @@ async function suggestWithChatApi(input, settings) {
   }
   const kpCatalog = buildKpCatalog(input.knowledgePoints);
   const system = [
-    '你是数学题库助教。根据题干与题型，从给定知识点目录中选择 0–2 个最相关节点，并给出难度（易/中/难）。',
+    '你是数学题库助教。请综合题干、参考答案/解答过程、分值（含分步 \\score 小分）、题型与选项，',
+    '从给定知识点目录中选择 0–2 个最相关节点，并评估难度（易/中/难），给出简短理由。',
     '只输出 JSON 对象：{"difficulty":"易|中|难","knowledgePointIds":["id",...],"rationale":"简短理由"}',
     'knowledgePointIds 必须来自目录中的 id，若无合适节点则返回空数组。',
   ].join('\n');
-  const user = JSON.stringify({
-    questionText: String(input.questionText || '').slice(0, 4000),
-    type: input.type,
-    subject: input.subject,
-    knowledgePointCatalog: kpCatalog,
-  });
+  const user = JSON.stringify(buildLlmUserPayload(input));
   const raw = await chatCompletionJson({
     baseUrl,
     apiKey,
     model,
     system,
     user,
-    timeoutMs: settings.llmTimeoutMs || 12000,
+    timeoutMs: settings.llmTimeoutMs || DEFAULT_LLM_TIMEOUT_MS,
   });
   return validateSuggestion(raw, kpCatalog);
 }
 
 function suggestWithHeuristic(input) {
-  const text = String(input.questionText || '');
+  const text = [
+    String(input.questionText || ''),
+    formatAnswerAndSolution(input),
+  ].join('\n');
   let difficulty = '中';
   if (/证明|推导/.test(text)) difficulty = '难';
   if (/判断|是否/.test(text)) difficulty = '易';
@@ -108,4 +163,7 @@ module.exports = {
   suggestQuestionMetadata,
   validateSuggestion,
   buildKpCatalog,
+  buildQuestionMetadataInput,
+  buildLlmUserPayload,
+  formatAnswerAndSolution,
 };

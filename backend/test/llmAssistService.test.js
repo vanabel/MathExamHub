@@ -1,6 +1,34 @@
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { suggestQuestionMetadata, validateSuggestion } = require('../services/llmAssistService');
+const {
+  suggestQuestionMetadata,
+  validateSuggestion,
+  buildLlmUserPayload,
+  buildQuestionMetadataInput,
+} = require('../services/llmAssistService');
+
+describe('llmAssistService payload', () => {
+  it('includes answer, solution, scores, and options in LLM user JSON', () => {
+    const input = buildQuestionMetadataInput(
+      {
+        questionText: '求极限',
+        type: '解答题',
+        subject: '高数',
+        totalScore: 10,
+        correctAnswer: '42',
+        solution: '因为 \\score{5} 所以 \\score{5}',
+        options: { A: '1', B: '2' },
+      },
+      [{ _id: 'kp1', path: '极限' }],
+    );
+    const payload = buildLlmUserPayload(input);
+    assert.match(payload.answerAndSolution, /参考答案/);
+    assert.match(payload.answerAndSolution, /解答过程/);
+    assert.equal(payload.totalScore, 10);
+    assert.deepEqual(payload.stepScores, [5, 5]);
+    assert.equal(payload.options.A, '1');
+  });
+});
 
 describe('llmAssistService mock', () => {
   it('suggests difficulty and kp id', async () => {
