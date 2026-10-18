@@ -36,12 +36,12 @@
                 <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
               </ul>
             </div>
+            <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
+              知识图谱
+            </kp-graph-nav-link>
             <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
-            <kp-graph-nav-link link-class="btn btn-outline-primary btn-sm">
-              知识图谱
-            </kp-graph-nav-link>
           </div>
         </div>
 
@@ -65,7 +65,7 @@
           </div>
           <select
             v-model="subjectFilter"
-            class="form-select form-select-sm filter-control filter-toolbar__subject"
+            class="form-select form-select-sm filter-control filter-toolbar__select filter-toolbar__subject"
             data-testid="question-list-subject"
             @change="onFilterChange"
           >
@@ -76,7 +76,7 @@
           </select>
           <select
             v-model="typeFilter"
-            class="form-select form-select-sm filter-control"
+            class="form-select form-select-sm filter-control filter-toolbar__select"
             data-testid="question-list-type"
             @change="onFilterChange"
           >
@@ -87,7 +87,7 @@
           </select>
           <select
             v-model="difficultyFilter"
-            class="form-select form-select-sm filter-control"
+            class="form-select form-select-sm filter-control filter-toolbar__select"
             data-testid="question-list-difficulty"
             @change="onFilterChange"
           >
@@ -96,30 +96,31 @@
               {{ d }}{{ facetSuffix('difficulty', d) }}
             </option>
           </select>
-          <div class="filter-toolbar__score filter-control d-flex gap-1 align-items-center">
+          <div class="filter-toolbar__score input-group input-group-sm filter-control">
+            <span class="input-group-text">分值</span>
             <input
               v-model="minScoreFilter"
               type="number"
               min="0"
-              class="form-control form-control-sm"
-              placeholder="分值≥"
+              class="form-control form-control-sm filter-toolbar__score-input"
+              placeholder="最小"
               data-testid="question-list-min-score"
               @change="onScoreFilterChange"
             />
-            <span class="text-muted small">–</span>
+            <span class="input-group-text px-1">–</span>
             <input
               v-model="maxScoreFilter"
               type="number"
               min="0"
-              class="form-control form-control-sm"
-              placeholder="≤"
+              class="form-control form-control-sm filter-toolbar__score-input"
+              placeholder="最大"
               data-testid="question-list-max-score"
               @change="onScoreFilterChange"
             />
           </div>
           <select
             v-model="kpFilter"
-            class="form-select form-select-sm filter-control filter-toolbar__kp"
+            class="form-select form-select-sm filter-control filter-toolbar__select filter-toolbar__kp"
             data-testid="question-list-kp"
             @change="onFilterChange"
           >
@@ -904,39 +905,70 @@ export default {
 .filter-toolbar {
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: stretch;
+  align-items: center;
   background: #f8f9fa;
   border-radius: 10px;
   padding: 0.65rem 0.75rem;
 }
 
 .filter-toolbar__search {
-  flex: 1 1 180px;
-  min-width: 140px;
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+
+.filter-toolbar__select {
+  flex: 0 0 auto;
+  width: 130px;
+  max-width: 130px;
 }
 
 .filter-toolbar__subject {
-  flex: 0 1 130px;
-  min-width: 110px;
+  width: 130px;
+  max-width: 130px;
 }
 
 .filter-toolbar__kp {
-  flex: 1 1 200px;
-  min-width: 160px;
-  max-width: 320px;
+  width: 200px;
+  max-width: 200px;
 }
 
 .filter-toolbar__score {
-  flex: 0 1 140px;
+  flex: 0 0 auto;
+  width: 180px;
+  max-width: 180px;
 }
 
-.filter-control {
-  height: 38px;
+.filter-toolbar__score-input {
+  min-width: 0;
+  flex: 1 1 60px;
 }
 
-.filter-control.form-select,
-.filter-control .form-control {
-  height: 38px;
+.filter-toolbar__score input[type="number"]::-webkit-outer-spin-button,
+.filter-toolbar__score input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.filter-toolbar__score input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.filter-control .input-group-text {
+  font-size: 0.8125rem;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+}
+
+.filter-toolbar .form-select-sm,
+.filter-toolbar .filter-control .form-control-sm {
+  line-height: 1.5;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.filter-toolbar .form-select-sm {
+  width: 100%;
 }
 
 .filter-chip {
@@ -957,7 +989,13 @@ export default {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
-@media (max-width: 768px) {
+@media (min-width: 768px) {
+  .filter-toolbar__search {
+    flex: 1 1 220px;
+  }
+}
+
+@media (max-width: 767.98px) {
   .question-list-container {
     padding: 1rem 0;
   }
@@ -968,9 +1006,14 @@ export default {
 
   .filter-toolbar.d-flex {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .filter-toolbar__kp {
+  .filter-toolbar__search,
+  .filter-toolbar__select,
+  .filter-toolbar__kp,
+  .filter-toolbar__score {
+    width: 100%;
     max-width: none;
   }
 }
