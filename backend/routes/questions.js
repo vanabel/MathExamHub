@@ -22,6 +22,18 @@ const { assessQuestionQuality } = require('../utils/questionQuality');
 const { extractImagesFromStem } = require('../utils/questionImages');
 const platformSettingsService = require('../services/platformSettingsService');
 const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelService');
+const {
+  buildKpTagSuggestionsForQuestions,
+  applyKpTagUpdates,
+  parseTaggingOptions,
+  loadQuestionsForKpTag,
+} = require('../services/llmKpTagService');
+const {
+  startKpTagJob,
+  getKpTagJob,
+  updateKpTagJobReview,
+  applyKpTagJob,
+} = require('../services/kpTagJobService');
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 
@@ -227,6 +239,133 @@ router.get('/quality/export.csv', requireBankWrite, async (req, res) => {
   } catch (error) {
     console.error('quality CSV export failed', error);
     res.status(500).json({ error: '导出失败' });
+  }
+});
+
+router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
+  try {
+    const dryRun = req.body?.apply !== true && req.query.apply !== 'true';
+    const replace = req.body?.replace === true || req.query.replace === 'true';
+    const concurrency = req.body?.concurrency ?? req.query.concurrency;
+    const tagOpts = parseTaggingOptions(req.body || {});
+    const subject = req.body?.subject ? String(req.body.subject).trim() : undefined;
+
+    const questions = await loadQuestionsForKpTag(req.bankId, req.body, req.query);
+
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const suggestions = await buildKpTagSuggestionsForQuestions(
+      questions,
+      req.bankId,
+      platformSettings,
+      {
+        concurrency,
+        subject,
+        maxKpsPerQuestion: tagOpts.maxKpsPerQuestion,
+        extraMinConfidence: tagOpts.extraMinConfidence,
+      },
+    );
+    const wouldAdd = suggestions.filter((s) => s.wouldAddKnowledgePointIds?.length);
+
+    if (!dryRun) {
+      const updates = (req.body?.updates?.length ? req.body.updates : suggestions)
+        .filter((row) => row.rejected !== true)
+        .map((row) => ({
+          questionId: row.questionId,
+          knowledgePointIds: row.acceptedKnowledgePointIds
+            ?? row.knowledgePointIds
+            ?? row.applyKnowledgePointIds
+            ?? row.wouldAddKnowledgePointIds
+            ?? row.suggestedKnowledgePointIds,
+          suggestionMeta: row.acceptedSuggestions ?? row.suggestions,
+        }));
+      const { modified } = await applyKpTagUpdates(req.bankId, updates, { replace });
+      return res.json({
+        dryRun: false,
+        total: suggestions.length,
+        wouldAdd: wouldAdd.length,
+        modified,
+        suggestions,
+        options: tagOpts,
+      });
+    }
+
+    res.json({
+      dryRun: true,
+      total: suggestions.length,
+      wouldAdd: wouldAdd.length,
+      suggestions,
+      options: tagOpts,
+    });
+  } catch (error) {
+    console.error('llm-tag-knowledge-points failed', error);
+    res.status(500).json({ error: '知识点 LLM 建议失败' });
+  }
+});
+
+router.post('/llm-apply-knowledge-points', requireBankWrite, async (req, res) => {
+  try {
+    const replace = req.body?.replace === true;
+    const updates = req.body?.updates;
+    if (!Array.isArray(updates) || !updates.length) {
+      return res.status(400).json({ error: 'updates 数组必填' });
+    }
+    const normalized = updates.map((row) => ({
+      questionId: row.questionId,
+      knowledgePointIds: row.acceptedKnowledgePointIds ?? row.knowledgePointIds,
+      knowledgePointLinks: row.knowledgePointLinks,
+      suggestionMeta: row.acceptedSuggestions ?? row.suggestions,
+      source: row.source || 'llm',
+    }));
+    const { modified } = await applyKpTagUpdates(req.bankId, normalized, { replace });
+    res.json({ modified, replace });
+  } catch (error) {
+    console.error('llm-apply-knowledge-points failed', error);
+    res.status(500).json({ error: '应用知识点失败' });
+  }
+});
+
+router.post('/kp-tag-jobs', requireBankWrite, async (req, res) => {
+  try {
+    const job = await startKpTagJob(req.bankId, req.user?.username, {
+      subject: req.body?.subject,
+      maxKpsPerQuestion: req.body?.maxKpsPerQuestion,
+      extraMinConfidence: req.body?.extraMinConfidence,
+      concurrency: req.body?.concurrency,
+    });
+    res.status(202).json({ jobId: job._id, status: job.status, total: job.total });
+  } catch (error) {
+    console.error('kp-tag-jobs start failed', error);
+    res.status(500).json({ error: error.message || '启动打标任务失败' });
+  }
+});
+
+router.get('/kp-tag-jobs/:jobId', requireBankWrite, async (req, res) => {
+  try {
+    const job = await getKpTagJob(req.bankId, req.params.jobId);
+    if (!job) return res.status(404).json({ error: '任务不存在' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: '读取任务失败' });
+  }
+});
+
+router.patch('/kp-tag-jobs/:jobId/review', requireBankWrite, async (req, res) => {
+  try {
+    const job = await updateKpTagJobReview(req.bankId, req.params.jobId, req.body?.rows);
+    if (!job) return res.status(404).json({ error: '任务不存在' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: '更新审核状态失败' });
+  }
+});
+
+router.post('/kp-tag-jobs/:jobId/apply', requireBankWrite, async (req, res) => {
+  try {
+    const result = await applyKpTagJob(req.bankId, req.params.jobId, req.user?.username);
+    res.json(result);
+  } catch (error) {
+    console.error('kp-tag-jobs apply failed', error);
+    res.status(500).json({ error: '写入知识点失败' });
   }
 });
 

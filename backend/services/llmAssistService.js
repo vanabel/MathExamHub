@@ -84,10 +84,42 @@ async function suggestQuestionMetadata(input, settings) {
 }
 
 function buildKpCatalog(knowledgePoints) {
-  return (knowledgePoints || []).map((k) => ({
-    id: String(k._id),
-    path: k.path || k.name || '',
-  }));
+  const rows = (knowledgePoints || []).map((k) => {
+    const path = k.path || k.name || '';
+    const depth = path.replace(/^\//, '').split('/').filter(Boolean).length;
+    return {
+      id: String(k._id),
+      path,
+      depth,
+      objective: k.objective ? truncateText(k.objective, 300) : undefined,
+      description: k.description ? truncateText(k.description, 300) : undefined,
+      tags: (k.tags && k.tags.length) ? k.tags : undefined,
+      cognitiveLevel: k.cognitiveLevel || undefined,
+      category: k.category || undefined,
+    };
+  });
+  for (const r of rows) {
+    const prefix = r.path.endsWith('/') ? r.path : `${r.path}/`;
+    r.isLeaf = !rows.some((o) => o.path !== r.path && o.path.startsWith(prefix));
+  }
+  return rows;
+}
+
+function filterLeafKnowledgePoints(knowledgePoints) {
+  const catalog = buildKpCatalog(knowledgePoints);
+  const leafIds = new Set(catalog.filter((c) => c.isLeaf).map((c) => c.id));
+  return (knowledgePoints || []).filter((k) => leafIds.has(String(k._id)));
+}
+
+function buildCompactLeafKpCatalog(knowledgePoints) {
+  return buildKpCatalog(knowledgePoints)
+    .filter((c) => c.isLeaf)
+    .map((c) => ({
+      id: c.id,
+      path: c.path,
+      objective: c.objective,
+      description: c.description,
+    }));
 }
 
 function validateSuggestion(raw, kpCatalog) {
@@ -163,6 +195,8 @@ module.exports = {
   suggestQuestionMetadata,
   validateSuggestion,
   buildKpCatalog,
+  buildCompactLeafKpCatalog,
+  filterLeafKnowledgePoints,
   buildQuestionMetadataInput,
   buildLlmUserPayload,
   formatAnswerAndSolution,

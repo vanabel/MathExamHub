@@ -39,6 +39,9 @@
             <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
               <i class="bi bi-plus-lg"></i> 添加题目
             </router-link>
+            <router-link to="/knowledge-points/import" class="btn btn-outline-primary btn-sm">
+              知识图谱
+            </router-link>
           </div>
         </div>
 

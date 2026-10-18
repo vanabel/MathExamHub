@@ -80,7 +80,7 @@
                 <li>
                   <router-link
                     class="dropdown-item"
-                    :class="{ active: $route.name === 'knowledge-points' }"
+                    :class="{ active: $route.name === 'knowledge-points' || $route.name === 'knowledge-points-import' }"
                     to="/knowledge-points"
                   >
                     <i class="bi bi-diagram-3"></i> 知识点

@@ -59,6 +59,20 @@ const questionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'KnowledgePoint',
   }],
+  knowledgePointLinks: [{
+    knowledgePointId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'KnowledgePoint',
+      required: true,
+    },
+    source: {
+      type: String,
+      enum: ['llm', 'manual'],
+      default: 'manual',
+    },
+    confidence: { type: Number, min: 0, max: 1 },
+    reviewedBy: { type: String, trim: true, default: '' },
+  }],
   contentHash: {
     type: String,
     sparse: true,
@@ -101,6 +115,21 @@ questionSchema.pre('validate', function normalizeFields(next) {
   const hash = computeContentHash(this);
   if (hash) {
     this.contentHash = hash;
+  }
+  const {
+    syncKnowledgePointIdsFromLinks,
+    reconcileLinksFromIds,
+  } = require('../utils/knowledgePointLinks');
+  if (this.knowledgePointLinks?.length) {
+    this.knowledgePointIds = syncKnowledgePointIdsFromLinks(this.knowledgePointLinks);
+  } else if (this.knowledgePointIds?.length) {
+    this.knowledgePointLinks = reconcileLinksFromIds(
+      this.knowledgePointLinks,
+      this.knowledgePointIds,
+    );
+  } else {
+    this.knowledgePointLinks = [];
+    this.knowledgePointIds = [];
   }
   this.updatedAt = new Date();
   next();
