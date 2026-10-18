@@ -272,8 +272,12 @@
                   id="examDate"
                   type="date"
                   class="form-control"
+                  data-testid="latex-export-exam-date"
                 />
-                <small class="text-muted">导出为 mathexam <code>\examdate</code>，用于试卷头学年（9 月 1 日起算）</small>
+                <small class="text-muted d-block">
+                  导出 <code>\examdate</code>；学年按 <strong>9 月 1 日</strong>起算
+                  <span v-if="exportSuggestedAcademicYear">（→ {{ exportSuggestedAcademicYear }}）</span>
+                </small>
               </div>
 
               <div class="mb-3">
@@ -284,7 +288,7 @@
                       v-model="metadata.academicYearStart"
                       type="number"
                       class="form-control"
-                      placeholder="起始年 2026"
+                      placeholder="留空=自动"
                       min="1900"
                       max="2100"
                     />
@@ -294,13 +298,14 @@
                       v-model="metadata.academicYearEnd"
                       type="number"
                       class="form-control"
-                      placeholder="结束年 2027"
+                      placeholder="留空=自动"
                       min="1900"
                       max="2100"
                     />
                   </div>
                 </div>
-                <small class="text-muted">两者都填时导出 <code>\academicyear</code>，优先于自动推算</small>
+                <p v-if="exportAcademicYearError" class="small text-danger mb-0 mt-1">{{ exportAcademicYearError }}</p>
+                <small v-else class="text-muted">都留空则仅按考试日期自动推算；都填写时导出 <code>\academicyear</code></small>
               </div>
 
               <div class="mb-3">
@@ -381,6 +386,15 @@
                 </div>
               </div>
 
+              <div
+                v-if="exportStatusMessage"
+                class="alert py-2 small mb-2"
+                :class="exportStatusError ? 'alert-danger' : 'alert-success'"
+                role="status"
+                data-testid="latex-export-status"
+              >
+                {{ exportStatusMessage }}
+              </div>
               <button
                 type="button"
                 class="btn btn-primary w-100"
@@ -555,6 +569,10 @@ import { processQuestionText, processAnswerText, processQuestionTextToHTML } fro
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock } from "../utils/questionAnswerDisplay";
+import {
+  normalizeAcademicYearOverride,
+  suggestedAcademicYearLabel,
+} from "../utils/latexExamDateForm";
 
 export default {
   name: "LatexExport",
@@ -632,9 +650,20 @@ export default {
         answerSheetSubjectiveRowHeight: '6em',
         packageOptions: ["nospace"],
       },
+      exportStatusMessage: '',
+      exportStatusError: false,
     };
   },
   computed: {
+    exportSuggestedAcademicYear() {
+      return suggestedAcademicYearLabel(this.metadata.examDate);
+    },
+    exportAcademicYearError() {
+      return normalizeAcademicYearOverride(
+        this.metadata.academicYearStart,
+        this.metadata.academicYearEnd,
+      ).error;
+    },
     selectedQuestions() {
       // 防御性检查：确保 questions 是数组
       if (!Array.isArray(this.questions)) {
@@ -1298,8 +1327,21 @@ export default {
         alert("请至少选择一道题目");
         return;
       }
+      const yearNorm = normalizeAcademicYearOverride(
+        this.metadata.academicYearStart,
+        this.metadata.academicYearEnd,
+      );
+      if (yearNorm.error) {
+        this.exportStatusError = true;
+        this.exportStatusMessage = yearNorm.error;
+        return;
+      }
+      this.metadata.academicYearStart = yearNorm.academicYearStart;
+      this.metadata.academicYearEnd = yearNorm.academicYearEnd;
 
       this.exporting = true;
+      this.exportStatusMessage = '';
+      this.exportStatusError = false;
 
       try {
         // 如果需要按类型排序，使用排序后的题目ID
@@ -1355,10 +1397,12 @@ export default {
         link.remove();
         window.URL.revokeObjectURL(url);
 
-        alert("导出成功！");
+        this.exportStatusError = false;
+        this.exportStatusMessage = `已下载 ${filename}，ZIP 内含 mathexam.sty 与试卷 .tex。`;
       } catch (error) {
         console.error("导出失败:", error);
-        alert("导出失败，请稍后重试");
+        this.exportStatusError = true;
+        this.exportStatusMessage = error.response?.data?.error || '导出失败，请稍后重试';
       } finally {
         this.exporting = false;
       }

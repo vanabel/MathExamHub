@@ -81,6 +81,12 @@ test.describe('question list pagination and filters', () => {
     await page.getByTestId('question-list-clear-filters').click();
     await expect(page).not.toHaveURL(/difficulty=/);
     await expect(page.getByTestId('question-list-filter-chips')).not.toBeVisible();
+
+    await page.getByTestId('question-list-min-score').fill('9999');
+    await page.getByTestId('question-list-min-score').press('Tab');
+    await expect(page.getByTestId('question-list-filter-empty')).toBeVisible({ timeout: 15000 });
+    await page.getByTestId('question-list-clear-filters-empty').click();
+    await expect(page.getByTestId('question-list-filter-empty')).not.toBeVisible();
   });
 
   for (const width of [1024, 1280]) {

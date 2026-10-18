@@ -88,29 +88,64 @@
                     </div>
                     <div class="col-md-6">
                       <label class="form-label">考试日期</label>
-                      <input v-model="form.examDate" type="date" class="form-control form-control-sm" />
-                    </div>
-                    <div class="col-md-3">
-                      <label class="form-label">学年起</label>
                       <input
-                        v-model="form.academicYearStart"
-                        type="number"
+                        v-model="form.examDate"
+                        type="date"
                         class="form-control form-control-sm"
-                        placeholder="2026"
-                        min="1900"
-                        max="2100"
+                        data-testid="bank-header-exam-date"
                       />
+                      <p class="small text-muted mb-0 mt-1">
+                        用于导出 <code>\examdate</code>；试卷头学年按<strong>9 月 1 日</strong>起算
+                        <span v-if="suggestedAcademicYear">（当前日期 → {{ suggestedAcademicYear }}）</span>
+                      </p>
                     </div>
-                    <div class="col-md-3">
-                      <label class="form-label">学年止</label>
-                      <input
-                        v-model="form.academicYearEnd"
-                        type="number"
-                        class="form-control form-control-sm"
-                        placeholder="2027"
-                        min="1900"
-                        max="2100"
-                      />
+                    <div class="col-12">
+                      <div class="border rounded p-2 bg-light-subtle">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                          <span class="small fw-semibold">学年覆盖（可选）</span>
+                          <button
+                            type="button"
+                            class="btn btn-link btn-sm p-0"
+                            data-testid="bank-header-clear-academic-year"
+                            :disabled="!form.academicYearStart && !form.academicYearEnd"
+                            @click="clearAcademicYearOverride"
+                          >
+                            使用自动学年
+                          </button>
+                        </div>
+                        <div class="row g-2">
+                          <div class="col-md-3">
+                            <label class="form-label small mb-0">学年起</label>
+                            <input
+                              v-model="form.academicYearStart"
+                              type="number"
+                              class="form-control form-control-sm"
+                              placeholder="留空=自动"
+                              min="1900"
+                              max="2100"
+                              data-testid="bank-header-academic-year-start"
+                            />
+                          </div>
+                          <div class="col-md-3">
+                            <label class="form-label small mb-0">学年止</label>
+                            <input
+                              v-model="form.academicYearEnd"
+                              type="number"
+                              class="form-control form-control-sm"
+                              placeholder="留空=自动"
+                              min="1900"
+                              max="2100"
+                              data-testid="bank-header-academic-year-end"
+                            />
+                          </div>
+                        </div>
+                        <p v-if="academicYearError" class="small text-danger mb-0 mt-2" data-testid="bank-header-year-error">
+                          {{ academicYearError }}
+                        </p>
+                        <p v-else class="small text-muted mb-0 mt-2">
+                          两者都留空时导出仅写 <code>\examdate</code>，由 mathexam 按考试日期推算学年；填写则导出 <code>\academicyear</code> 并优先显示。
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -197,6 +232,10 @@ import {
   buildExamHeaderPreamblePreview,
   PACKAGE_SUGGESTIONS,
 } from '../utils/examHeaderPreview';
+import {
+  normalizeAcademicYearOverride,
+  suggestedAcademicYearLabel,
+} from '../utils/latexExamDateForm';
 
 const FIELD_KEYS = [
   'university', 'school', 'course', 'AorB', 'finalmiddle', 'totaltime',
@@ -222,9 +261,13 @@ export default {
       aorBOptions: ['A', 'B'],
       opencloseOptions: ['闭卷', '开卷', '半开卷'],
       packageSuggestions: PACKAGE_SUGGESTIONS,
+      academicYearError: '',
     };
   },
   computed: {
+    suggestedAcademicYear() {
+      return suggestedAcademicYearLabel(this.form.examDate);
+    },
     previewMeta() {
       const packageOptions = this.packageOptionsText
         .split(',')
@@ -250,6 +293,11 @@ export default {
       const f = {};
       FIELD_KEYS.forEach((key) => { f[key] = ''; });
       return f;
+    },
+    clearAcademicYearOverride() {
+      this.form.academicYearStart = '';
+      this.form.academicYearEnd = '';
+      this.academicYearError = '';
     },
     togglePackageTag(tag) {
       const set = new Set(this.packageTags);
@@ -279,13 +327,25 @@ export default {
       this.showModal = false;
     },
     async save() {
+      const yearNorm = normalizeAcademicYearOverride(
+        this.form.academicYearStart,
+        this.form.academicYearEnd,
+      );
+      this.academicYearError = yearNorm.error || '';
+      if (yearNorm.error) return;
+
       this.saving = true;
       try {
         const packageOptions = this.packageOptionsText
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
-        const payload = { ...this.form, packageOptions };
+        const payload = {
+          ...this.form,
+          academicYearStart: yearNorm.academicYearStart,
+          academicYearEnd: yearNorm.academicYearEnd,
+          packageOptions,
+        };
         const { data } = await axios.patch(`/banks/${this.bankId}/latex-metadata`, payload);
         sessionStorage.setItem('latexExportDefaults', JSON.stringify(data.latexExamMetadata || {}));
         this.closeModal();

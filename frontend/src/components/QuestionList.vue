@@ -176,15 +176,33 @@
       </div>
 
       <!-- 加载状态 -->
-      <div v-if="loading" class="text-center py-5">
+      <div v-if="loading" class="text-center py-5" data-testid="question-list-loading">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">加载中...</span>
         </div>
+        <p class="text-muted small mt-2 mb-0">正在加载题目…</p>
       </div>
 
       <!-- 搜索结果提示 -->
-      <div v-if="searchQuery && questions.length === 0 && !loading" class="alert alert-info">
+      <div
+        v-if="searchQuery && questions.length === 0 && !loading"
+        class="alert alert-info"
+        data-testid="question-list-search-empty"
+      >
         <i class="bi bi-info-circle"></i> 未找到匹配的题目，请尝试其他关键词
+        <button type="button" class="btn btn-link btn-sm p-0 ms-2" @click="clearFilters">清除筛选</button>
+      </div>
+
+      <div
+        v-if="!loading && questions.length === 0 && !searchQuery && hasActiveFilters"
+        class="alert alert-secondary text-center py-4"
+        data-testid="question-list-filter-empty"
+      >
+        <i class="bi bi-funnel display-6 d-block mb-2 text-muted"></i>
+        <p class="mb-2">当前筛选条件下没有题目</p>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-testid="question-list-clear-filters-empty" @click="clearFilters">
+          清除全部筛选
+        </button>
       </div>
 
       <div
@@ -320,8 +338,12 @@
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <div v-else class="empty-state text-center py-5">
+      <!-- 空状态（无筛选、题库为空） -->
+      <div
+        v-else-if="!loading && questions.length === 0 && !searchQuery && !hasActiveFilters"
+        class="empty-state text-center py-5"
+        data-testid="question-list-empty-bank"
+      >
         <i class="bi bi-inbox display-1 text-muted"></i>
         <p class="text-muted mt-3">暂无题目，点击上方"添加题目"开始创建</p>
       </div>
@@ -427,6 +449,9 @@ export default {
         }
       }
       return chips;
+    },
+    hasActiveFilters() {
+      return this.activeFilterChips.length > 0;
     },
   },
   mounted() {

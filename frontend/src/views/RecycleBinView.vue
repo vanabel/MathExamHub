@@ -4,7 +4,10 @@
     <p class="text-muted">当前题库内已软删除的题目。可恢复或永久删除（需编辑权限）。</p>
 
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
-    <div v-if="loading" class="text-muted">加载中…</div>
+    <div v-if="loading" class="text-center py-4" data-testid="recycle-bin-loading">
+      <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+      <span class="text-muted ms-2">加载中…</span>
+    </div>
 
     <table v-if="!loading && items.length" class="table table-sm align-middle">
       <thead>
@@ -41,7 +44,10 @@
         </tr>
       </tbody>
     </table>
-    <p v-if="!loading && !items.length" class="text-muted">回收站为空。</p>
+    <div v-if="!loading && !items.length" class="text-center py-5 text-muted" data-testid="recycle-bin-empty">
+      <i class="bi bi-trash3 display-6 d-block mb-2"></i>
+      回收站为空
+    </div>
   </div>
 </template>
 
@@ -76,6 +82,7 @@ export default {
       }
     },
     async restore(id) {
+      if (!window.confirm('确定将该题目恢复到题库？')) return;
       try {
         await axios.post(`/questions/recycle-bin/${id}/restore`);
         await this.load();

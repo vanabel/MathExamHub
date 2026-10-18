@@ -38,6 +38,9 @@
           </label>
         </div>
 
+        <div v-if="sessionExpiredHint" class="alert alert-warning" role="status" data-testid="login-session-expired">
+          <i class="bi bi-clock-history"></i> 登录已过期，请重新登录后继续操作。
+        </div>
         <div v-if="errorMessage" class="alert alert-danger" role="alert">
           <i class="bi bi-exclamation-triangle"></i> {{ errorMessage }}
         </div>
@@ -66,9 +69,18 @@
 
 <script>
 import axios from "axios";
+import { sanitizeRedirectPath } from "../utils/authRedirect";
 
 export default {
   name: "UserLogin",
+  computed: {
+    sessionExpiredHint() {
+      return Boolean(this.$route.query.redirect);
+    },
+    redirectAfterLogin() {
+      return sanitizeRedirectPath(this.$route.query.redirect);
+    },
+  },
   data() {
     return {
       username: "",
@@ -101,7 +113,11 @@ export default {
         this.successMessage = "登录成功，正在跳转...";
         
         setTimeout(() => {
-          this.$router.push({ name: "question-list" });
+          if (this.redirectAfterLogin) {
+            this.$router.push(this.redirectAfterLogin);
+          } else {
+            this.$router.push({ name: "question-list" });
+          }
         }, 500);
       } catch (error) {
         console.error("登录失败:", error);

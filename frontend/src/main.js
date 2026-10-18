@@ -6,6 +6,7 @@ import App from "./App.vue";
 import VueMathjaxNext from "vue-mathjax-next";
 import axios from "axios"; // 导入 axios
 import router from "./router"; // 导入路由配置
+import { loginUrlWithRedirect } from "./utils/authRedirect";
 const isProduction = process.env.NODE_ENV === 'production';
 axios.defaults.baseURL =
   process.env.VUE_APP_API_BASE_URL ||
@@ -26,8 +27,9 @@ axios.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('currentUser');
       localStorage.removeItem('currentBankId');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      const path = `${window.location.pathname}${window.location.search}`;
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = loginUrlWithRedirect(path);
       }
     }
     return Promise.reject(error);
