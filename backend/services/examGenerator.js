@@ -196,6 +196,35 @@ function tryGenerateOnce(workBlueprint, pool, kpExpansionMap, random) {
   };
 }
 
+/**
+ * Compare original blueprint section counts to what was actually filled after relaxations.
+ */
+function buildCountShortfalls(originalBlueprint, attempt) {
+  const shortfalls = [];
+  const sections = originalBlueprint.sections || [];
+  for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+    const orig = sections[sectionIndex];
+    const result = attempt.sectionResults?.[sectionIndex];
+    const actualCount = result?.actualCount ?? result?.questionIds?.length ?? 0;
+    const wantedCount = orig.count;
+    if (wantedCount > actualCount) {
+      for (let slot = actualCount; slot < wantedCount; slot += 1) {
+        shortfalls.push({
+          sectionIndex,
+          sectionType: orig.type,
+          slot,
+          reasonCode: 'section_count_shortfall',
+          wantedCount,
+          actualCount,
+          message: `第 ${sectionIndex + 1} 大题（${orig.type}）第 ${slot + 1} 槽：题库不足（蓝图要求 ${wantedCount} 题，仅抽到 ${actualCount} 题）`,
+          suggestion: `将「${orig.type}」题量改为 ${actualCount}，或补充题库`,
+        });
+      }
+    }
+  }
+  return shortfalls;
+}
+
 function computeStats(questions, requestedTotalScore) {
   const byType = {};
   const byDifficulty = { 易: 0, 中: 0, 难: 0 };
@@ -357,23 +386,26 @@ function generateExamPaper(blueprint, pool, kpExpansionMap, options = {}) {
         delta,
       };
       const gapMsg = `实际总分 ${attempt.stats.totalScore} 与目标 ${requestedTotal} 相差 ${delta.toFixed(2)}`;
+      const countShortfalls = buildCountShortfalls(blueprint, attempt);
       if (!allowScoreGap) {
         warnings.push(gapMsg);
         return {
           success: false,
           scoreGapRequiresConfirm: true,
-          scoreGap,
+          scoreGap: { ...scoreGap, countShortfalls },
           questionIds: attempt.questionIds,
           sections: attempt.sectionResults,
           stats: attempt.stats,
           relaxations,
           warnings,
-          shortfalls: [],
+          shortfalls: countShortfalls,
         };
       }
       warnings.push(gapMsg);
     }
   }
+
+  const countShortfalls = buildCountShortfalls(blueprint, attempt);
 
   return {
     success: true,
@@ -383,7 +415,7 @@ function generateExamPaper(blueprint, pool, kpExpansionMap, options = {}) {
     stats: attempt.stats,
     relaxations,
     warnings,
-    shortfalls: [],
+    shortfalls: countShortfalls,
   };
 }
 
@@ -449,6 +481,7 @@ module.exports = {
   cloneBlueprintForWork,
   generateExamPaper,
   tryGenerateOnce,
+  buildCountShortfalls,
   normalizeDifficultyMix,
   pickSwapReplacement,
 };

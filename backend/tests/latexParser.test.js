@@ -57,10 +57,18 @@ function testRoundTripPreservesOriginalLatex() {
   assert.ok(answer.includes('showans'));
 }
 
+function testStripTrailingLonePunctuationLine() {
+  const generator = new LatexGenerator();
+  const out = generator.stripTrailingLonePunctuationLines('题干\\fillin{1}\n.');
+  assert.ok(!out.endsWith('.'), out);
+  assert.ok(out.includes('\\fillin{1}'));
+}
+
 function run() {
   testPackageExamplesParse();
   testFillinOptionalWidth();
   testRoundTripPreservesOriginalLatex();
+  testStripTrailingLonePunctuationLine();
   console.log('latexParser tests: OK');
 }
 

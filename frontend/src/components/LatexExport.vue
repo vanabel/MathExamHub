@@ -26,6 +26,15 @@
         </div>
       </div>
 
+      <div
+        v-if="exportHeaderWarning"
+        class="alert alert-warning mb-3"
+        role="alert"
+        data-testid="latex-export-header-warning"
+      >
+        {{ exportHeaderWarning }}
+      </div>
+
       <div class="row">
         <!-- 题目选择区域 -->
         <div class="col-lg-8">
@@ -253,7 +262,7 @@
                   id="course"
                   type="text"
                   class="form-control"
-                  placeholder="高等代数"
+                  placeholder="与题库科目一致，如解析几何"
                 />
               </div>
 
@@ -630,7 +639,7 @@ export default {
         filename: `mathexam-${new Date().toISOString().split("T")[0]}`,
         university: "西南大学",
         school: "数学与统计学院",
-        course: "高等代数",
+        course: "",
         AorB: "A",
         examDate: localIsoDateString(),
         academicYearStart: "",
@@ -639,7 +648,7 @@ export default {
         openclose: "闭卷",
         degree: "本科",
         major: "数学与应用数学",
-        grade: "2017",
+        grade: "",
         examiner: "",
         director: "",
         dean: "",
@@ -664,6 +673,14 @@ export default {
         this.metadata.academicYearStart,
         this.metadata.academicYearEnd,
       ).error;
+    },
+    exportHeaderWarning() {
+      const missing = [];
+      if (!String(this.metadata.course || '').trim()) missing.push('课程');
+      if (!String(this.metadata.university || '').trim()) missing.push('学校');
+      if (!String(this.metadata.school || '').trim()) missing.push('学院');
+      if (!missing.length) return '';
+      return `试卷头未完整设置（缺：${missing.join('、')}）。请在右侧填写或在题库「试卷头」中保存默认值，否则导出 PDF 标题可能不正确。`;
     },
     selectedQuestions() {
       // 防御性检查：确保 questions 是数组

@@ -20,14 +20,14 @@ function pick(meta, key, fallback = '') {
 export function buildExamHeaderHtmlPreview(meta) {
   const university = pick(meta, 'university', '西南大学');
   const school = pick(meta, 'school', '数学与统计学院');
-  const course = pick(meta, 'course', '高等代数');
+  const course = pick(meta, 'course', '');
   const aorb = pick(meta, 'AorB', 'A');
   const finalmiddle = pick(meta, 'finalmiddle', '期末');
   const totaltime = pick(meta, 'totaltime', '120');
   const openclose = pick(meta, 'openclose', '闭卷');
   const degree = pick(meta, 'degree', '本科');
   const major = pick(meta, 'major', '数学与应用数学');
-  const grade = pick(meta, 'grade', '2017');
+  const grade = pick(meta, 'grade', '');
   const examiner = pick(meta, 'examiner', '—');
   const director = pick(meta, 'director', '—');
   const dean = pick(meta, 'dean', '—');
@@ -35,11 +35,11 @@ export function buildExamHeaderHtmlPreview(meta) {
   return `
 <div class="exam-header-preview-inner">
   <div class="exam-header-preview-title">${escapeHtml(university)} · ${escapeHtml(school)}</div>
-  <div class="exam-header-preview-course">《${escapeHtml(course)}》课程试题【${escapeHtml(aorb)}】卷</div>
+  <div class="exam-header-preview-course">${course ? `《${escapeHtml(course)}》` : '（未设置课程）'}课程试题【${escapeHtml(aorb)}】卷</div>
   <table class="exam-header-preview-table">
     <tr><td colspan="2">${escapeHtml(finalmiddle)}考试</td><td colspan="2">${escapeHtml(totaltime)} 分钟</td></tr>
     <tr><td>${escapeHtml(openclose)}</td><td>${escapeHtml(degree)}</td><td colspan="2">${escapeHtml(major)}</td></tr>
-    <tr><td colspan="2">${escapeHtml(grade)} 级</td><td colspan="2">命题 ${escapeHtml(examiner)} · 审题 ${escapeHtml(director)} · 院长 ${escapeHtml(dean)}</td></tr>
+    <tr><td colspan="2">${grade ? `${escapeHtml(grade)} 级` : '—'}</td><td colspan="2">命题 ${escapeHtml(examiner)} · 审题 ${escapeHtml(director)} · 院长 ${escapeHtml(dean)}</td></tr>
   </table>
 </div>`;
 }
@@ -68,7 +68,7 @@ export function buildExamHeaderPreamblePreview(meta) {
     '\\usepackage{hyperref}',
     `\\university{${pick(meta, 'university', '西南大学')}}`,
     `\\school{${pick(meta, 'school', '数学与统计学院')}}`,
-    `\\course{${pick(meta, 'course', '高等代数')}}`,
+    `\\course{${pick(meta, 'course', '')}}`,
     `\\AorB{${pick(meta, 'AorB', 'A')}}`,
     ...buildDateMacroPreviewLines(meta),
     `\\semester{${pick(meta, 'semester', '')}}`,
@@ -77,7 +77,7 @@ export function buildExamHeaderPreamblePreview(meta) {
     `\\openclose{${pick(meta, 'openclose', '闭卷')}}`,
     `\\degree{${pick(meta, 'degree', '本科')}}`,
     `\\major{${pick(meta, 'major', '数学与应用数学')}}`,
-    `\\grade{${pick(meta, 'grade', '2017')}}`,
+    `\\grade{${pick(meta, 'grade', '')}}`,
     `\\examiner{${pick(meta, 'examiner', '')}}`,
     `\\director{${pick(meta, 'director', '')}}`,
     `\\dean{${pick(meta, 'dean', '')}}`,
