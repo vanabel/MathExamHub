@@ -1,6 +1,4 @@
-const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 
 const INPUT_RE = /\\(?:input|include)\{([^}]+)\}/g;
 
@@ -84,29 +82,9 @@ function buildFilesMapFromUploads(texUploads) {
   return filesByPath;
 }
 
-function extractZipToTexMap(zipPath, destDir) {
-  fs.mkdirSync(destDir, { recursive: true });
-  execFileSync('unzip', ['-oq', zipPath, '-d', destDir], { stdio: 'pipe' });
-  const filesByPath = {};
-  function walk(dir) {
-    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, ent.name);
-      if (ent.isDirectory()) walk(full);
-      else if (/\.tex$/i.test(ent.name)) {
-        const rel = path.relative(destDir, full).replace(/\\/g, '/');
-        filesByPath[normalizeRelPath(rel)] = fs.readFileSync(full, 'utf-8');
-        filesByPath[normalizeRelPath(ent.name)] = filesByPath[normalizeRelPath(rel)];
-      }
-    }
-  }
-  walk(destDir);
-  return filesByPath;
-}
-
 module.exports = {
   expandTexInputs,
   pickMainTexFile,
   buildFilesMapFromUploads,
-  extractZipToTexMap,
   normalizeRelPath,
 };

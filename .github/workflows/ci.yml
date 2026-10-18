@@ -46,12 +46,12 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Unit tests
-        run: npm test
-      - name: Install XeLaTeX (export compile)
+      - name: Install XeLaTeX (export compile + unit tests with compile)
         run: |
           sudo apt-get update
-          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra unzip
+          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra poppler-utils unzip
+      - name: Unit tests
+        run: npm test
       - name: Scenario tests (Mongo + XeLaTeX)
         env:
           MONGODB_URI: mongodb://localhost:27017/mathexam_ci_scenario

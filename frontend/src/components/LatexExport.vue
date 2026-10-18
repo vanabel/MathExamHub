@@ -183,10 +183,10 @@
                           </ChoiceOptionsList>
                         </div>
                         <!-- 答案 -->
-                        <div class="question-answer mb-0">
+                        <div v-if="showAnswerBlock(question)" class="question-answer mb-0">
                           <strong>答案：</strong>
                           <vue-mathjax
-                            :formula="processAnswerText(question.correctAnswer)"
+                            :formula="processAnswerText(answerForDisplay(question))"
                             :options="mathjaxOptions"
                           ></vue-mathjax>
                         </div>
@@ -516,6 +516,7 @@ import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
+import { answerForDisplay, showAnswerBlock } from "../utils/questionAnswerDisplay";
 
 export default {
   name: "LatexExport",
@@ -656,6 +657,8 @@ export default {
     processQuestionText,
     processAnswerText,
     processQuestionTextToHTML,
+    showAnswerBlock,
+    answerForDisplay,
     questionPreviewOpts(question) {
       const opts = question?.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
@@ -730,7 +733,7 @@ export default {
           
           let renderTask = null;
           
-          window.pdfjsLib.getDocument(pdfUrl).promise
+          window.pdfjsLib.getDocument({ url: pdfUrl, withCredentials: true }).promise
             .then((pdf) => {
               return pdf.getPage(1);
             })
