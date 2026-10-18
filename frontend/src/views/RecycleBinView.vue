@@ -23,7 +23,11 @@
           @click="switchToBanks"
         >
           题库
-          <span v-if="archivedBanks.length" class="badge text-bg-secondary ms-1">{{ archivedBanks.length }}</span>
+          <span
+            v-if="archivedBankCount"
+            class="badge rounded-pill text-bg-warning ms-1"
+            data-testid="recycle-bank-tab-badge"
+          >{{ archivedBankCount }}</span>
         </button>
       </li>
     </ul>
@@ -137,8 +141,16 @@ export default {
       bankError: null,
     };
   },
-  mounted() {
-    this.load();
+  computed: {
+    archivedBankCount() {
+      return this.archivedBanks.length;
+    },
+  },
+  async mounted() {
+    await Promise.all([this.load(), this.loadArchivedBanks()]);
+    if (this.archivedBanks.length > 0 && this.items.length === 0) {
+      this.tab = 'banks';
+    }
   },
   methods: {
     async load() {

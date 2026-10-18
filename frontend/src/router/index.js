@@ -142,13 +142,6 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuthed) {
     return next({ name: 'login', query: { redirect: to.fullPath } });
   }
-  if (to.meta.requiresPlatformAdmin) {
-    const user = readStoredUser();
-    const role = user?.role;
-    if (role !== 'admin' && role !== 'Admin') {
-      return next({ name: 'question-list' });
-    }
-  }
   if ((to.name === 'login' || to.name === 'register') && isAuthed) {
     return next({ name: 'question-list' });
   }

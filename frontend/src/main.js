@@ -10,7 +10,7 @@ import { loginUrlWithRedirect } from "./utils/authRedirect";
 const isProduction = process.env.NODE_ENV === 'production';
 axios.defaults.baseURL =
   process.env.VUE_APP_API_BASE_URL ||
-  (isProduction ? '/api' : 'http://localhost:3000/api');
+  '/api';
 axios.defaults.withCredentials = true; // 允许发送 cookies（用于 session）
 
 axios.interceptors.request.use((config) => {

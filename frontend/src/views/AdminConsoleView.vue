@@ -1,8 +1,23 @@
 <template>
   <div class="container py-4">
     <h1 class="h3 mb-3"><i class="bi bi-shield-lock"></i> 平台管理</h1>
+    <div
+      v-if="forbidden"
+      class="toast-container position-fixed top-0 end-0 p-3"
+      style="z-index: 1090"
+      data-testid="admin-forbidden-toast"
+    >
+      <div class="toast show align-items-center text-bg-danger border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            无权访问平台管理。需要平台管理员（role: admin）权限。
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" aria-label="关闭" @click="forbidden = false"></button>
+        </div>
+      </div>
+    </div>
     <p v-if="forbidden" class="alert alert-danger">需要平台管理员（role: admin）权限。</p>
-    <template v-else>
+    <template v-if="!forbidden">
       <div class="row g-3 mb-4">
         <div class="col-md-4">
           <div class="card shadow-sm">
@@ -165,6 +180,18 @@ export default {
     },
   },
   mounted() {
+    const user = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('currentUser') || 'null');
+      } catch {
+        return null;
+      }
+    })();
+    const role = user?.role;
+    if (role !== 'admin' && role !== 'Admin') {
+      this.forbidden = true;
+      return;
+    }
     this.loadAll();
   },
   methods: {

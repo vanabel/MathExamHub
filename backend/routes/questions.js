@@ -43,6 +43,7 @@ const {
 const { buildBankQuestionDashboard } = require('../utils/bankQuestionStats');
 const { buildBankStatsCsvLines } = require('../utils/bankStatsCsv');
 const { scoreStatsByType } = require('../services/blueprintFromBankService');
+const { listDistinctSubjectsForBank } = require('../utils/bankSubjects');
 
 router.use(requireAuth);
 router.use(bankContext);
@@ -97,6 +98,16 @@ router.post('/create', requireBankWrite, (req, res) => {
   newQuestion.save()
     .then((question) => res.json(question))
     .catch((error) => res.status(400).json({ error, submittedData: req.body }));
+});
+
+router.get('/subjects', async (req, res) => {
+  try {
+    const subjects = await listDistinctSubjectsForBank(Question, req.bankId);
+    res.json(subjects);
+  } catch (error) {
+    console.error('list subjects failed', error);
+    res.status(500).json({ error: 'Failed to list subjects' });
+  }
 });
 
 router.get('/score-stats-by-type', async (req, res) => {
