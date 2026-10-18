@@ -9,6 +9,8 @@ const {
   getPlatformSettingsPublic,
   updatePlatformSettings,
 } = require('../services/platformSettingsService');
+const bankService = require('../services/bankService');
+const { logPlatformAudit } = require('../services/platformAuditService');
 
 const router = express.Router();
 
@@ -75,6 +77,53 @@ router.patch('/settings', async (req, res) => {
     res.json({ settings });
   } catch (error) {
     res.status(400).json({ error: '更新设置失败' });
+  }
+});
+
+router.post('/banks/:bankId/archive', async (req, res) => {
+  try {
+    const bank = await bankService.softDeleteBank(
+      req.user._id,
+      req.params.bankId,
+      req.user.username,
+      { asPlatformAdmin: true },
+    );
+    await logPlatformAudit({
+      action: 'bank.archive',
+      actorUserId: req.user._id,
+      actorUsername: req.user.username,
+      targetType: 'QuestionBank',
+      targetId: bank._id,
+      bankId: bank._id,
+      detail: { bankName: bank.name, via: 'platform_admin' },
+    });
+    res.json({ ok: true, bankId: bank._id, name: bank.name });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '归档失败' });
+  }
+});
+
+router.post('/banks/:bankId/restore', async (req, res) => {
+  try {
+    const bank = await bankService.restoreBank(
+      req.user._id,
+      req.params.bankId,
+      { asPlatformAdmin: true },
+    );
+    await logPlatformAudit({
+      action: 'bank.restore',
+      actorUserId: req.user._id,
+      actorUsername: req.user.username,
+      targetType: 'QuestionBank',
+      targetId: bank._id,
+      bankId: bank._id,
+      detail: { bankName: bank.name, via: 'platform_admin' },
+    });
+    res.json({ ok: true, bankId: bank._id, name: bank.name });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || '恢复失败' });
   }
 });
 

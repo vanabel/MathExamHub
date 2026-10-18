@@ -1,8 +1,21 @@
 <template>
   <div class="card mb-3" data-testid="kp-tag-job-list">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span>打标任务</span>
-      <button type="button" class="btn btn-sm btn-link" @click="refresh">刷新</button>
+      <div class="d-flex align-items-center gap-2">
+        <select
+          v-model="listFilter"
+          class="form-select form-select-sm w-auto"
+          data-testid="kp-job-list-filter"
+          @change="refresh"
+        >
+          <option value="">全部</option>
+          <option value="pending">待审核</option>
+          <option value="applied">已写入</option>
+          <option value="dismissed">已关闭</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-link" @click="refresh">刷新</button>
+      </div>
     </div>
     <div class="card-body p-0">
       <p v-if="!jobs.length" class="small text-muted p-3 mb-0">暂无任务</p>
@@ -32,7 +45,7 @@
               <td class="small text-muted">{{ formatDate(j.createdAt) }}</td>
               <td class="small">
                 <span
-                  v-if="j.reviewCounts.pending > 0"
+                  v-if="j.reviewCounts.pending > 0 && !j.dismissedAt"
                   class="badge text-bg-warning text-dark me-1"
                   data-testid="kp-job-pending-badge"
                 >待审核 {{ j.reviewCounts.pending }}</span>
@@ -70,6 +83,7 @@ export default {
   data() {
     return {
       jobs: [],
+      listFilter: '',
     };
   },
   mounted() {
@@ -81,6 +95,7 @@ export default {
       return new Date(iso).toLocaleString();
     },
     jobStatusLabel(j) {
+      if (j.dismissedAt) return '已关闭';
       if (j.appliedAt) return '已写入题库';
       if (j.status === 'completed' && (j.reviewCounts?.pending || 0) > 0) {
         return `LLM 已完成 · 待审核 ${j.reviewCounts.pending}`;
@@ -92,7 +107,9 @@ export default {
     },
     async refresh() {
       try {
-        const { data } = await axios.get('/questions/kp-tag-jobs');
+        const params = {};
+        if (this.listFilter) params.filter = this.listFilter;
+        const { data } = await axios.get('/questions/kp-tag-jobs', { params });
         this.jobs = data.jobs || [];
       } catch {
         this.jobs = [];

@@ -21,5 +21,6 @@ describe('kpTagJobReviewCounts', () => {
     assert.equal(isJobReviewOpen({ status: 'completed', appliedAt: null }), true);
     assert.equal(isJobReviewOpen({ status: 'completed', appliedAt: new Date() }), false);
     assert.equal(isJobReviewOpen({ status: 'running' }), true);
+    assert.equal(isJobReviewOpen({ status: 'completed', appliedAt: null, dismissedAt: new Date() }), false);
   });
 });

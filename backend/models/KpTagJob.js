@@ -48,6 +48,8 @@ const kpTagJobSchema = new mongoose.Schema({
   createdBy: { type: String, default: '' },
   appliedAt: { type: Date, default: null },
   appliedModified: { type: Number, default: 0 },
+  dismissedAt: { type: Date, default: null },
+  dismissedBy: { type: String, default: '' },
 }, { timestamps: true });
 
 kpTagJobSchema.index({ bankId: 1, createdAt: -1 });

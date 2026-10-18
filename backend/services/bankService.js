@@ -74,8 +74,16 @@ async function assertBankAccess(userId, bankId, minRole = 'viewer', opts = {}) {
   return role;
 }
 
-async function softDeleteBank(userId, bankId, deletedByUsername) {
-  await assertBankAccess(userId, bankId, 'owner');
+function isPlatformAdminUser(user) {
+  const role = user?.role;
+  return role === 'admin' || role === 'Admin';
+}
+
+async function softDeleteBank(userId, bankId, deletedByUsername, opts = {}) {
+  const asAdmin = opts.asPlatformAdmin === true;
+  if (!asAdmin) {
+    await assertBankAccess(userId, bankId, 'owner');
+  }
   const bank = await QuestionBank.findById(bankId);
   if (!bank) {
     const err = new Error('题库不存在');
@@ -98,8 +106,11 @@ async function softDeleteBank(userId, bankId, deletedByUsername) {
   return bank;
 }
 
-async function restoreBank(userId, bankId) {
-  await assertBankAccess(userId, bankId, 'owner', { allowDeleted: true });
+async function restoreBank(userId, bankId, opts = {}) {
+  const asAdmin = opts.asPlatformAdmin === true;
+  if (!asAdmin) {
+    await assertBankAccess(userId, bankId, 'owner', { allowDeleted: true });
+  }
   const bank = await QuestionBank.findById(bankId);
   if (!bank || !bank.deletedAt) {
     const err = new Error('回收站中未找到该题库');
@@ -166,4 +177,5 @@ module.exports = {
   softDeleteBank,
   restoreBank,
   listArchivedBanksForUser,
+  isPlatformAdminUser,
 };

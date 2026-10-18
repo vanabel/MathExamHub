@@ -145,6 +145,7 @@ router.post('/generate-variants', requireBankWrite, async (req, res) => {
     const pool = await Question.find(examPoolFilter({ bankId: req.bankId })).lean();
     const kpExpansionMap = await buildKpExpansionMap(req.bankId, blueprint);
 
+    const allowScoreGap = req.body.allowScoreGap === true;
     const ab = generateAbVariants(
       blueprint,
       pool,
@@ -152,45 +153,61 @@ router.post('/generate-variants', requireBankWrite, async (req, res) => {
       seedA,
       seedBStart,
       maxPct,
+      { allowScoreGap },
     );
 
-    const allIds = [...new Set([
-      ...ab.resultA.questionIds,
-      ...ab.resultB.questionIds,
-    ].map(String))];
+    const canPersist = !ab.scoreGapRequiresConfirm
+      && ab.resultA.success
+      && ab.resultB?.success;
 
-    if (allIds.length) {
-      await recordQuestionUsage(req.bankId, allIds);
+    let paperA = null;
+    let paperB = null;
+    if (canPersist) {
+      const allIds = [...new Set([
+        ...ab.resultA.questionIds,
+        ...ab.resultB.questionIds,
+      ].map(String))];
+      if (allIds.length) {
+        await recordQuestionUsage(req.bankId, allIds);
+      }
+      paperA = await createExamPaperDoc({
+        bankId: req.bankId,
+        blueprintId,
+        blueprint: { ...blueprint, randomSeed: ab.seedA },
+        result: ab.resultA,
+        username: req.user.username,
+        variantLabel: 'A',
+        variantGroupId: ab.variantGroupId,
+      });
+      paperB = await createExamPaperDoc({
+        bankId: req.bankId,
+        blueprintId,
+        blueprint: { ...blueprint, randomSeed: ab.seedB },
+        result: ab.resultB,
+        username: req.user.username,
+        variantLabel: 'B',
+        variantGroupId: ab.variantGroupId,
+      });
     }
-
-    const paperA = await createExamPaperDoc({
-      bankId: req.bankId,
-      blueprintId,
-      blueprint: { ...blueprint, randomSeed: ab.seedA },
-      result: ab.resultA,
-      username: req.user.username,
-      variantLabel: 'A',
-      variantGroupId: ab.variantGroupId,
-    });
-    const paperB = await createExamPaperDoc({
-      bankId: req.bankId,
-      blueprintId,
-      blueprint: { ...blueprint, randomSeed: ab.seedB },
-      result: ab.resultB,
-      username: req.user.username,
-      variantLabel: 'B',
-      variantGroupId: ab.variantGroupId,
-    });
 
     const warnings = [...(ab.warnings || [])];
     if (ab.resultA.warnings?.length) warnings.push(...ab.resultA.warnings);
     if (ab.resultB.warnings?.length) warnings.push(...ab.resultB.warnings);
+
+    const shortfalls = [
+      ...(ab.resultA.shortfalls || []),
+      ...(ab.resultB?.shortfalls || []),
+    ];
 
     res.status(200).json({
       variantGroupId: ab.variantGroupId,
       maxVariantOverlapPct: maxPct,
       overlapRatio: ab.overlapRatio,
       overlapCount: ab.overlapCount,
+      scoreGapRequiresConfirm: ab.scoreGapRequiresConfirm,
+      scoreGap: ab.scoreGap,
+      success: canPersist,
+      shortfalls,
       warnings,
       variants: {
         A: {

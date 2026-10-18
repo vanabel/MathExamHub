@@ -47,6 +47,15 @@
         >
           {{ applying ? '写入中…' : `确认写入 (${acceptedCount})` }}
         </button>
+        <button
+          v-if="job && !job.appliedAt && !job.dismissedAt"
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          data-testid="kp-tag-job-dismiss"
+          @click="dismissJob"
+        >
+          关闭任务
+        </button>
       </div>
     </div>
     <div class="card-body">
@@ -185,6 +194,7 @@ export default {
     },
     reviewStatusLabel() {
       if (!this.job) return '';
+      if (this.job.dismissedAt) return '已关闭';
       if (this.job.appliedAt) return '已写入题库';
       if (this.job.status === 'completed' && this.pendingReviewCount > 0) {
         return `LLM 已完成 · 待审核 ${this.pendingReviewCount}`;
@@ -360,6 +370,17 @@ export default {
       }
       this.flashRowAction(n ? `已接受 ${n} 题的全部建议` : '没有可接受的待审条目');
       this.schedulePersist();
+    },
+    async dismissJob() {
+      if (!this.activeJobId) return;
+      if (!window.confirm('关闭后导航角标不再提醒；已写入前仍可在此查看记录。确定关闭？')) return;
+      try {
+        await axios.post(`/questions/kp-tag-jobs/${this.activeJobId}/dismiss`);
+        await this.loadJob(this.activeJobId);
+        this.$emit('applied');
+      } catch (e) {
+        this.error = e.response?.data?.error || e.message;
+      }
     },
     async applyAccepted() {
       if (!this.activeJobId) return;

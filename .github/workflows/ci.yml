@@ -122,7 +122,7 @@ jobs:
       - name: Install XeLaTeX (e2e export compile)
         run: |
           sudo apt-get update
-          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra texlive-pictures texlive-science unzip
+          sudo apt-get install -y texlive-xetex texlive-lang-chinese texlive-fonts-recommended texlive-latex-recommended texlive-latex-extra texlive-pictures texlive-science unzip poppler-utils
       - name: Build frontend
         working-directory: frontend
         env:
