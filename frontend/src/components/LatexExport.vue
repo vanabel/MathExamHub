@@ -907,28 +907,14 @@ export default {
     },
     async loadSubjects() {
       try {
-        const response = await axios.get("/questions/subjects");
-        // 合并常用科目和已使用的科目，去重并排序
-        const commonSubjects = [
-          "解析几何",
-          "线性代数II",
-          "高等代数",
-          "高等几何",
-          "微分几何",
-        ];
-        const allSubjects = [...new Set([...commonSubjects, ...response.data])];
-        allSubjects.sort();
-        this.availableSubjects = allSubjects;
+        const { data } = await axios.get("/questions/subjects");
+        const list = Array.isArray(data) ? data : [];
+        this.availableSubjects = [...new Set(list.map((s) => String(s).trim()).filter(Boolean))].sort(
+          (a, b) => a.localeCompare(b, 'zh-CN'),
+        );
       } catch (error) {
         console.error("加载科目列表失败:", error);
-        // 如果加载失败，使用默认的常用科目列表
-        this.availableSubjects = [
-          "解析几何",
-          "线性代数II",
-          "高等代数",
-          "高等几何",
-          "微分几何",
-        ];
+        this.availableSubjects = [];
       }
     },
     async loadQuestions() {

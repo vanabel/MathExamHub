@@ -15,7 +15,7 @@
 
 | 环境 | 典型值 |
 |------|--------|
-| 开发 | `http://localhost:3000/api`（见 `frontend/.env.development`） |
+| 开发 | `/api`（Vue devServer 代理到 `http://127.0.0.1:3000`，见 `frontend/.env.development`） |
 | 生产（Nginx） | `/api`（见 `frontend/.env.production`） |
 
 ## Nginx 反向代理
