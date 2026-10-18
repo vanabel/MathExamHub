@@ -19,7 +19,14 @@
         <button type="button" class="nav-link" :class="{ active: step === 1 }" @click="step = 1">1. Excel 导入</button>
       </li>
       <li class="nav-item">
-        <button type="button" class="nav-link" :class="{ active: step === 2 }" :disabled="!treeReady" @click="step = 2">
+        <button
+          type="button"
+          class="nav-link"
+          :class="{ active: step === 2 }"
+          :disabled="!subject.trim()"
+          data-testid="kp-workflow-step-2"
+          @click="step = 2"
+        >
           2. LLM 打标
         </button>
       </li>

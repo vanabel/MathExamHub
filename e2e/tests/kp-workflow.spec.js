@@ -59,7 +59,7 @@ test.describe('KP Excel workflow', () => {
     const skip = page.getByTestId('onboarding-skip');
     if (await skip.isVisible().catch(() => false)) await skip.click();
 
-    await page.getByRole('button', { name: '2. LLM 打标' }).click();
+    await page.getByTestId('kp-workflow-step-2').click();
     await expect(page.getByTestId('kp-tag-job-review')).toBeVisible();
     await expect(page.getByTestId('kp-tag-job-start')).toBeVisible();
   });
