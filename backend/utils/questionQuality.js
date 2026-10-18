@@ -1,13 +1,10 @@
 const { DIFFICULTY_VALUES } = require('../constants/difficulty');
 const { stepScoreMismatch } = require('./stepScoreUtils');
-
-function isEmptyAnswer(val) {
-  if (val == null) return true;
-  if (typeof val === 'string') return !val.trim();
-  if (Array.isArray(val)) return val.length === 0;
-  if (typeof val === 'object') return Object.keys(val).length === 0;
-  return false;
-}
+const {
+  isEmptyAnswer,
+  effectiveCorrectAnswer,
+  mongoMissingAnswerFilter,
+} = require('./questionAnswerUtil');
 
 function missingSolution(originalLaTeX) {
   const tex = String(originalLaTeX || '');
@@ -17,7 +14,7 @@ function missingSolution(originalLaTeX) {
 
 function assessQuestionQuality(q) {
   const issues = [];
-  if (isEmptyAnswer(q.correctAnswer)) issues.push('missing_answer');
+  if (isEmptyAnswer(effectiveCorrectAnswer(q))) issues.push('missing_answer');
   if (!q.difficulty || !DIFFICULTY_VALUES.includes(q.difficulty)) issues.push('missing_difficulty');
   if (!q.knowledgePointIds || !q.knowledgePointIds.length) issues.push('missing_kp');
   if (missingSolution(q.originalLaTeX) && ['解答题', '计算题', '证明题'].includes(q.type)) {
@@ -34,7 +31,7 @@ function mergeQualityMongoFilter(baseFilter, qualityFilter) {
   let extra = null;
   switch (qualityFilter) {
     case 'missing_answer':
-      extra = { $or: [{ correctAnswer: null }, { correctAnswer: '' }] };
+      extra = mongoMissingAnswerFilter();
       break;
     case 'missing_kp':
       extra = { $or: [{ knowledgePointIds: { $exists: false } }, { knowledgePointIds: { $size: 0 } }] };
@@ -45,8 +42,7 @@ function mergeQualityMongoFilter(baseFilter, qualityFilter) {
     case 'incomplete':
       extra = {
         $or: [
-          { correctAnswer: null },
-          { correctAnswer: '' },
+          mongoMissingAnswerFilter(),
           { knowledgePointIds: { $exists: false } },
           { knowledgePointIds: { $size: 0 } },
           { difficulty: { $nin: DIFFICULTY_VALUES } },

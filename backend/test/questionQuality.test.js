@@ -14,6 +14,18 @@ describe('questionQuality', () => {
     assert.ok(issues.includes('missing_kp'));
   });
 
+  it('does not flag missing answer when subjective type has solution only', () => {
+    const issues = assessQuestionQuality({
+      type: '解答题',
+      correctAnswer: '',
+      solution: '推导过程 \\score{10}',
+      difficulty: '中',
+      knowledgePointIds: ['a'],
+      originalLaTeX: '\\begin{problem}\\begin{solution}x\\end{solution}\\end{problem}',
+    });
+    assert.equal(issues.includes('missing_answer'), false);
+  });
+
   it('flags missing solution for 解答题', () => {
     const issues = assessQuestionQuality({
       type: '解答题',

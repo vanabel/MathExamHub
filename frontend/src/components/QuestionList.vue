@@ -291,11 +291,11 @@
               </div>
 
               <!-- 答案 -->
-              <div class="question-answer">
+              <div v-if="showAnswerBlock(question)" class="question-answer">
                 <strong>答案：</strong>
-                <div class="answer-text-content" v-html="renderAnswer(question.correctAnswer)"></div>
+                <div class="answer-text-content" v-html="renderAnswer(answerForDisplay(question))"></div>
               </div>
-              <div v-if="question.solution" class="question-solution mt-2">
+              <div v-if="showSolutionBlock(question)" class="question-solution mt-2">
                 <strong>解答：</strong>
                 <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
               </div>
@@ -338,6 +338,7 @@ import {
 } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
+import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
@@ -463,6 +464,9 @@ export default {
     processQuestionTextToHTML,
     processAnswerTextToHTML,
     renderQuestionImagesHtml,
+    showAnswerBlock,
+    showSolutionBlock,
+    answerForDisplay,
     questionRenderOptions(question) {
       const opts = question && question.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;

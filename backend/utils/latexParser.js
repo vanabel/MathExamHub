@@ -160,9 +160,17 @@ class LatexParser {
     }
 
     const preambleLineRegex = /^\\(DeclareMathOperator|newcommand|renewcommand|def)\b.*$/gm;
+    const ignorePreamble = [
+      /^\\renewcommand\{\\labelenumi\}/,
+      /^\\providecommand\{\\b[ubvewrnt]\}/,
+      /^\\providecommand\{\\I\}/,
+      /^\\providecommand\{\\II\}/,
+    ];
     let lineMatch;
     while ((lineMatch = preambleLineRegex.exec(preamble)) !== null) {
-      metadata.preambleLines.push(lineMatch[0].trim());
+      const line = lineMatch[0].trim();
+      if (ignorePreamble.some((re) => re.test(line))) continue;
+      metadata.preambleLines.push(line);
     }
 
     return metadata;
@@ -1316,7 +1324,6 @@ class LatexGenerator {
 \\usepackage{hyperref}
 \\usepackage[nameinlink]{cleveref}
 \\crefname{figure}{图}{图}
-\\renewcommand{\\labelenumi}{\\alph{enumi})}
 ${preambleBlock}
 \\university{${pick('university', '西南大学')}}
 \\school{${pick('school', '数学与统计学院')}}
@@ -1392,34 +1399,44 @@ ${preambleBlock}
   generatePart(type, questions, mode = 'exam') {
     const totalScore = questions.reduce((sum, q) => sum + (q.totalScore || 0), 0);
     const perItemScore = this.inferPartPerScore(type, questions);
-    const partInfo = `共${questions.length}题，共计${totalScore}分`;
-    const scoreSuffix = perItemScore > 0 ? `[${perItemScore}]` : '';
+    const uniformPartScore = perItemScore > 0;
+    const partInfo = uniformPartScore
+      ? `共${questions.length}题，每题${perItemScore}分，共计${totalScore}分`
+      : `共${questions.length}题，共计${totalScore}分`;
+    const scoreSuffix = uniformPartScore ? `[${perItemScore}]` : '';
 
     let latex = `\\begin{makepart}[${partInfo}]{${type}}${scoreSuffix}\n`;
 
     for (const q of questions) {
-      latex += this.generateProblem(q, mode);
+      latex += this.generateProblem(q, mode, { partPerScore: uniformPartScore ? perItemScore : 0 });
     }
 
     latex += '\\end{makepart}\n';
     return latex;
   }
 
-  inferPartPerScore(type, questions) {
-    if (type === '填空题' || type === '判断题' || type === '选择题' || type === '单项选择题') {
-      const scores = questions.map((q) => q.totalScore || 0).filter((s) => s > 0);
-      if (scores.length === questions.length && new Set(scores).size === 1) {
-        return scores[0];
-      }
-    }
+  inferPartPerScore(_type, questions) {
+    if (!questions.length) return 0;
+    const scores = questions.map((q) => q.totalScore || 0).filter((s) => s > 0);
+    if (scores.length !== questions.length) return 0;
+    if (new Set(scores).size === 1) return scores[0];
     return 0;
+  }
+
+  stripProblemScoreAttr(originalLaTeX, scoreToStrip) {
+    if (!originalLaTeX || !scoreToStrip) return originalLaTeX;
+    const re = new RegExp(`\\\\begin\\{problem\\}\\s*\\[\\s*${scoreToStrip}\\s*\\]`);
+    return originalLaTeX.replace(re, '\\begin{problem}');
   }
 
   /**
    * 生成单个题目
    */
-  generateProblem(question, mode = 'exam') {
-    const scoreAttr = question.totalScore ? `[${question.totalScore}]` : '';
+  generateProblem(question, mode = 'exam', opts = {}) {
+    const partPerScore = opts.partPerScore || 0;
+    const qScore = question.totalScore || 0;
+    const omitProblemScore = partPerScore > 0 && qScore === partPerScore;
+    const scoreAttr = (!omitProblemScore && qScore) ? `[${qScore}]` : '';
     let latex = `  \\begin{problem}${scoreAttr}\n`;
 
     const bodySource = question.originalLaTeX || question.questionText || '';
@@ -1435,7 +1452,11 @@ ${preambleBlock}
     }
 
     if (question.originalLaTeX) {
-      latex += `    ${question.originalLaTeX}\n`;
+      let body = question.originalLaTeX;
+      if (omitProblemScore) {
+        body = this.stripProblemScoreAttr(body, partPerScore);
+      }
+      latex += `    ${body}\n`;
     } else {
       let text = question.questionText || '';
       text = this.convertImageTagsToLaTeX(text);

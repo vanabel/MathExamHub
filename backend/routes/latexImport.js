@@ -30,8 +30,8 @@ const {
 const {
   expandTexInputs,
   pickMainTexFile,
-  extractZipToTexMap,
 } = require('../utils/latexTexBundle');
+const { extractZipBundle, rmTempDir } = require('../utils/latexZipExtract');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -72,8 +72,23 @@ function parsePartTypeOverrides(body) {
   }
 }
 
+function processZipImageAssets(imageAssets, filePrefix) {
+  const imageMap = {};
+  for (const asset of imageAssets || []) {
+    const extMatch = asset.fileName.match(/\.(png|jpg|jpeg|gif|pdf)$/i);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'png';
+    const newFileName = `${filePrefix}-${asset.baseName}.${ext}`;
+    fs.copyFileSync(asset.fullPath, path.join(uploadDir, newFileName));
+    imageMap[asset.baseName] = newFileName;
+    imageMap[asset.fileName] = newFileName;
+  }
+  return imageMap;
+}
+
 function loadTexBundleFromUploads(fileUploads) {
   const warnings = [];
+  const tempDirs = [];
+  const zipImageAssets = [];
   let filesByPath = {};
   const texPaths = [];
   const zipPaths = [];
@@ -87,9 +102,10 @@ function loadTexBundleFromUploads(fileUploads) {
   }
 
   for (const zp of zipPaths) {
-    const dest = path.join(uploadDir, `zip-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    const fromZip = extractZipToTexMap(zp, dest);
-    filesByPath = { ...filesByPath, ...fromZip };
+    const extracted = extractZipBundle(zp);
+    tempDirs.push(extracted.tempRoot);
+    filesByPath = { ...filesByPath, ...extracted.filesByPath };
+    zipImageAssets.push(...extracted.imageAssets);
   }
 
   for (const tf of texPaths) {
@@ -115,6 +131,8 @@ function loadTexBundleFromUploads(fileUploads) {
     fileContent: expanded.content,
     sourceFileName: path.basename(mainKey),
     warnings,
+    tempDirs,
+    zipImageAssets,
   };
 }
 
@@ -156,40 +174,48 @@ async function parseTexUpload(req) {
   }
   const fileUploads = req.files.file;
   const imageFiles = req.files.images || [];
-  const bundle = loadTexBundleFromUploads(fileUploads);
-  const { fileContent, sourceFileName, warnings: bundleWarnings } = bundle;
-  const texFileName = sourceFileName.replace(/\.tex$/i, '');
-  const filePrefix = generateFilePrefix(texFileName, fileContent);
-  const imageMap = processUploadedImages(imageFiles, filePrefix);
-  const parser = new LatexParser();
-  let questions = parser.parse(fileContent, { imageMap, filePrefix });
-  const partTypeOverrides = parsePartTypeOverrides(req.body || {});
-  applyPartTypeOverrides(questions, partTypeOverrides);
+  let tempDirs = [];
+  try {
+    const bundle = loadTexBundleFromUploads(fileUploads);
+    tempDirs = bundle.tempDirs || [];
+    const { fileContent, sourceFileName, warnings: bundleWarnings } = bundle;
+    const texFileName = sourceFileName.replace(/\.tex$/i, '');
+    const filePrefix = generateFilePrefix(texFileName, fileContent);
+    let imageMap = processUploadedImages(imageFiles, filePrefix);
+    imageMap = { ...imageMap, ...processZipImageAssets(bundle.zipImageAssets, filePrefix) };
+    const parser = new LatexParser();
+    let questions = parser.parse(fileContent, { imageMap, filePrefix });
+    const partTypeOverrides = parsePartTypeOverrides(req.body || {});
+    applyPartTypeOverrides(questions, partTypeOverrides);
 
-  for (const f of fileUploads) {
-    try {
-      fs.unlinkSync(f.path);
-    } catch {
-      /* ignore */
+    const parseWarnings = [...bundleWarnings];
+    if (questions.length === 0) {
+      parseWarnings.push({
+        code: 'ZERO_QUESTIONS',
+        message: '未解析到任何题目。若主文件使用 \\input，请一并上传子 .tex 或上传包含全部文件的 .zip。',
+      });
+    }
+
+    return {
+      questions,
+      filePrefix,
+      imageMap,
+      sourceFileName,
+      documentMetadata: parser.documentMetadata,
+      parseWarnings,
+    };
+  } finally {
+    for (const f of fileUploads) {
+      try {
+        fs.unlinkSync(f.path);
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const dir of tempDirs) {
+      rmTempDir(dir);
     }
   }
-
-  const parseWarnings = [...bundleWarnings];
-  if (questions.length === 0) {
-    parseWarnings.push({
-      code: 'ZERO_QUESTIONS',
-      message: '未解析到任何题目。若主文件使用 \\input，请一并上传子 .tex 或上传包含全部文件的 .zip。',
-    });
-  }
-
-  return {
-    questions,
-    filePrefix,
-    imageMap,
-    sourceFileName,
-    documentMetadata: parser.documentMetadata,
-    parseWarnings,
-  };
 }
 
 /**

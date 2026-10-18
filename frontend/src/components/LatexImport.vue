@@ -347,9 +347,13 @@
                             </ChoiceOptionsList>
                           </div>
                           <!-- 答案 -->
-                          <div class="question-answer mb-0" v-if="question.correctAnswer">
+                          <div class="question-answer mb-0" v-if="showAnswerBlock(question)">
                             <strong>答案：</strong>
-                            <div v-html="processAnswerTextToHTML(question.correctAnswer)"></div>
+                            <div v-html="processAnswerTextToHTML(answerForDisplay(question))"></div>
+                          </div>
+                          <div v-if="showSolutionBlock(question)" class="question-solution mb-0 mt-2">
+                            <strong>解答：</strong>
+                            <div v-html="processAnswerTextToHTML(question.solution)"></div>
                           </div>
                         </div>
                         <!-- 文本模式 -->
@@ -358,9 +362,13 @@
                             <strong>题目：</strong>
                             <pre class="small mb-0 bg-light p-2 rounded">{{ question.originalLaTeX || question.questionText }}</pre>
                           </div>
-                          <div v-if="question.correctAnswer" class="mb-2">
+                          <div v-if="showAnswerBlock(question)" class="mb-2">
                             <strong>答案：</strong>
-                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.correctAnswer }}</pre>
+                            <pre class="small mb-0 bg-light p-2 rounded">{{ answerForDisplay(question) }}</pre>
+                          </div>
+                          <div v-if="showSolutionBlock(question)" class="mb-2">
+                            <strong>解答：</strong>
+                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.solution }}</pre>
                           </div>
                         </div>
 
@@ -549,6 +557,7 @@ import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
+import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 
 export default {
   name: "LatexImport",
@@ -594,6 +603,9 @@ export default {
     },
   },
   methods: {
+    showAnswerBlock,
+    showSolutionBlock,
+    answerForDisplay,
     questionPreviewOpts(question) {
       const opts = question?.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;

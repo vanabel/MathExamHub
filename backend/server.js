@@ -83,7 +83,8 @@ app.use('/api/exam-blueprints', examBlueprintRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+const requireAuth = require('./middleware/requireAuth');
+app.use('/api/uploads', requireAuth, express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.send('MathExamHub API. Use /api/health and /api/questions/*');
