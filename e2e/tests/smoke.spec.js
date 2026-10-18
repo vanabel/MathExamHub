@@ -96,14 +96,16 @@ test.describe('product smoke', () => {
     await page.screenshot({ path: path.join(shots, 'onboarding-wizard.png'), fullPage: true });
 
     await page.locator('#allowRelax').check();
-    await page.locator('label.form-label', { hasText: '目标总分' }).locator('..').locator('input').fill('');
+    await page.locator('label.form-label', { hasText: '目标总分' }).locator('..').locator('input').fill('0');
+    page.on('dialog', (dialog) => dialog.accept());
     await page.getByTestId('wizard-generate').click();
     const scoreGapConfirm = page.getByTestId('wizard-score-gap-confirm');
-    if (await scoreGapConfirm.isVisible({ timeout: 120000 }).catch(() => false)) {
+    if (await scoreGapConfirm.isVisible({ timeout: 15000 }).catch(() => false)) {
       await scoreGapConfirm.click();
       await expect(page.getByTestId('wizard-score-gap-modal')).toBeHidden({ timeout: 120000 });
     }
-    await page.getByRole('button', { name: '2. 预览' }).click({ timeout: 120000 });
+    await expect(page.getByRole('button', { name: '2. 预览' })).toBeEnabled({ timeout: 120000 });
+    await page.getByRole('button', { name: '2. 预览' }).click();
     await expect(page.getByText(/第 1 题/)).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: '3. 导出' }).click();
