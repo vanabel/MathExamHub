@@ -1227,6 +1227,9 @@ export default {
   text-align: left !important;
   margin: 0 !important;
   max-width: 100%;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  padding-left: 0;
 }
 
 .question-card__math-scroll :deep(mjx-container[display="true"]) {

@@ -64,10 +64,67 @@ async function openListAndRevealAnswer(page) {
     .toBeGreaterThan(0);
 }
 
+function pngLeftColumnHasInk(pngBuffer, columnPx = 3) {
+  if (pngBuffer.length < 64 || pngBuffer[0] !== 0x89) return true;
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 8;
+  let colorType = 6;
+  const idatChunks = [];
+  while (offset + 12 <= pngBuffer.length) {
+    const len = pngBuffer.readUInt32BE(offset);
+    const type = pngBuffer.toString('ascii', offset + 4, offset + 8);
+    const data = pngBuffer.subarray(offset + 8, offset + 8 + len);
+    if (type === 'IHDR' && data.length >= 13) {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      idatChunks.push(Buffer.from(data));
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset += 12 + len;
+  }
+  if (!width || !height || bitDepth !== 8 || (colorType !== 6 && colorType !== 2)) {
+    return pngBuffer.some((b, i) => i > 200 && b < 240);
+  }
+  const zlib = require('zlib');
+  const raw = zlib.inflateSync(Buffer.concat(idatChunks));
+  const bpp = colorType === 6 ? 4 : 3;
+  const stride = width * bpp;
+  let pos = 0;
+  for (let y = 0; y < height; y++) {
+    pos += 1;
+    for (let x = 0; x < Math.min(columnPx, width); x++) {
+      const i = pos + x * bpp;
+      const r = raw[i];
+      const g = raw[i + 1];
+      const b = raw[i + 2];
+      const a = colorType === 6 ? raw[i + 3] : 255;
+      if (a > 16 && (r < 245 || g < 245 || b < 245)) return true;
+    }
+    pos += stride;
+  }
+  return false;
+}
+
 /** @returns {string[]} issue messages */
 async function collectAnswerDisplayMathIssues(page) {
   return page.evaluate(() => {
     const issues = [];
+    function nearestHorizontalScrollContainer(el) {
+      let n = el;
+      while (n && n !== document.body) {
+        const s = window.getComputedStyle(n);
+        const ox = s.overflowX;
+        if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 1) return n;
+        n = n.parentElement;
+      }
+      return null;
+    }
     const scrollBoxes = document.querySelectorAll('.question-card__math-scroll');
     for (const box of scrollBoxes) {
       const displays = box.querySelectorAll('.MathJax_Display');
@@ -75,18 +132,22 @@ async function collectAnswerDisplayMathIssues(page) {
         issues.push(`scrollWidth ${box.scrollWidth} >= 3*clientWidth ${box.clientWidth}`);
       }
       for (const disp of displays) {
-        const br = box.getBoundingClientRect();
         const mr = disp.getBoundingClientRect();
         if (mr.width <= 0 || mr.height <= 0) {
           issues.push('display box has zero size');
           continue;
         }
         const glyph = disp.querySelector('.math span') || disp.querySelector('.math') || disp;
+        const scrollEl = nearestHorizontalScrollContainer(glyph) || box;
+        scrollEl.scrollLeft = 0;
+        box.scrollLeft = 0;
+        disp.scrollLeft = 0;
+        const sr = scrollEl.getBoundingClientRect();
         const gr = glyph.getBoundingClientRect();
-        if (gr.left < br.left - 1) {
-          issues.push(`glyph left ${gr.left} < box left ${br.left}`);
+        if (gr.left < sr.left - 0.5) {
+          issues.push(`glyph left ${gr.left} < scroll container left ${sr.left}`);
         }
-        const sampleX = Math.min(br.right - 3, Math.max(br.left + 3, gr.left + Math.min(8, gr.width / 2)));
+        const sampleX = Math.min(sr.right - 2, Math.max(sr.left + 1, gr.left + 1));
         const sampleY = gr.top + gr.height / 2;
         const hit = document.elementFromPoint(sampleX, sampleY);
         if (!hit || !box.contains(hit)) {
@@ -96,6 +157,19 @@ async function collectAnswerDisplayMathIssues(page) {
     }
     return issues;
   });
+}
+
+async function assertDisplayLeftColumnNotBlank(page) {
+  const disp = page.locator('.question-card__math-scroll .MathJax_Display').first();
+  await expect(disp).toBeVisible();
+  const box = await disp.boundingBox();
+  expect(box).toBeTruthy();
+  const clipW = Math.min(4, Math.max(1, box.width));
+  const clipH = Math.min(Math.max(8, box.height), 48);
+  const png = await page.screenshot({
+    clip: { x: box.x, y: box.y, width: clipW, height: clipH },
+  });
+  expect(pngLeftColumnHasInk(png)).toBe(true);
 }
 
 test.describe('question list reveal answer', () => {
@@ -131,6 +205,7 @@ test.describe('question list reveal answer', () => {
       await expect
         .poll(async () => collectAnswerDisplayMathIssues(page), { timeout: 20000 })
         .toEqual([]);
+      await assertDisplayLeftColumnNotBlank(page);
     });
   }
 });
