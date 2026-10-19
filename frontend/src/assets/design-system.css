@@ -141,15 +141,21 @@ main.app-main.with-navbar {
 
 .app-navbar .bank-selector-wrap {
   min-width: 0;
-  max-width: min(100%, 100%);
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow: hidden;
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .app-navbar .bank-selector-wrap :is(.bank-selector-label) {
+    display: none;
+  }
 }
 
 @media (max-width: 991px) {
   .app-navbar .bank-selector-wrap {
     max-width: 100%;
     width: 100%;
+    flex: 1 1 auto;
     margin-top: 0.5rem;
   }
 }

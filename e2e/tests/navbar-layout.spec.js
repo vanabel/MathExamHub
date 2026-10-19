@@ -30,35 +30,103 @@ function intersects(a, b) {
   return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
 }
 
-const widths = [1024, 1280, 1440];
+const ROW_ALIGN_WIDTHS = [1280, 1440];
+const NAVBAR_ITEM_TESTIDS = [
+  'nav-question-list',
+  'navbar-bank-select',
+  'navbar-bank-header-btn',
+  'nav-user-menu',
+];
 
-test.describe('navbar bank header vs user menu layout', () => {
-  for (const width of widths) {
-    test(`header button and user menu do not overlap at ${width}px`, async ({ page }) => {
-      const uid = `nav_${width}_long_display_name_${Date.now()}`;
+async function assertSingleRowNavbar(page) {
+  const metrics = await page.evaluate((testIds) => {
+    const tops = testIds.map((id) => {
+      const el = document.querySelector(`[data-testid="${id}"]`);
+      if (!el) return null;
+      return el.getBoundingClientRect().top;
+    });
+    const nav = document.querySelector('[data-testid="app-navbar"]');
+    const navBox = nav ? nav.getBoundingClientRect() : null;
+    const docEl = document.documentElement;
+    return {
+      tops,
+      navHeight: navBox ? navBox.height : null,
+      scrollWidth: docEl.scrollWidth,
+      clientWidth: docEl.clientWidth,
+    };
+  }, NAVBAR_ITEM_TESTIDS);
+
+  expect(metrics.tops.every((t) => t != null)).toBe(true);
+  const minTop = Math.min(...metrics.tops);
+  const maxTop = Math.max(...metrics.tops);
+  expect(maxTop - minTop).toBeLessThan(8);
+  expect(metrics.navHeight).toBeLessThan(64);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+}
+
+async function openQuestionList(page) {
+  await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+  const skip = page.getByTestId('onboarding-skip');
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await expect(page.getByTestId('navbar-bank-select')).toBeVisible({ timeout: 15000 });
+}
+
+test.describe('navbar desktop single row', () => {
+  for (const width of ROW_ALIGN_WIDTHS) {
+    test(`nav items align on one row at ${width}px`, async ({ page }) => {
+      const uid = `nav_row_${width}_${Date.now()}`;
       await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
-
       await page.setViewportSize({ width, height: 900 });
-      await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
-      const skip = page.getByTestId('onboarding-skip');
-      if (await skip.isVisible().catch(() => false)) await skip.click();
-
-      const headerBtn = page.getByTestId('navbar-bank-header-btn');
-      const userMenu = page.getByTestId('nav-user-menu');
-      await expect(headerBtn).toBeVisible({ timeout: 15000 });
-      await expect(userMenu).toBeVisible();
-
-      const boxes = await page.evaluate(() => {
-        const a = document.querySelector('[data-testid="navbar-bank-header-btn"]');
-        const b = document.querySelector('[data-testid="nav-user-menu"]');
-        if (!a || !b) return null;
-        return {
-          header: a.getBoundingClientRect(),
-          user: b.getBoundingClientRect(),
-        };
-      });
-      expect(boxes).toBeTruthy();
-      expect(intersects(boxes.header, boxes.user)).toBe(false);
+      await openQuestionList(page);
+      await assertSingleRowNavbar(page);
     });
   }
+
+  test('long bank name stays on one row at 1440px', async ({ page }) => {
+    const uid = `nav_long_bank_${Date.now()}`;
+    await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openQuestionList(page);
+
+    const select = page.getByTestId('navbar-bank-select');
+    const fullTitle = await select.getAttribute('title');
+    expect(fullTitle).toBeTruthy();
+    expect(fullTitle.length).toBeGreaterThan(20);
+
+    await assertSingleRowNavbar(page);
+
+    const headerBtn = page.getByTestId('navbar-bank-header-btn');
+    const userMenu = page.getByTestId('nav-user-menu');
+    const boxes = await page.evaluate(() => {
+      const a = document.querySelector('[data-testid="navbar-bank-header-btn"]');
+      const b = document.querySelector('[data-testid="nav-user-menu"]');
+      return {
+        header: a.getBoundingClientRect(),
+        user: b.getBoundingClientRect(),
+      };
+    });
+    expect(intersects(boxes.header, boxes.user)).toBe(false);
+  });
+});
+
+test.describe('navbar bank header vs user menu layout', () => {
+  test('header button and user menu do not overlap at 1024px', async ({ page }) => {
+    const width = 1024;
+    const uid = `nav_${width}_overlap_${Date.now()}`;
+    await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+    await page.setViewportSize({ width, height: 900 });
+    await openQuestionList(page);
+
+    const boxes = await page.evaluate(() => {
+      const a = document.querySelector('[data-testid="navbar-bank-header-btn"]');
+      const b = document.querySelector('[data-testid="nav-user-menu"]');
+      if (!a || !b) return null;
+      return {
+        header: a.getBoundingClientRect(),
+        user: b.getBoundingClientRect(),
+      };
+    });
+    expect(boxes).toBeTruthy();
+    expect(intersects(boxes.header, boxes.user)).toBe(false);
+  });
 });
