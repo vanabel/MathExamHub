@@ -103,6 +103,9 @@ export default {
     syncFromModelValue() {
       const v = this.modelValue == null ? '' : String(this.modelValue);
       if (!v) {
+        if (this.internalSelect === CUSTOM_VALUE) {
+          return;
+        }
         if (this.allowEmpty) {
           this.internalSelect = '';
           this.customDraft = '';
@@ -134,7 +137,9 @@ export default {
     onSelectChange() {
       if (this.internalSelect === CUSTOM_VALUE) {
         const next = this.customDraft.trim();
-        this.$emit('update:modelValue', next);
+        if (next) {
+          this.$emit('update:modelValue', next);
+        }
         return;
       }
       this.customDraft = '';
