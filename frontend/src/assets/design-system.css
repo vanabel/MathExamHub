@@ -129,6 +129,18 @@ main.app-main.with-navbar {
   border-left-color: rgba(255, 255, 255, 0.2);
 }
 
+.app-navbar .navbar-user-nav .nav-item.dropdown {
+  position: relative;
+}
+
+.app-navbar .navbar-user-nav .dropdown-menu.dropdown-menu-end,
+.app-navbar .nav-item.dropdown .dropdown-menu.dropdown-menu-end[data-bs-popper],
+.app-navbar .nav-item.dropdown .dropdown-menu.dropdown-menu-end.show {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
 .app-navbar .container-fluid.navbar-shell {
   max-width: 100%;
   min-width: 0;
