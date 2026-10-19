@@ -326,7 +326,7 @@ main.app-main.with-navbar {
 
 /* Question add/edit: row 1 stem + answer side-by-side at md+, solution full width below */
 .question-form-field-textarea.form-textarea-auto {
-  min-height: calc(1.5em * 5 + 0.75rem);
+  min-height: calc(1.5em * 5 + 0.75rem + 2px);
 }
 
 @media (min-width: 768px) {
