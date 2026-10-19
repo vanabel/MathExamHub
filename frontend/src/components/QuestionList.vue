@@ -1,49 +1,47 @@
 <template>
   <div class="question-list-container">
     <div class="app-container container-xl">
-      <div class="page-header mb-4">
-        <div class="list-header-row list-header-row--top">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-list-ul"></i> 试题列表
-            </h1>
-            <p class="text-muted mb-0">
-              <i class="bi bi-bar-chart"></i> 共 {{ totalCount }} 道题目
-              <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
-            </p>
-          </div>
-          <div class="list-header-actions d-flex flex-wrap gap-2 align-items-center">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm d-md-none"
-              data-testid="question-list-toggle-filters"
-              @click="filtersOpen = !filtersOpen"
-            >
-              <i class="bi bi-funnel"></i> 筛选
-            </button>
-            <div class="dropdown">
+      <div class="question-list-header-block mb-4">
+        <page-header
+          title="试题列表"
+          :subtitle="listHeaderSubtitle"
+          icon="bi-list-ul"
+          test-id="question-list-header"
+        >
+          <template #actions>
+            <div class="list-header-actions d-flex flex-wrap gap-2 align-items-center">
               <button
-                class="btn btn-outline-secondary btn-sm dropdown-toggle"
                 type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                data-testid="question-list-more-menu"
+                class="btn btn-outline-secondary btn-sm d-md-none"
+                data-testid="question-list-toggle-filters"
+                @click="filtersOpen = !filtersOpen"
               >
-                导入 / 导出
+                <i class="bi bi-funnel"></i> 筛选
               </button>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
-                <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
-              </ul>
+              <div class="dropdown">
+                <button
+                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  data-testid="question-list-more-menu"
+                >
+                  导入 / 导出
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
+                  <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
+                </ul>
+              </div>
+              <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
+                知识图谱
+              </kp-graph-nav-link>
+              <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
+                <i class="bi bi-plus-lg"></i> 添加题目
+              </router-link>
             </div>
-            <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
-              知识图谱
-            </kp-graph-nav-link>
-            <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
-              <i class="bi bi-plus-lg"></i> 添加题目
-            </router-link>
-          </div>
-        </div>
+          </template>
+        </page-header>
 
         <div
           class="filter-toolbar mt-3"
@@ -410,10 +408,11 @@ import {
 } from "../utils/coverageGapBatch";
 import { flattenKnowledgePointTree, kpTreeIndent } from "../utils/knowledgePointTree";
 import KpGraphNavLink from "./KpGraphNavLink.vue";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "QuestionList",
-  components: { KpGraphNavLink },
+  components: { KpGraphNavLink, PageHeader },
   data() {
     return {
       questions: [],
@@ -446,6 +445,12 @@ export default {
     };
   },
   computed: {
+    listHeaderSubtitle() {
+      const pagePart = this.totalCount > this.questions.length
+        ? `（本页 ${this.questions.length}）`
+        : '';
+      return `共 ${this.totalCount} 道题目${pagePart}`;
+    },
     gapBatchActive() {
       return this.gapBatchGaps.length > 0;
     },

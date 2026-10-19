@@ -1,9 +1,8 @@
 <template>
   <div class="question-edit-container app-page">
     <div class="app-container container-xl">
-      <!-- 页面头部：面包屑 + 标题 -->
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -13,23 +12,24 @@
             <li class="breadcrumb-item active" aria-current="page">编辑试题</li>
           </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-pencil"></i> 编辑试题
-            </h1>
-            <p class="text-muted mb-0">
-              修改题目信息
-              <span v-if="usageCount != null" class="ms-2 badge bg-light text-dark">
-                组卷使用 {{ usageCount }} 次
-              </span>
-              <span v-if="lastUsedAt" class="ms-1 text-muted small">（最近 {{ formatLastUsed(lastUsedAt) }}）</span>
-            </p>
-          </div>
-          <router-link to="/question-list" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> 返回列表
-          </router-link>
-        </div>
+        <page-header
+          title="编辑试题"
+          icon="bi-pencil"
+          test-id="question-edit-header"
+        >
+          <template #subtitle>
+            修改题目信息
+            <span v-if="usageCount != null" class="ms-2 badge bg-light text-dark">
+              组卷使用 {{ usageCount }} 次
+            </span>
+            <span v-if="lastUsedAt" class="ms-1 text-muted small">（最近 {{ formatLastUsed(lastUsedAt) }}）</span>
+          </template>
+          <template #actions>
+            <router-link to="/question-list" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> 返回列表
+            </router-link>
+          </template>
+        </page-header>
       </div>
 
       <div class="card">
@@ -219,10 +219,11 @@
 import axios from "axios";
 import KnowledgePointPicker from "./KnowledgePointPicker.vue";
 import LlmKpSuggestPanel from "./LlmKpSuggestPanel.vue";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "QuestionEdit",
-  components: { KnowledgePointPicker, LlmKpSuggestPanel },
+  components: { KnowledgePointPicker, LlmKpSuggestPanel, PageHeader },
   data() {
     return {
       questionId: "",
@@ -337,41 +338,6 @@ export default {
   padding: 2rem 0;
 }
 
-.page-header {
-  background: white;
-  padding: 1.5rem 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.breadcrumb {
-  margin-bottom: 0;
-  background: transparent;
-  padding: 0;
-}
-
-.breadcrumb-item a {
-  color: var(--color-primary, #2563eb);
-  transition: color 0.2s;
-}
-
-.breadcrumb-item a:hover {
-  color: var(--color-primary-hover, #1d4ed8);
-}
-
-.page-title {
-  color: #333;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-title i {
-  font-size: 1.5rem;
-}
-
 .form-label {
   font-weight: 500;
   color: #495057;
@@ -394,10 +360,6 @@ export default {
 @media (max-width: 768px) {
   .question-edit-container {
     padding: 1rem 0;
-  }
-
-  .page-header {
-    padding: 1.5rem;
   }
 }
 </style>

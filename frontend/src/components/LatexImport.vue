@@ -1,9 +1,8 @@
 <template>
   <div class="latex-import-container app-page">
     <div class="app-container container-xl">
-      <!-- 页面头部 -->
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -13,17 +12,18 @@
             <li class="breadcrumb-item active" aria-current="page">导入 LaTeX 文件</li>
           </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-upload"></i> 导入 LaTeX 文件
-            </h1>
-            <p class="text-muted mb-0">上传 .tex 文件，自动解析并导入题目到题库</p>
-          </div>
-          <router-link to="/question-list" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> 返回列表
-          </router-link>
-        </div>
+        <page-header
+          title="导入 LaTeX 文件"
+          subtitle="上传 .tex 文件，自动解析并导入题目到题库"
+          icon="bi-upload"
+          test-id="latex-import-header"
+        >
+          <template #actions>
+            <router-link to="/question-list" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> 返回列表
+            </router-link>
+          </template>
+        </page-header>
       </div>
 
       <div class="row">
@@ -583,6 +583,7 @@ import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
 import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import PageHeader from "./ui/PageHeader.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 
@@ -593,6 +594,7 @@ export default {
   components: {
     "vue-mathjax": VueMathjaxNext,
     ChoiceOptionsList,
+    PageHeader,
   },
   data() {
     return {

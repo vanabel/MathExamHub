@@ -1,9 +1,8 @@
 <template>
   <div class="question-add-container app-page">
     <div class="app-container container-xl">
-      <!-- 页面头部：面包屑 + 标题 -->
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -13,17 +12,18 @@
             <li class="breadcrumb-item active" aria-current="page">新增试题</li>
           </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-plus-circle"></i> 新增试题
-            </h1>
-            <p class="text-muted mb-0">填写以下信息创建新题目</p>
-          </div>
-          <router-link to="/question-list" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> 返回列表
-          </router-link>
-        </div>
+        <page-header
+          title="新增试题"
+          subtitle="填写以下信息创建新题目"
+          icon="bi-plus-circle"
+          test-id="question-add-header"
+        >
+          <template #actions>
+            <router-link to="/question-list" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> 返回列表
+            </router-link>
+          </template>
+        </page-header>
       </div>
 
       <div class="row">
@@ -123,8 +123,8 @@
                     <textarea
                       id="questionAnswer"
                       v-model="questionAnswer"
-                      class="form-control"
-                      rows="4"
+                      class="form-control form-textarea-auto"
+                      rows="5"
                       placeholder="请输入答案..."
                       required
                     ></textarea>
@@ -134,8 +134,8 @@
                     <textarea
                       id="questionSolution"
                       v-model="questionSolution"
-                      class="form-control"
-                      rows="4"
+                      class="form-control form-textarea-auto"
+                      rows="6"
                       placeholder="详细推导或说明，可与短答案分开填写。"
                     ></textarea>
                   </div>
@@ -234,10 +234,11 @@
 <script>
 import axios from "axios";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "QuestionAdd",
-  components: { ChoiceOptionsList },
+  components: { ChoiceOptionsList, PageHeader },
   data() {
     return {
       questionType: "单选题",

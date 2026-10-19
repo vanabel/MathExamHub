@@ -1,15 +1,21 @@
 <template>
   <div class="app-page app-container container-xl py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h1 class="page-title mb-0"><i class="bi bi-diagram-3"></i> 章节 / 知识点</h1>
-      <kp-graph-nav-link
-        v-if="canWrite"
-        link-class="btn btn-outline-primary btn-sm"
-        data-testid="kp-excel-import-link"
-      >
-        <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
-      </kp-graph-nav-link>
-    </div>
+    <page-header
+      class="mb-3"
+      title="章节 / 知识点"
+      icon="bi-diagram-3"
+      test-id="knowledge-points-header"
+    >
+      <template #actions>
+        <kp-graph-nav-link
+          v-if="canWrite"
+          link-class="btn btn-outline-primary btn-sm"
+          data-testid="kp-excel-import-link"
+        >
+          <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
+        </kp-graph-nav-link>
+      </template>
+    </page-header>
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <label class="form-label">科目</label>
@@ -80,10 +86,11 @@
 <script>
 import axios from 'axios';
 import KpGraphNavLink from './KpGraphNavLink.vue';
+import PageHeader from './ui/PageHeader.vue';
 
 export default {
   name: 'KnowledgePointManager',
-  components: { KpGraphNavLink },
+  components: { KpGraphNavLink, PageHeader },
   data() {
     return {
       subject: '解析几何',

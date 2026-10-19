@@ -1,13 +1,20 @@
 <template>
   <div class="app-page app-container container-xl py-4">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item"><router-link to="/knowledge-points">章节 / 知识点</router-link></li>
-        <li class="breadcrumb-item"><router-link to="/knowledge-points/import">知识图谱工作流</router-link></li>
-        <li class="breadcrumb-item active">打标审核</li>
-      </ol>
-    </nav>
-    <h1 class="h4 mb-3">KP 打标审核</h1>
+    <div class="mb-4">
+      <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><router-link to="/knowledge-points">章节 / 知识点</router-link></li>
+          <li class="breadcrumb-item"><router-link to="/knowledge-points/import">知识图谱工作流</router-link></li>
+          <li class="breadcrumb-item active" aria-current="page">打标审核</li>
+        </ol>
+      </nav>
+      <page-header
+        title="KP 打标审核"
+        subtitle="审核 LLM 批量打标结果，接受或拒绝后写回题库"
+        icon="bi-tags"
+        test-id="kp-tag-review-header"
+      />
+    </div>
     <kp-tag-job-list ref="jobList" :selected-job-id="jobId" />
     <kp-tag-job-review-panel
       v-if="jobId"
@@ -24,10 +31,11 @@
 import axios from 'axios';
 import KpTagJobReviewPanel from '../components/KpTagJobReviewPanel.vue';
 import KpTagJobList from '../components/KpTagJobList.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'KnowledgePointTagReviewView',
-  components: { KpTagJobReviewPanel, KpTagJobList },
+  components: { KpTagJobReviewPanel, KpTagJobList, PageHeader },
   data() {
     return {
       subject: '解析几何',

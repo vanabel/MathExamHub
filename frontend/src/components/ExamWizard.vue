@@ -1,17 +1,21 @@
 <template>
   <div class="exam-wizard-container app-page">
     <div class="app-container container-xl py-4">
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
-              <router-link to="/question-list">题目列表</router-link>
+              <router-link to="/question-list" class="text-decoration-none">题目列表</router-link>
             </li>
-            <li class="breadcrumb-item active">组卷向导</li>
+            <li class="breadcrumb-item active" aria-current="page">组卷向导</li>
           </ol>
         </nav>
-        <h1 class="h3 mb-1"><i class="bi bi-magic"></i> 自动组卷向导</h1>
-        <p class="text-muted mb-0">编辑蓝图 → 约束抽题 → 页内预览 → 换题微调 → 导出 LaTeX</p>
+        <page-header
+          title="自动组卷向导"
+          subtitle="编辑蓝图 → 约束抽题 → 页内预览 → 换题微调 → 导出 LaTeX"
+          icon="bi-magic"
+          test-id="exam-wizard-header"
+        />
       </div>
 
       <ul class="nav nav-pills mb-4">
@@ -517,6 +521,7 @@ import { processQuestionTextToHTML, renderQuestionImagesHtml } from '../utils/la
 import ChoiceOptionsList from './ChoiceOptionsList.vue';
 import { isChoiceQuestionType, shouldUseChoiceOptionLabels } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
+import PageHeader from './ui/PageHeader.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 import {
   formatFilterStageSummary,
@@ -535,7 +540,7 @@ function baseDefaultSection(type = '填空题', scoreEach = 4) {
 
 export default {
   name: 'ExamWizard',
-  components: { KnowledgePointPicker, ChoiceOptionsList },
+  components: { KnowledgePointPicker, ChoiceOptionsList, PageHeader },
   data() {
     return {
       step: 1,

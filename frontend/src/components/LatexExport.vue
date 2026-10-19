@@ -1,9 +1,8 @@
 <template>
   <div class="latex-export-container app-page">
     <div class="app-container container-xl">
-      <!-- 页面头部 -->
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -13,17 +12,18 @@
             <li class="breadcrumb-item active" aria-current="page">导出 LaTeX 文件</li>
           </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-download"></i> 导出 LaTeX 文件
-            </h1>
-            <p class="text-muted mb-0">选择题目并导出为 LaTeX 格式的试卷文件</p>
-          </div>
-          <router-link to="/question-list" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> 返回列表
-          </router-link>
-        </div>
+        <page-header
+          title="导出 LaTeX 文件"
+          subtitle="选择题目并导出为 LaTeX 格式的试卷文件"
+          icon="bi-download"
+          test-id="latex-export-header"
+        >
+          <template #actions>
+            <router-link to="/question-list" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> 返回列表
+            </router-link>
+          </template>
+        </page-header>
       </div>
 
       <div
@@ -567,10 +567,11 @@ import {
   suggestedAcademicYearLabel,
   localIsoDateString,
 } from "../utils/latexExamDateForm";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "LatexExport",
-  components: {},
+  components: { PageHeader },
   data() {
     return {
       questions: [],
