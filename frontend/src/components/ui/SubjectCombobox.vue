@@ -2,11 +2,11 @@
   <div class="subject-combobox" :data-testid="rootTestId">
     <select
       :id="selectId"
-      v-model="internalSelect"
+      :value="internalSelect"
       class="form-select"
       :class="selectClass"
       :data-testid="selectTestId"
-      @change="onSelectChange"
+      @change="onNativeSelectChange"
     >
       <option v-if="allowEmpty" value="">{{ emptyLabel }}</option>
       <option v-for="subj in bankSubjects" :key="subj" :value="subj">{{ subj }}</option>
@@ -126,6 +126,10 @@ export default {
       }
       this.internalSelect = CUSTOM_VALUE;
       this.customDraft = v;
+    },
+    onNativeSelectChange(event) {
+      this.internalSelect = event.target.value;
+      this.onSelectChange();
     },
     onSelectChange() {
       if (this.internalSelect === CUSTOM_VALUE) {
