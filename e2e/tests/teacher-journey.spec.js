@@ -3,13 +3,18 @@ const { test, expect } = require('@playwright/test');
 async function setWizardSubject(page, subject) {
   const select = page.getByTestId('wizard-subject-select');
   await expect(select).toBeVisible({ timeout: 15000 });
-  const hasOption = await select.locator(`option[value="${subject}"]`).count();
+  const hasOption = await select.evaluate(
+    (el, subj) => Array.from(el.options).some((o) => o.value === subj),
+    subject,
+  );
   if (hasOption) {
     await select.selectOption(subject);
     return;
   }
   await select.selectOption('__custom__');
-  await page.getByTestId('wizard-subject-custom').fill(subject);
+  const custom = page.getByTestId('wizard-subject-custom');
+  await expect(custom).toBeVisible({ timeout: 10000 });
+  await custom.fill(subject);
 }
 const path = require('path');
 const fs = require('fs');
