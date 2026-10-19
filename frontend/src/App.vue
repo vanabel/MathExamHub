@@ -379,6 +379,7 @@ export default {
       }
     },
     onBankChanged() {
+      window.dispatchEvent(new CustomEvent('mathexam-bank-changed'));
       if (this.$route.name === 'question-list') {
         this.$router.go(0);
       }

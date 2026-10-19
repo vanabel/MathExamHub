@@ -49,21 +49,14 @@
               <div class="row g-3 mb-3">
                 <div class="col-md-4">
                   <label for="searchSubject" class="form-label">科目</label>
-                  <input
-                    v-model="filters.subject"
+                  <subject-combobox
                     id="searchSubject"
-                    type="text"
-                    class="form-control"
-                    list="subjectList"
-                    placeholder="全部科目"
-                    @input="loadQuestions"
+                    v-model="filters.subject"
+                    allow-empty
+                    empty-label="全部科目"
+                    test-id-prefix="latex-export-subject"
+                    @update:modelValue="loadQuestions"
                   />
-                  <datalist id="subjectList">
-                    <option value="">全部</option>
-                    <option v-for="subj in availableSubjects" :key="subj" :value="subj">
-                      {{ subj }}
-                    </option>
-                  </datalist>
                 </div>
                 <div class="col-md-4">
                   <label for="searchType" class="form-label">题型</label>
@@ -569,10 +562,11 @@ import {
   localIsoDateString,
 } from "../utils/latexExamDateForm";
 import PageHeader from "./ui/PageHeader.vue";
+import SubjectCombobox from "./ui/SubjectCombobox.vue";
 
 export default {
   name: "LatexExport",
-  components: { PageHeader },
+  components: { PageHeader, SubjectCombobox },
   data() {
     return {
       questions: [],
@@ -617,7 +611,6 @@ export default {
         type: "",
         keyword: "",
       },
-      availableSubjects: [], // 所有可用的科目列表
       metadata: {
         filename: `mathexam-${new Date().toISOString().split("T")[0]}`,
         university: "西南大学",
@@ -706,7 +699,6 @@ export default {
     },
   },
   mounted() {
-    this.loadSubjects();
     this.loadQuestions();
     this.loadBankLatexMetadata();
     this.loadMathJax();
@@ -896,18 +888,6 @@ export default {
         }
       } catch (e) {
         console.warn('加载题库试卷头失败', e);
-      }
-    },
-    async loadSubjects() {
-      try {
-        const { data } = await axios.get("/questions/subjects");
-        const list = Array.isArray(data) ? data : [];
-        this.availableSubjects = [...new Set(list.map((s) => String(s).trim()).filter(Boolean))].sort(
-          (a, b) => a.localeCompare(b, 'zh-CN'),
-        );
-      } catch (error) {
-        console.error("加载科目列表失败:", error);
-        this.availableSubjects = [];
       }
     },
     async loadQuestions() {
