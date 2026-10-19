@@ -79,6 +79,27 @@ async function seedViaPageRequest(page, bankId) {
     },
   });
 
+  const figureStem =
+    '如图，椭圆 $\\frac{x^2}{a^2}+\\frac{y^2}{b^2}=1$ 上一点 $P$ 满足 $|PF_1|:|PF_2|=3:1$，求离心率。';
+  const figureLatex =
+    `${figureStem}\n`
+    + '\\begin{figure}[h]\\centering 如图 \\caption{示意图}\\end{figure}\n'
+    + '\\begin{solution}\\begin{align}x^2+y^2&=1\\end{align}\\end{solution}\n'
+    + '\\begin{rmk}备注：含 figure/solution/rmk 环境。\\end{rmk}';
+  await page.request.post(`${apiBase}/questions/create`, {
+    headers: hdr({ 'Content-Type': 'application/json' }),
+    data: {
+      type: '解答题',
+      subject: '解析几何',
+      difficulty: '难',
+      totalScore: 12,
+      questionText: figureStem,
+      originalLaTeX: figureLatex,
+      correctAnswer: '见解答',
+      solution: '由焦点性质可得 $e=\\frac{\\sqrt{3}}{2}$。',
+    },
+  });
+
   const blueprintList = await page.request.get(`${apiBase}/exam-blueprints`, { headers: hdr() });
   const bps = blueprintList.ok() ? await blueprintList.json() : [];
   const bp = (Array.isArray(bps) ? bps : []).find((b) => b.isTemplate) || (Array.isArray(bps) ? bps[0] : null);

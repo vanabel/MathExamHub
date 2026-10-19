@@ -12,7 +12,7 @@
               <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
             </p>
           </div>
-          <div class="list-header-actions d-flex gap-2 align-items-center flex-shrink-0">
+          <div class="list-header-actions d-flex flex-wrap gap-2 align-items-center">
             <button
               type="button"
               class="btn btn-outline-secondary btn-sm d-md-none"
@@ -330,10 +330,11 @@
                 <div
                   class="question-card__preview"
                   :class="{ 'question-card__preview--expanded': isCardExpanded(question._id) }"
+                  :data-qid="question._id"
                 >
                   <div
                     class="question-text-content question-card__formula"
-                    v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
+                    v-html="previewHtml(question)"
                   ></div>
                   <div
                     v-if="question.images && question.images.length"
@@ -343,13 +344,23 @@
                 </div>
                 <div class="question-card__expand-row">
                   <button
-                    v-if="previewNeedsExpand(question)"
+                    v-if="cardNeedsExpand(question._id)"
                     type="button"
                     class="btn btn-link btn-sm p-0 question-card__expand"
                     @click="toggleCardExpanded(question._id)"
                   >
                     {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
                   </button>
+                </div>
+                <div v-if="isCardExpanded(question._id)" class="question-card__detail mt-2">
+                  <div v-if="showAnswerBlock(question)" class="question-answer small mb-2">
+                    <strong>答案：</strong>
+                    <div class="answer-text-content" v-html="renderAnswer(answerForDisplay(question))"></div>
+                  </div>
+                  <div v-if="showSolutionBlock(question)" class="question-solution small">
+                    <strong>解答：</strong>
+                    <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
+                  </div>
                 </div>
               </div>
 
@@ -387,11 +398,12 @@
 import axios from "axios";
 import {
   processQuestionTextToHTML,
+  processQuestionListPreviewToHTML,
   processAnswerTextToHTML,
   renderQuestionImagesHtml,
 } from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
-import { answerForDisplay } from "../utils/questionAnswerDisplay";
+import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 import {
   loadCoverageGapBatch,
   COVERAGE_GAP_BATCH_KEY,
@@ -430,6 +442,7 @@ export default {
       gapBatchIndex: 0,
       gapBatchSeed: null,
       expandedCardIds: {},
+      overflowCardIds: {},
     };
   },
   computed: {
@@ -514,14 +527,18 @@ export default {
         this.renderMathJax();
         const rendering = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
         if (!rendering) this.renderPDFs();
+        this.schedulePreviewOverflowCheck();
       }, 80);
     });
   },
   methods: {
     processQuestionTextToHTML,
+    processQuestionListPreviewToHTML,
     processAnswerTextToHTML,
     renderQuestionImagesHtml,
     answerForDisplay,
+    showAnswerBlock,
+    showSolutionBlock,
     kpChipsForQuestion(question) {
       const ids = question.knowledgePointIds || [];
       if (!ids.length) return [];
@@ -542,9 +559,40 @@ export default {
         [key]: !this.expandedCardIds[key],
       };
     },
-    previewNeedsExpand(question) {
-      const text = String(question.questionText || question.originalLaTeX || '');
-      return text.length > 160 || (text.match(/\$/g) || []).length > 4;
+    cardNeedsExpand(qid) {
+      if (this.isCardExpanded(qid)) return true;
+      return !!this.overflowCardIds[String(qid)];
+    },
+    schedulePreviewOverflowCheck() {
+      if (this._overflowCheckTimer) clearTimeout(this._overflowCheckTimer);
+      this._overflowCheckTimer = setTimeout(() => this.recheckPreviewOverflow(), 120);
+    },
+    recheckPreviewOverflow() {
+      if (!this.$el) return;
+      const next = { ...this.overflowCardIds };
+      this.$el.querySelectorAll('.question-card__preview:not(.question-card__preview--expanded)').forEach((el) => {
+        const qid = el.getAttribute('data-qid');
+        if (!qid) return;
+        const overflow = el.scrollHeight > el.clientHeight + 2;
+        if (overflow) next[qid] = true;
+        else delete next[qid];
+      });
+      this.overflowCardIds = next;
+    },
+    previewHtml(question) {
+      const opts = this.questionRenderOptions(question);
+      if (this.isCardExpanded(question._id)) {
+        return this.processQuestionTextToHTML(
+          question.questionText,
+          question.originalLaTeX,
+          opts,
+        );
+      }
+      return this.processQuestionListPreviewToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        opts,
+      );
     },
     questionRenderOptions(question) {
       const opts = question && question.options;
@@ -1013,7 +1061,7 @@ export default {
   background: #e7f3ff;
   padding: 0.75rem;
   border-radius: 8px;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid var(--color-primary, #2563eb);
   font-size: 0.95rem;
 }
 

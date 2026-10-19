@@ -110,8 +110,8 @@
                       id="questionText"
                       v-model="questionText"
                       @input="performSearch"
-                      class="form-control"
-                      rows="6"
+                      class="form-control form-textarea-auto"
+                      rows="8"
                       placeholder="请输入题目内容..."
                       required
                     ></textarea>
@@ -387,12 +387,12 @@ export default {
 }
 
 .breadcrumb-item a {
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
   transition: color 0.2s;
 }
 
 .breadcrumb-item a:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover, #1d4ed8);
 }
 
 .page-title {
@@ -418,7 +418,7 @@ export default {
 }
 
 .form-label i {
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
 }
 
 .options-section {
@@ -440,7 +440,7 @@ export default {
 
 .similar-question-item:hover {
   background: #f8f9fa;
-  border-color: #667eea !important;
+  border-color: var(--color-primary, #2563eb) !important;
 }
 
 .similar-question-item:active {

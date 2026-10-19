@@ -1509,3 +1509,21 @@ export function processAnswerTextToHTML(text) {
 
 export const renderAnswerHTML = processAnswerTextToHTML;
 
+/** Remove heavy LaTeX env blocks for compact list / export row previews. */
+export function stripListPreviewLatexEnvironments(text) {
+  if (!text) return '';
+  let s = String(text);
+  s = s.replace(/\\begin\{figure\}(?:\[[^\]]*\])?[\s\S]*?\\end\{figure\}/gi, ' ');
+  s = s.replace(/\\begin\{solution\}[\s\S]*?\\end\{solution\}/gi, ' ');
+  s = s.replace(/\\begin\{rmk\}[\s\S]*?\\end\{rmk\}/gi, ' ');
+  s = s.replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/gi, ' ');
+  s = s.replace(/\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}/g, '[图]');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+export function processQuestionListPreviewToHTML(text, originalLaTeX = null, options = {}) {
+  const raw = originalLaTeX || text || '';
+  const stem = stripListPreviewLatexEnvironments(raw) || stripListPreviewLatexEnvironments(text);
+  return processQuestionTextToHTML(stem || text, null, options);
+}
+

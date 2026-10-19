@@ -300,6 +300,12 @@ main.app-main.with-navbar {
   color: var(--text-muted);
 }
 
+.form-textarea-auto {
+  min-height: 8rem;
+  resize: vertical;
+  field-sizing: content;
+}
+
 /* Badges */
 .badge-type {
   font-weight: 500;

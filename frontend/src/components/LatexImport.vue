@@ -1047,12 +1047,12 @@ export default {
 }
 
 .breadcrumb-item a {
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
   transition: color 0.2s;
 }
 
 .breadcrumb-item a:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover, #1d4ed8);
 }
 
 .page-title {
@@ -1080,12 +1080,12 @@ export default {
 }
 
 .upload-label:hover {
-  border-color: #667eea;
+  border-color: var(--color-primary, #2563eb);
   background: #f0f4ff;
 }
 
 .upload-label.dragover {
-  border-color: #667eea;
+  border-color: var(--color-primary, #2563eb);
   background: #e8f0fe;
 }
 

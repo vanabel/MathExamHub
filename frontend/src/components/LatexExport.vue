@@ -178,13 +178,9 @@
                       <span class="badge bg-light text-dark border">{{ question.subject }}</span>
                     </div>
                     <div
-                      v-if="previewMode"
                       class="export-question-row__preview question-text-content small"
-                      v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
+                      v-html="exportRowPreviewHtml(question)"
                     ></div>
-                    <p v-else class="mb-0 small text-muted font-monospace text-truncate export-question-row__mono">
-                      {{ question.originalLaTeX || question.questionText }}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -558,7 +554,12 @@
 <script>
 import axios from "axios";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
-import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
+import {
+  processQuestionText,
+  processAnswerText,
+  processQuestionTextToHTML,
+  processQuestionListPreviewToHTML,
+} from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay } from "../utils/questionAnswerDisplay";
 import {
@@ -711,24 +712,30 @@ export default {
   },
   updated() {
     // 组件更新后重新渲染 MathJax 和 PDF
-    if (this.previewMode) {
-      this.$nextTick(() => {
-        setTimeout(() => {
-          this.renderMathJax();
-          const hasRenderingPDFs = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
-          if (!hasRenderingPDFs) {
-            this.renderPDFs();
-          }
-        }, 100);
-      });
-    }
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.renderMathJax();
+        const hasRenderingPDFs = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
+        if (!hasRenderingPDFs) {
+          this.renderPDFs();
+        }
+      }, 100);
+    });
   },
   methods: {
     // 导入处理函数
     processQuestionText,
     processAnswerText,
     processQuestionTextToHTML,
+    processQuestionListPreviewToHTML,
     answerForDisplay,
+    exportRowPreviewHtml(question) {
+      return this.processQuestionListPreviewToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        this.questionPreviewOpts(question),
+      );
+    },
     questionPreviewOpts(question) {
       const opts = question?.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
@@ -1419,12 +1426,12 @@ export default {
 }
 
 .breadcrumb-item a {
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
   transition: color 0.2s;
 }
 
 .breadcrumb-item a:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover, #1d4ed8);
 }
 
 .page-title {
@@ -1437,8 +1444,9 @@ export default {
 }
 
 .export-question-list {
-  max-height: 520px;
+  max-height: min(520px, 55vh);
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border-subtle, #e2e8f0);
   border-radius: var(--radius-md, 10px);
   background: var(--surface-bg, #f8fafc);
@@ -1476,11 +1484,14 @@ export default {
 
 .export-question-row__preview {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.45;
+  max-height: 4.35rem;
   color: var(--text-primary, #0f172a);
+  word-break: break-word;
 }
 
 .export-question-row__mono {
@@ -1518,12 +1529,12 @@ export default {
 
 .question-item:hover {
   background: #f8f9fa;
-  border-color: #667eea !important;
+  border-color: var(--color-primary, #2563eb) !important;
 }
 
 .question-item.selected {
   background: #e8f0fe;
-  border-color: #667eea !important;
+  border-color: var(--color-primary, #2563eb) !important;
 }
 
 .form-check-input {
@@ -1547,6 +1558,7 @@ export default {
 }
 
 .question-answer {
+  border-left-color: var(--color-primary, #2563eb);
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e9ecef;

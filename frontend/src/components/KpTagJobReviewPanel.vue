@@ -1,5 +1,5 @@
 <template>
-  <div class="card mb-3" data-testid="kp-tag-job-review">
+  <div class="card app-card mb-3" data-testid="kp-tag-job-review">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span>
         LLM 自动打标（仅未标注题目）
@@ -118,21 +118,23 @@
                   {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
                 </div>
               </td>
-              <td class="text-nowrap">
-                <button
-                  type="button"
-                  class="btn btn-link btn-sm p-0"
-                  :disabled="!!job?.appliedAt"
-                  aria-label="接受本题建议"
-                  @click="setStatus(row, 'accepted')"
-                >接受</button>
-                <button
-                  type="button"
-                  class="btn btn-link btn-sm p-0 text-danger"
-                  :disabled="!!job?.appliedAt"
-                  aria-label="拒绝本题建议"
-                  @click="setStatus(row, 'rejected')"
-                >拒绝</button>
+              <td>
+                <div class="d-flex flex-wrap gap-2 kp-review-row-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    :disabled="!!job?.appliedAt"
+                    aria-label="接受本题建议"
+                    @click="setStatus(row, 'accepted')"
+                  >接受</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    :disabled="!!job?.appliedAt"
+                    aria-label="拒绝本题建议"
+                    @click="setStatus(row, 'rejected')"
+                  >拒绝</button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -405,5 +407,9 @@ export default {
 .kp-stem-preview {
   max-height: 120px;
   overflow: auto;
+}
+
+.kp-review-row-actions {
+  min-width: 7rem;
 }
 </style>

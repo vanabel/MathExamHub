@@ -153,7 +153,7 @@ export default {
 .bank-selector-select {
   flex: 1 1 0;
   min-width: 0;
-  max-width: 10.5rem;
+  max-width: 100%;
   width: 100%;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.35);

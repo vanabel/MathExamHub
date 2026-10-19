@@ -564,12 +564,23 @@ export default {
   font-size: 1rem;
 }
 
-@media (min-width: 992px) {
+@media (min-width: 992px) and (max-width: 1199.98px) {
   .navbar-end :deep(.bank-selector-select) {
     max-width: 10.5rem;
     width: min(10.5rem, 18vw);
     min-width: 0;
   }
+}
+
+@media (min-width: 1200px) {
+  .navbar-end :deep(.bank-selector-select) {
+    max-width: 16rem;
+    width: auto;
+    min-width: 8rem;
+  }
+}
+
+@media (min-width: 992px) {
 
   .navbar-end :deep(.bank-archive-btn) {
     flex-shrink: 0;

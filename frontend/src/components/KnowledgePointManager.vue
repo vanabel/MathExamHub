@@ -49,7 +49,7 @@
           >
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
-                <code class="small">{{ n.path }}</code>
+                <span class="kp-tree-path small">{{ n.path }}</span>
                 <div class="mt-1">
                   <span v-for="tag in n.tags || []" :key="tag" class="badge me-1" :class="tagBadge(tag)">{{ tag }}</span>
                 </div>
@@ -63,7 +63,7 @@
         <div class="card" data-testid="kp-detail-panel">
           <div class="card-header">知识点详情</div>
           <div class="card-body">
-            <h5 class="h6"><code>{{ selected.path }}</code></h5>
+            <h5 class="h6 kp-tree-path">{{ selected.path }}</h5>
             <p v-if="selected.objective" class="small"><strong>教学目标：</strong>{{ selected.objective }}</p>
             <p v-if="selected.description" class="small"><strong>说明：</strong>{{ selected.description }}</p>
             <p v-if="selected.cognitiveLevel" class="small text-muted">认知维度：{{ selected.cognitiveLevel }} · 分类：{{ selected.category || '—' }}</p>
@@ -153,3 +153,17 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.kp-tree-path {
+  font-family: inherit;
+  color: var(--text-secondary, #475569);
+  word-break: break-word;
+}
+
+.list-group-item.active {
+  background: var(--color-primary-soft, #eff6ff);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: var(--text-primary, #0f172a);
+}
+</style>

@@ -1,9 +1,11 @@
 <template>
   <div class="app-page app-container container-xl py-4">
-    <div class="page-header mb-4">
-      <h1 class="h3 mb-1"><i class="bi bi-clock-history"></i> 组卷历史</h1>
-      <p class="text-muted mb-0">按蓝图 / 卷别查看；A/B 成对展示，可回到向导继续编辑</p>
-    </div>
+    <page-header
+      title="组卷历史"
+      subtitle="按蓝图 / 卷别查看；A/B 成对展示，可回到向导继续编辑"
+      icon="bi-clock-history"
+      test-id="exam-history-header"
+    />
 
     <div class="card shadow-sm mb-4">
       <div class="card-body row g-3 align-items-end">
@@ -67,15 +69,30 @@
 
       <div v-if="singles.length">
         <h2 class="h6 text-muted mb-2">单卷</h2>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
+        <div class="d-md-none">
+          <div v-for="p in singles" :key="p._id" class="card app-card mb-2">
+            <div class="card-body py-3">
+              <div class="fw-semibold mb-1">{{ p.title }}</div>
+              <div class="small text-muted mb-2">
+                {{ p.blueprintTitle || '—' }} · {{ p.questionIds?.length || 0 }} 题 · {{ formatDate(p.createdAt) }}
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" @click="openDetail(p._id)">查看</button>
+                <router-link class="btn btn-sm btn-outline-primary" :to="wizardLink(p)">向导</router-link>
+                <button type="button" class="btn btn-sm btn-success" :disabled="exportingId === p._id" @click="reExport(p)">ZIP</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive d-none d-md-block">
+          <table class="table table-hover align-middle app-table">
             <thead class="table-light">
               <tr>
-                <th>试卷</th>
-                <th>蓝图</th>
-                <th>题量</th>
-                <th>时间</th>
-                <th></th>
+                <th class="text-nowrap">试卷</th>
+                <th class="text-nowrap">蓝图</th>
+                <th class="text-nowrap">题量</th>
+                <th class="text-nowrap">时间</th>
+                <th class="text-nowrap"></th>
               </tr>
             </thead>
             <tbody>
@@ -83,7 +100,7 @@
                 <td>{{ p.title }}</td>
                 <td class="small text-muted">{{ p.blueprintTitle || '—' }}</td>
                 <td>{{ p.questionIds?.length || 0 }}</td>
-                <td class="small">{{ formatDate(p.createdAt) }}</td>
+                <td class="small text-nowrap">{{ formatDate(p.createdAt) }}</td>
                 <td class="text-end text-nowrap">
                   <button type="button" class="btn btn-sm btn-outline-secondary me-1" @click="openDetail(p._id)">查看</button>
                   <router-link class="btn btn-sm btn-outline-primary me-1" :to="wizardLink(p)">向导</router-link>
@@ -139,9 +156,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from './ui/PageHeader.vue';
 
 export default {
   name: 'ExamHistory',
+  components: { PageHeader },
   data() {
     return {
       blueprints: [],
