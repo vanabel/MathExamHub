@@ -1,49 +1,47 @@
 <template>
   <div class="question-list-container">
-    <div class="container">
-      <div class="page-header mb-4">
-        <div class="list-header-row list-header-row--top">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-list-ul"></i> 试题列表
-            </h1>
-            <p class="text-muted mb-0">
-              <i class="bi bi-bar-chart"></i> 共 {{ totalCount }} 道题目
-              <span v-if="totalCount > questions.length" class="ms-1">（本页 {{ questions.length }}）</span>
-            </p>
-          </div>
-          <div class="list-header-actions d-flex gap-2 align-items-center flex-shrink-0">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm d-md-none"
-              data-testid="question-list-toggle-filters"
-              @click="filtersOpen = !filtersOpen"
-            >
-              <i class="bi bi-funnel"></i> 筛选
-            </button>
-            <div class="dropdown">
+    <div class="app-container container-xl">
+      <div class="question-list-header-block mb-4">
+        <page-header
+          title="试题列表"
+          :subtitle="listHeaderSubtitle"
+          icon="bi-list-ul"
+          test-id="question-list-header"
+        >
+          <template #actions>
+            <div class="list-header-actions d-flex flex-wrap gap-2 align-items-center">
               <button
-                class="btn btn-outline-secondary btn-sm dropdown-toggle"
                 type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-                data-testid="question-list-more-menu"
+                class="btn btn-outline-secondary btn-sm d-md-none"
+                data-testid="question-list-toggle-filters"
+                @click="filtersOpen = !filtersOpen"
               >
-                导入 / 导出
+                <i class="bi bi-funnel"></i> 筛选
               </button>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
-                <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
-              </ul>
+              <div class="dropdown">
+                <button
+                  class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  data-testid="question-list-more-menu"
+                >
+                  导入 / 导出
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
+                  <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
+                </ul>
+              </div>
+              <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
+                知识图谱
+              </kp-graph-nav-link>
+              <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
+                <i class="bi bi-plus-lg"></i> 添加题目
+              </router-link>
             </div>
-            <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
-              知识图谱
-            </kp-graph-nav-link>
-            <router-link to="/question-add" class="btn btn-primary btn-sm" data-testid="question-list-add">
-              <i class="bi bi-plus-lg"></i> 添加题目
-            </router-link>
-          </div>
-        </div>
+          </template>
+        </page-header>
 
         <div
           class="filter-toolbar mt-3"
@@ -175,12 +173,19 @@
         </div>
       </div>
 
-      <!-- 加载状态 -->
-      <div v-if="loading" class="text-center py-5" data-testid="question-list-loading">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">加载中...</span>
+      <!-- 加载骨架 -->
+      <div v-if="loading" class="row g-3" data-testid="question-list-loading" aria-busy="true">
+        <div v-for="n in 6" :key="n" class="col-12 col-md-6 col-lg-4">
+          <div class="card question-card question-card--skeleton h-100">
+            <div class="card-body placeholder-glow">
+              <span class="placeholder col-4 rounded mb-2"></span>
+              <span class="placeholder col-8 rounded mb-3"></span>
+              <span class="placeholder col-12 rounded mb-1"></span>
+              <span class="placeholder col-11 rounded mb-1"></span>
+              <span class="placeholder col-9 rounded"></span>
+            </div>
+          </div>
         </div>
-        <p class="text-muted small mt-2 mb-0">正在加载题目…</p>
       </div>
 
       <!-- 搜索结果提示 -->
@@ -260,78 +265,140 @@
       </div>
 
       <!-- 题目列表 -->
-      <div v-if="!loading && questions.length > 0" class="row g-4">
+      <div v-if="!loading && questions.length > 0" ref="questionListMain" class="row g-3">
         <div
           v-for="question in questions"
           :key="question._id"
           class="col-12 col-md-6 col-lg-4"
         >
-          <div class="card question-card h-100">
-            <div class="card-body">
-              <!-- 题目头部信息 -->
-              <div class="question-header mb-3">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <span class="badge bg-primary">{{ question.subject }}</span>
-                  <span class="badge" :class="getDifficultyClass(question.difficulty)">
-                    {{ question.difficulty }}
-                  </span>
+          <div class="card question-card question-card--dense h-100">
+            <div class="card-body d-flex flex-column">
+              <div class="question-card__top d-flex justify-content-between align-items-start gap-2 mb-2">
+                <div class="question-card__meta d-flex flex-wrap align-items-center gap-1">
+                  <span class="badge badge-type">{{ question.type }}</span>
+                  <span class="badge bg-info text-dark">{{ question.totalScore }} 分</span>
+                  <span class="badge" :class="getDifficultyClass(question.difficulty)">{{ question.difficulty }}</span>
+                  <span
+                    v-for="chip in kpChipsForQuestion(question)"
+                    :key="chip.id"
+                    class="badge rounded-pill text-bg-light border kp-chip"
+                  >{{ chip.label }}</span>
+                  <span
+                    v-if="question.qualityIssues && question.qualityIssues.includes('step_score_mismatch')"
+                    class="badge bg-warning text-dark"
+                    title="逐步 \\score 之和与总分不一致"
+                  >步骤分</span>
                 </div>
-                <span class="badge bg-secondary">{{ question.type }}</span>
-                <span class="badge bg-info ms-2">{{ question.totalScore }} 分</span>
-                <span
-                  v-if="question.qualityIssues && question.qualityIssues.includes('step_score_mismatch')"
-                  class="badge bg-warning text-dark ms-1"
-                  title="逐步 \\score 之和与总分不一致"
-                >步骤分不一致</span>
-                <span v-if="question.usageCount" class="badge bg-light text-dark ms-1">已用 {{ question.usageCount }} 次</span>
+                <div class="dropdown question-card__menu flex-shrink-0">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary question-card__menu-btn dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    :aria-label="'题目操作 ' + question._id"
+                    :data-testid="'question-list-row-menu-' + question._id"
+                  >
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <router-link
+                        :to="`/question-edit/${question._id}`"
+                        class="dropdown-item"
+                        data-testid="question-list-edit"
+                      >
+                        <i class="bi bi-pencil"></i> 编辑
+                      </router-link>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="dropdown-item text-danger"
+                        data-testid="question-list-delete"
+                        @click="deleteQuestion(question._id)"
+                      >
+                        <i class="bi bi-trash"></i> 删除
+                      </button>
+                    </li>
+                  </ul>
+                </div>
               </div>
 
-              <!-- 题目内容：先转成 HTML，再由 MathJax / PDF.js 排版 -->
-              <div class="question-content mb-3">
+              <div class="question-card__body-main flex-grow-1 d-flex flex-column">
                 <div
-                  class="question-text-content"
-                  v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionRenderOptions(question))"
-                ></div>
+                  class="question-card__preview"
+                  :class="{ 'question-card__preview--expanded': isCardExpanded(question._id) }"
+                  :data-qid="question._id"
+                >
+                  <div
+                    class="question-text-content question-card__formula"
+                    v-html="previewHtml(question)"
+                  ></div>
+                  <div
+                    v-if="question.images && question.images.length"
+                    class="question-images mt-2"
+                    v-html="questionImagesHtml(question)"
+                  ></div>
+                  <div
+                    v-if="isCardExpanded(question._id) && choiceOptionsFor(question).length"
+                    class="mathexam-abcd latex-choice-options mt-2"
+                    data-testid="question-list-choice-options"
+                  >
+                    <div
+                      v-for="entry in choiceOptionsFor(question)"
+                      :key="entry.label"
+                      class="mathexam-abcd-item latex-choice-option-item"
+                    >
+                      <span class="mathexam-abcd-label choice-option-label">{{ entry.displayLabel }}</span>
+                      <span class="mathexam-abcd-body" v-html="choiceOptionBodyHtml(entry.text)"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="question-card__expand-row d-flex flex-wrap gap-2 align-items-center">
+                  <button
+                    v-if="cardNeedsExpand(question._id)"
+                    type="button"
+                    class="btn btn-link btn-sm p-0 question-card__expand"
+                    data-testid="question-list-expand-toggle"
+                    @click="toggleCardExpanded(question._id)"
+                  >
+                    {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
+                  </button>
+                  <button
+                    v-if="showRevealAnswerButton(question)"
+                    type="button"
+                    class="btn btn-link btn-sm p-0 question-card__expand"
+                    data-testid="question-list-reveal-answer"
+                    @click="toggleRevealAnswer(question._id)"
+                  >
+                    {{ isAnswerRevealed(question._id) ? '隐藏答案' : '查看答案' }}
+                  </button>
+                </div>
                 <div
-                  v-if="question.images && question.images.length"
-                  class="question-images mt-2"
-                  v-html="renderQuestionImagesHtml(question.images)"
-                ></div>
-              </div>
-
-              <!-- 选项（如果是选择题） -->
-              <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-3">
-                <ChoiceOptionsList :options="question.options">
-                  <template #default="{ entry }">
-                    <div v-html="processQuestionTextToHTML(entry.text)"></div>
-                  </template>
-                </ChoiceOptionsList>
-              </div>
-
-              <!-- 答案 -->
-              <div v-if="showAnswerBlock(question)" class="question-answer">
-                <strong>答案：</strong>
-                <div class="answer-text-content" v-html="renderAnswer(answerForDisplay(question))"></div>
-              </div>
-              <div v-if="showSolutionBlock(question)" class="question-solution mt-2">
-                <strong>解答：</strong>
-                <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
-              </div>
-
-              <!-- 操作按钮 -->
-              <div class="question-actions mt-3 pt-3 border-top">
-                <router-link
-                  :to="`/question-edit/${question._id}`"
-                  class="btn btn-sm btn-outline-primary"
+                  v-if="showCardDetail(question)"
+                  class="question-card__detail mt-2"
+                  :data-answer-detail-qid="question._id"
                 >
-                  <i class="bi bi-pencil"></i> 编辑
-                </router-link>
-                <button
-                  @click="deleteQuestion(question._id)"
-                  class="btn btn-sm btn-outline-danger ms-2"
-                >
-                  <i class="bi bi-trash"></i> 删除
-                </button>
+                  <div v-if="showAnswerBlock(question)" class="question-answer small mb-2">
+                    <strong>答案：</strong>
+                    <div
+                      class="answer-text-content question-card__math-scroll"
+                      v-html="renderAnswer(answerForDisplay(question))"
+                    ></div>
+                  </div>
+                  <div v-if="showSolutionBlock(question)" class="question-solution small">
+                    <strong>解答：</strong>
+                    <div
+                      class="solution-text-content question-card__math-scroll"
+                      v-html="renderAnswer(question.solution)"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="question-card__footer mt-auto pt-2 text-muted small">
+                <span>{{ question.subject }}</span>
+                <span v-if="question.usageCount" class="ms-2">已用 {{ question.usageCount }} 次</span>
               </div>
             </div>
           </div>
@@ -345,7 +412,15 @@
         data-testid="question-list-empty-bank"
       >
         <i class="bi bi-inbox display-1 text-muted"></i>
-        <p class="text-muted mt-3">暂无题目，点击上方"添加题目"开始创建</p>
+        <p class="text-muted mt-3 mb-4">暂无题目，添加或导入后即可开始组卷</p>
+        <div class="d-flex flex-wrap gap-2 justify-content-center">
+          <router-link to="/question-add" class="btn btn-primary" data-testid="question-list-empty-add">
+            <i class="bi bi-plus-lg"></i> 添加题目
+          </router-link>
+          <router-link to="/latex-import" class="btn btn-outline-primary" data-testid="question-list-empty-import">
+            <i class="bi bi-upload"></i> 导入 LaTeX
+          </router-link>
+        </div>
       </div>
     </div>
   </div>
@@ -355,11 +430,12 @@
 import axios from "axios";
 import {
   processQuestionTextToHTML,
+  processQuestionListPreviewToHTML,
   processAnswerTextToHTML,
   renderQuestionImagesHtml,
+  buildFigureRefDisplayMap,
 } from "../utils/latexProcessor";
-import ChoiceOptionsList from "./ChoiceOptionsList.vue";
-import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
+import { shouldUseChoiceOptionLabels, listChoiceOptionEntries, isChoiceQuestionType } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 import {
   loadCoverageGapBatch,
@@ -367,10 +443,11 @@ import {
 } from "../utils/coverageGapBatch";
 import { flattenKnowledgePointTree, kpTreeIndent } from "../utils/knowledgePointTree";
 import KpGraphNavLink from "./KpGraphNavLink.vue";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "QuestionList",
-  components: { ChoiceOptionsList, KpGraphNavLink },
+  components: { KpGraphNavLink, PageHeader },
   data() {
     return {
       questions: [],
@@ -398,9 +475,18 @@ export default {
       gapBatchGaps: [],
       gapBatchIndex: 0,
       gapBatchSeed: null,
+      expandedCardIds: {},
+      revealedAnswerIds: {},
+      overflowCardIds: {},
     };
   },
   computed: {
+    listHeaderSubtitle() {
+      const pagePart = this.totalCount > this.questions.length
+        ? `（本页 ${this.questions.length}）`
+        : '';
+      return `共 ${this.totalCount} 道题目${pagePart}`;
+    },
     gapBatchActive() {
       return this.gapBatchGaps.length > 0;
     },
@@ -459,6 +545,17 @@ export default {
     this.readFiltersFromRoute();
     this.loadKnowledgePoints();
     this.pushFiltersToRoute();
+    this._onWindowResize = () => this.schedulePreviewOverflowCheck();
+    window.addEventListener("resize", this._onWindowResize, { passive: true });
+    if (typeof ResizeObserver !== "undefined") {
+      this._previewResizeObserver = new ResizeObserver(() => this.schedulePreviewOverflowCheck());
+    }
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this._onWindowResize);
+    if (this._previewResizeObserver) this._previewResizeObserver.disconnect();
+    if (this._overflowCheckTimer) clearTimeout(this._overflowCheckTimer);
+    if (this._layoutPassTimer) clearTimeout(this._layoutPassTimer);
   },
   watch: {
     '$route.query': {
@@ -475,30 +572,177 @@ export default {
     currentPage(val) {
       this.pageJumpInput = val;
     },
-  },
-  updated() {
-    this.$nextTick(() => {
-      setTimeout(() => {
-        this.renderMathJax();
-        const rendering = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
-        if (!rendering) this.renderPDFs();
-      }, 80);
-    });
+    questions: {
+      handler() {
+        this._questionImagesHtmlCache = new Map();
+        this.scheduleListLayoutPass("questions");
+      },
+    },
   },
   methods: {
     processQuestionTextToHTML,
+    processQuestionListPreviewToHTML,
     processAnswerTextToHTML,
     renderQuestionImagesHtml,
+    answerForDisplay,
     showAnswerBlock,
     showSolutionBlock,
-    answerForDisplay,
+    kpChipsForQuestion(question) {
+      const ids = question.knowledgePointIds || [];
+      if (!ids.length) return [];
+      const map = new Map(this.kpTreeFlat.map((k) => [String(k._id), k]));
+      return ids.slice(0, 3).map((id) => {
+        const kp = map.get(String(id));
+        const label = kp ? (kp.name || kp.path || '知识点') : '知识点';
+        return { id: String(id), label: label.length > 12 ? `${label.slice(0, 11)}…` : label };
+      });
+    },
+    isCardExpanded(id) {
+      return !!this.expandedCardIds[String(id)];
+    },
+    toggleCardExpanded(id) {
+      const key = String(id);
+      this.expandedCardIds = {
+        ...this.expandedCardIds,
+        [key]: !this.expandedCardIds[key],
+      };
+      this.scheduleListLayoutPass("expand");
+    },
+    isAnswerRevealed(id) {
+      return !!this.revealedAnswerIds[String(id)];
+    },
+    toggleRevealAnswer(id) {
+      const key = String(id);
+      const revealing = !this.revealedAnswerIds[key];
+      this.revealedAnswerIds = {
+        ...this.revealedAnswerIds,
+        [key]: revealing,
+      };
+      if (revealing) {
+        this.$nextTick(() => this.typesetQuestionCardDetail(id));
+      }
+    },
+    typesetQuestionCardDetail(qid) {
+      if (!this.$el || !window.MathJax?.Hub) return;
+      const el = this.$el.querySelector(`[data-answer-detail-qid="${qid}"]`);
+      if (!el) return;
+      window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, el]);
+    },
+    showRevealAnswerButton(question) {
+      if (!this.cardHasAnswerDetail(question)) return false;
+      if (this.isCardExpanded(question._id)) return false;
+      return true;
+    },
+    showCardDetail(question) {
+      return this.isCardExpanded(question._id) || this.isAnswerRevealed(question._id);
+    },
+    cardHasAnswerDetail(question) {
+      return showAnswerBlock(question) || showSolutionBlock(question);
+    },
+    choiceOptionsFor(question) {
+      if (!question || !isChoiceQuestionType(question.type)) return [];
+      return listChoiceOptionEntries(question.options);
+    },
+    choiceOptionBodyHtml(text) {
+      return processQuestionTextToHTML(text || "", null, { mode: "question" });
+    },
+    questionImagesHtml(question) {
+      if (!this._questionImagesHtmlCache) this._questionImagesHtmlCache = new Map();
+      const key = String(question._id);
+      const sig = JSON.stringify(question.images || []);
+      const cached = this._questionImagesHtmlCache.get(key);
+      if (cached && cached.sig === sig) return cached.html;
+      const html = renderQuestionImagesHtml(question.images);
+      this._questionImagesHtmlCache.set(key, { sig, html });
+      return html;
+    },
+    overflowMapsEqual(a, b) {
+      const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+      for (const k of keys) {
+        if (!!(a && a[k]) !== !!(b && b[k])) return false;
+      }
+      return true;
+    },
+    scheduleListLayoutPass() {
+      if (this._layoutPassTimer) clearTimeout(this._layoutPassTimer);
+      this._layoutPassTimer = setTimeout(() => this.runListLayoutPass(), 160);
+    },
+    runListLayoutPass() {
+      if (this._layoutPassInFlight) return;
+      this._layoutPassInFlight = true;
+      this.$nextTick(() => {
+        this.typesetAndRenderMedia().finally(() => {
+          this._layoutPassInFlight = false;
+        });
+      });
+    },
+    typesetAndRenderMedia() {
+      return new Promise((resolve) => {
+        const finish = () => {
+          this.renderPDFs();
+          this.observePreviewBoxes();
+          this.schedulePreviewOverflowCheck();
+          resolve();
+        };
+        if (window.MathJax && window.MathJax.Hub) {
+          window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, this.$el], finish);
+        } else {
+          finish();
+        }
+      });
+    },
+    observePreviewBoxes() {
+      if (!this._previewResizeObserver || !this.$el) return;
+      this._previewResizeObserver.disconnect();
+      this.$el.querySelectorAll(".question-card__preview").forEach((el) => {
+        this._previewResizeObserver.observe(el);
+      });
+    },
+    cardNeedsExpand(qid) {
+      if (this.isCardExpanded(qid)) return true;
+      return !!this.overflowCardIds[String(qid)];
+    },
+    schedulePreviewOverflowCheck() {
+      if (this._overflowCheckTimer) clearTimeout(this._overflowCheckTimer);
+      this._overflowCheckTimer = setTimeout(() => this.recheckPreviewOverflow(), 120);
+    },
+    recheckPreviewOverflow() {
+      if (!this.$el) return;
+      const next = {};
+      this.$el.querySelectorAll(".question-card__preview:not(.question-card__preview--expanded)").forEach((el) => {
+        const qid = el.getAttribute("data-qid");
+        if (!qid) return;
+        const overflow = el.scrollHeight > el.clientHeight + 2;
+        if (overflow) next[qid] = true;
+      });
+      if (this.overflowMapsEqual(this.overflowCardIds, next)) return;
+      this.overflowCardIds = next;
+    },
+    previewHtml(question) {
+      const opts = this.questionRenderOptions(question);
+      if (this.isCardExpanded(question._id)) {
+        return this.processQuestionTextToHTML(
+          question.questionText,
+          question.originalLaTeX,
+          opts,
+        );
+      }
+      return this.processQuestionListPreviewToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        opts,
+      );
+    },
     questionRenderOptions(question) {
       const opts = question && question.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      const figureRefDisplayByKey = buildFigureRefDisplayMap(question?.images);
       return {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
+        images: question?.images,
+        figureRefDisplayByKey,
         choiceOptionLabels: shouldUseChoiceOptionLabels({
           questionType: question?.type,
           hasOptions,
@@ -510,15 +754,13 @@ export default {
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
     },
-    renderMathJax() {
-      if (window.MathJax && window.MathJax.Hub) {
-        window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, this.$el]);
-      }
-    },
     renderPDFs() {
-      if (typeof window.pdfjsLib === "undefined") return;
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      if (typeof window.pdfjsLib === "undefined" || !this.$el) return;
+      if (!this._pdfWorkerConfigured) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        this._pdfWorkerConfigured = true;
+      }
       this.$el.querySelectorAll(".pdf-container[data-pdf-url]").forEach((container) => {
         const pdfUrl = container.getAttribute("data-pdf-url");
         const canvas = container.querySelector(".pdf-canvas");
@@ -540,6 +782,7 @@ export default {
           .then(() => {
             canvas.dataset.rendered = "true";
             canvas.dataset.rendering = "false";
+            this.schedulePreviewOverflowCheck();
           })
           .catch((error) => {
             canvas.dataset.rendering = "false";
@@ -765,6 +1008,7 @@ export default {
         console.error('Failed to retrieve question list:', error);
       } finally {
         this.loading = false;
+        this.scheduleListLayoutPass("fetch");
       }
     },
     handleSearch() {
@@ -855,19 +1099,79 @@ export default {
 }
 
 .question-card {
-  transition: all 0.3s ease;
-  border: 1px solid #e9ecef;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
 }
 
-.question-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+.question-card--dense:hover {
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(15, 23, 42, 0.08));
+  border-color: var(--border-strong, #cbd5e1);
 }
 
-.question-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.question-card--skeleton {
+  min-height: 10rem;
+}
+
+.question-card__meta .badge-type {
+  background: var(--color-primary-soft, #eff6ff);
+  color: var(--color-primary, #2563eb);
+  font-weight: 600;
+}
+
+.kp-chip {
+  font-weight: 500;
+  font-size: 0.7rem;
+}
+
+.question-card__menu-btn {
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+}
+
+.question-card__body-main {
+  min-height: 6.75rem;
+}
+
+.question-card__expand-row {
+  flex-shrink: 0;
+  min-height: 1.35rem;
+  margin-top: 0.15rem;
+}
+
+.question-card__preview {
+  overflow: hidden;
+  max-height: 5.25rem;
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.question-card__preview:not(.question-card__preview--expanded) {
+  min-height: 5.25rem;
+}
+
+.question-card__preview:not(.question-card__preview--expanded)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.75rem;
+  background: linear-gradient(transparent, var(--surface-card, #fff));
+  pointer-events: none;
+}
+
+.question-card__preview--expanded {
+  max-height: none;
+}
+
+.question-card__preview--expanded::after {
+  display: none;
+}
+
+.question-card__formula :deep(.MathJax) {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .badge {
@@ -899,7 +1203,7 @@ export default {
   background: #e7f3ff;
   padding: 0.75rem;
   border-radius: 8px;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid var(--color-primary, #2563eb);
   font-size: 0.95rem;
 }
 
@@ -909,6 +1213,28 @@ export default {
   border-radius: 8px;
   border-left: 3px solid #22c55e;
   font-size: 0.95rem;
+}
+
+.question-card__math-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-left: 0.35rem;
+  padding-right: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.question-card__math-scroll :deep(.MathJax_Display) {
+  text-align: left !important;
+  margin: 0 !important;
+  max-width: 100%;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  padding-left: 0;
+}
+
+.question-card__math-scroll :deep(mjx-container[display="true"]) {
+  text-align: left !important;
+  margin: 0 !important;
 }
 
 .question-actions {

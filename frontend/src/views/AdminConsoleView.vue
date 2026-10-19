@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="app-page app-container container-xl py-4">
     <h1 class="h3 mb-3"><i class="bi bi-shield-lock"></i> 平台管理</h1>
     <div
       v-if="forbidden"

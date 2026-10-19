@@ -386,7 +386,7 @@ export default {
 .bank-latex-section-title {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
   margin-bottom: 0.65rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid #e9ecef;

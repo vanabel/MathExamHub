@@ -1,5 +1,5 @@
 <template>
-  <div class="card mb-3" data-testid="kp-tag-job-review">
+  <div class="card app-card mb-3" data-testid="kp-tag-job-review">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span>
         LLM 自动打标（仅未标注题目）
@@ -87,56 +87,94 @@
         本任务没有待审核条目（可能已全部处理或无匹配题目）。
       </p>
 
-      <div v-if="displayRows.length" class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead>
-            <tr>
-              <th scope="col">题干</th>
-              <th scope="col">建议知识点</th>
-              <th scope="col">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in displayRows" :key="row.questionId" :class="rowClass(row)">
-              <td class="small" style="max-width: 280px">
-                <div class="kp-stem-preview" v-html="stemHtml(row.questionText)"></div>
-              </td>
-              <td>
-                <select
-                  v-model="row.acceptedKnowledgePointIds"
-                  class="form-select form-select-sm mb-1"
-                  multiple
-                  size="3"
-                  :disabled="!!job?.appliedAt"
-                  @change="onRowEdited(row)"
-                >
-                  <option v-for="kp in kpOptions" :key="kp.id" :value="kp.id">
-                    {{ kp.path }}
-                  </option>
-                </select>
-                <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted">
-                  {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
-                </div>
-              </td>
-              <td class="text-nowrap">
-                <button
-                  type="button"
-                  class="btn btn-link btn-sm p-0"
-                  :disabled="!!job?.appliedAt"
-                  aria-label="接受本题建议"
-                  @click="setStatus(row, 'accepted')"
-                >接受</button>
-                <button
-                  type="button"
-                  class="btn btn-link btn-sm p-0 text-danger"
-                  :disabled="!!job?.appliedAt"
-                  aria-label="拒绝本题建议"
-                  @click="setStatus(row, 'rejected')"
-                >拒绝</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="displayRows.length" class="kp-tag-review-rows">
+        <div
+          v-for="row in displayRows"
+          :key="row.questionId"
+          class="card app-card mb-2 d-md-none kp-review-mobile-card"
+          :class="rowClass(row)"
+        >
+          <div class="card-body small">
+            <div class="kp-stem-preview mb-2" v-html="stemHtml(row.questionText)"></div>
+            <kp-tag-row-kp-cell
+              class="mb-2"
+              :row="row"
+              :job="job"
+              :kp-edit-open="isKpEditOpen(row.questionId)"
+              :kp-edit-search="kpEditSearch[row.questionId] || ''"
+              :filtered-options="filteredKpPickerOptions(row)"
+              :kp-path-by-id="kpPathById"
+              @toggle-edit="toggleKpEdit(row.questionId)"
+              @update:search="(v) => setKpEditSearch(row.questionId, v)"
+              @toggle-kp="(id, on) => onRowKpToggle(row, id, on)"
+            />
+            <div class="d-grid gap-2 kp-review-mobile-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                :disabled="!!job?.appliedAt"
+                @click="setStatus(row, 'accepted')"
+              >接受</button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                :disabled="!!job?.appliedAt"
+                data-testid="kp-tag-row-reject-mobile"
+                @click="setStatus(row, 'rejected')"
+              >拒绝</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive d-none d-md-block">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th scope="col">题干</th>
+                <th scope="col">建议知识点</th>
+                <th scope="col">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in displayRows" :key="row.questionId" :class="rowClass(row)">
+                <td class="small" style="max-width: 280px">
+                  <div class="kp-stem-preview" v-html="stemHtml(row.questionText)"></div>
+                </td>
+                <td>
+                  <kp-tag-row-kp-cell
+                    :row="row"
+                    :job="job"
+                    :kp-edit-open="isKpEditOpen(row.questionId)"
+                    :kp-edit-search="kpEditSearch[row.questionId] || ''"
+                    :filtered-options="filteredKpPickerOptions(row)"
+                    :kp-path-by-id="kpPathById"
+                    @toggle-edit="toggleKpEdit(row.questionId)"
+                    @update:search="(v) => setKpEditSearch(row.questionId, v)"
+                    @toggle-kp="(id, on) => onRowKpToggle(row, id, on)"
+                  />
+                </td>
+                <td class="kp-review-actions-col">
+                  <div class="d-flex flex-column gap-2 kp-review-row-actions">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      :disabled="!!job?.appliedAt"
+                      aria-label="接受本题建议"
+                      @click="setStatus(row, 'accepted')"
+                    >接受</button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      :disabled="!!job?.appliedAt"
+                      aria-label="拒绝本题建议"
+                      @click="setStatus(row, 'rejected')"
+                    >拒绝</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -145,9 +183,11 @@
 <script>
 import axios from 'axios';
 import { processQuestionTextToHTML } from '../utils/latexProcessor';
+import KpTagRowKpCell from './KpTagRowKpCell.vue';
 
 export default {
   name: 'KpTagJobReviewPanel',
+  components: { KpTagRowKpCell },
   props: {
     subject: { type: String, required: true },
     kpTree: { type: Array, default: () => [] },
@@ -170,6 +210,8 @@ export default {
       saveState: '',
       rowActionHint: '',
       rowActionTimer: null,
+      kpEditOpenIds: {},
+      kpEditSearch: {},
     };
   },
   computed: {
@@ -219,6 +261,12 @@ export default {
         if (on && !this.jobId) this.tryLoadLatestOpen();
       },
     },
+    localRows: {
+      handler() {
+        this.$nextTick(() => this.typesetStemPreviews());
+      },
+      deep: true,
+    },
   },
   beforeUnmount() {
     this.stopPoll();
@@ -228,6 +276,47 @@ export default {
   methods: {
     stemHtml(text) {
       return processQuestionTextToHTML(String(text || '').slice(0, 400));
+    },
+    typesetStemPreviews() {
+      if (!window.MathJax?.Hub || !this.$el) return;
+      const nodes = this.$el.querySelectorAll('.kp-stem-preview');
+      if (!nodes.length) return;
+      window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, Array.from(nodes)]);
+    },
+    kpPathById(id) {
+      const hit = this.kpOptions.find((o) => o.id === String(id));
+      return hit?.path || String(id);
+    },
+    isKpEditOpen(questionId) {
+      return !!this.kpEditOpenIds[String(questionId)];
+    },
+    toggleKpEdit(questionId) {
+      const key = String(questionId);
+      this.kpEditOpenIds = { ...this.kpEditOpenIds, [key]: !this.kpEditOpenIds[key] };
+      if (!this.kpEditOpenIds[key]) {
+        const next = { ...this.kpEditSearch };
+        delete next[key];
+        this.kpEditSearch = next;
+      }
+    },
+    setKpEditSearch(questionId, value) {
+      this.kpEditSearch = { ...this.kpEditSearch, [String(questionId)]: value };
+    },
+    filteredKpPickerOptions(row) {
+      const q = (this.kpEditSearch[row.questionId] || '').trim().toLowerCase();
+      let list = this.kpOptions;
+      if (q) {
+        list = list.filter((o) => (o.path || '').toLowerCase().includes(q));
+      }
+      return list.slice(0, 80);
+    },
+    onRowKpToggle(row, kpId, checked) {
+      const ids = new Set(row.acceptedKnowledgePointIds || []);
+      const key = String(kpId);
+      if (checked) ids.add(key);
+      else ids.delete(key);
+      row.acceptedKnowledgePointIds = [...ids];
+      this.onRowEdited(row);
     },
     rowClass(row) {
       if (row.status === 'rejected') return 'table-secondary';
@@ -405,5 +494,9 @@ export default {
 .kp-stem-preview {
   max-height: 120px;
   overflow: auto;
+}
+
+.kp-review-row-actions {
+  min-width: 7rem;
 }
 </style>

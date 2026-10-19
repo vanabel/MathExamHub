@@ -1,9 +1,11 @@
 <template>
-  <div class="container py-4">
-    <h2 class="mb-3">重复题目审查</h2>
-    <p class="text-muted">
-      当前题库内按 <code>contentHash</code> 精确重复与近似相似度分组（默认阈值 0.85）。
-    </p>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      title="重复题目审查"
+      subtitle="当前题库内按 contentHash 精确重复与近似相似度分组（默认阈值 0.85）。"
+      icon="bi-files"
+      test-id="duplicates-header"
+    />
 
     <div class="row g-2 align-items-end mb-4">
       <div class="col-auto">
@@ -62,9 +64,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'DuplicateReviewView',
+  components: { PageHeader },
   data() {
     return {
       threshold: 0.85,

@@ -143,6 +143,39 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
   }
 });
 
+test('figureRefDisplayLabel uses last segment of stored label', async () => {
+  const P = await loadProcessor();
+  const full = '解析几何-2024-midterm-正方体';
+  assert.equal(P.figureRefShortDisplayName(full), '正方体');
+  assert.equal(P.figureRefDisplayLabel(`fig:${full}`), '正方体');
+  const map = P.buildFigureRefDisplayMap([{ label: full }]);
+  const collapsed = P.processQuestionListPreviewToHTML(`如图\\ref{fig:${full}}`, null, {
+    figureRefDisplayByKey: map,
+  });
+  const expanded = P.processQuestionTextToHTML(`如图\\ref{fig:${full}}`, null, {
+    figureRefDisplayByKey: map,
+  });
+  assert.match(collapsed, />正方体</);
+  assert.match(expanded, />正方体</);
+  assert.match(collapsed, /#fig:解析几何-2024-midterm-正方体/);
+  assert.doesNotMatch(collapsed, />解析几何-2024-midterm-正方体</);
+});
+
+test('figureRefDisplayLabel fig3 ref matches image label ending in -3', async () => {
+  const P = await loadProcessor();
+  const map = P.buildFigureRefDisplayMap([{ label: '解析几何-2024-midterm-3' }]);
+  assert.equal(P.figureRefDisplayLabel('fig3', map), '3');
+  const collapsed = P.processQuestionListPreviewToHTML('如图\\ref{fig:fig3}', null, {
+    figureRefDisplayByKey: map,
+  });
+  const exportRow = P.processQuestionListPreviewToHTML('见图\\ref{fig:fig3}', null, {
+    figureRefDisplayByKey: map,
+  });
+  assert.match(collapsed, />3</);
+  assert.match(exportRow, />3</);
+  assert.doesNotMatch(collapsed, /解析几何/);
+});
+
 test('index.html MathJax2 macros match mathjaxMacros.json', () => {
   const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const json = JSON.parse(fs.readFileSync(path.join(root, 'src/utils/mathjaxMacros.json'), 'utf8'));

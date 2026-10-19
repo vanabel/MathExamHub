@@ -21,6 +21,64 @@ function escapeHtmlAttr(value) {
     .replace(/</g, '&lt;');
 }
 
+function stablePdfDomId(seed) {
+  const cleaned = String(seed ?? 'pdf')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 96);
+  return cleaned || 'pdf';
+}
+
+function normalizeFigureRefKey(labelRaw) {
+  return String(labelRaw ?? '').trim().replace(/^fig:/i, '');
+}
+
+/**
+ * Short figure name for UI: strip fig: prefix, then last '-' segment; fig3 → 3.
+ * (LaTeX \\label/\\ref keys in export stay unchanged — display only.)
+ */
+export function figureRefShortDisplayName(labelRaw) {
+  const label = normalizeFigureRefKey(labelRaw);
+  if (!label) return '';
+  const figNum = label.match(/^fig(\d+)$/i);
+  if (figNum) return figNum[1];
+  const parts = label.split('-').filter(Boolean);
+  return parts[parts.length - 1] || label;
+}
+
+/** Build lookup for \\ref{fig:…} display text from structured question.images. */
+export function buildFigureRefDisplayMap(images) {
+  const map = Object.create(null);
+  for (const img of images || []) {
+    const key = normalizeFigureRefKey(img?.label);
+    if (!key) continue;
+    const display = figureRefShortDisplayName(key);
+    map[key] = display;
+    const figOnly = key.match(/^fig(\d+)$/i);
+    if (figOnly) {
+      map[`fig${figOnly[1]}`.toLowerCase()] = display;
+      map[`fig${figOnly[1]}`] = display;
+    }
+    const parts = key.split('-').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (/^\d+$/.test(last)) {
+      map[`fig${last}`.toLowerCase()] = last;
+      map[`fig${last}`] = last;
+    }
+  }
+  return map;
+}
+
+/** Human-readable figure name for \\ref{fig:…} (list collapsed/expanded + export rows). */
+export function figureRefDisplayLabel(labelRaw, figureRefDisplayByKey = null) {
+  const label = normalizeFigureRefKey(labelRaw);
+  if (!label) return '';
+  if (figureRefDisplayByKey?.[label]) return figureRefDisplayByKey[label];
+  const lower = label.toLowerCase();
+  if (figureRefDisplayByKey?.[lower]) return figureRefDisplayByKey[lower];
+  return figureRefShortDisplayName(label);
+}
+
 function stepScoreBadgeHtml(points) {
   const n = String(points).trim();
   return `<span class="step-score-line"><span class="step-score-badge">(${escapeHtmlAttr(n)}分)</span></span>`;
@@ -47,7 +105,7 @@ export function renderQuestionImagesHtml(images) {
     const widthStyle = img.width ? `max-width:${escapeHtmlAttr(img.width)};` : 'max-width:100%;';
     let media = '';
     if (isPdf) {
-      const uid = `pdf-${label || index}-${Date.now()}`;
+      const uid = stablePdfDomId(label || url || index);
       media = `<div class="pdf-container" data-pdf-url="${escapeHtmlAttr(fileUrl)}" data-pdf-id="${uid}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:10px;background:#f5f5f5;margin:10px 0;"><canvas id="pdf-canvas-${uid}" class="pdf-canvas" style="max-width:100%;display:block;margin:0 auto;"></canvas></div>`;
     } else {
       media = `<img src="${escapeHtmlAttr(fileUrl)}" alt="${escapeHtmlAttr(caption || label || '图片')}" class="latex-figure question-structured-image" style="${widthStyle}height:auto;display:block;margin:0.75rem auto;" />`;
@@ -130,7 +188,7 @@ function expandImageTagsToHtml(fragment) {
     const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
     const isPdf = href && /\.pdf$/i.test(href);
     if (isPdf) {
-      let cleanId = (id || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+      const cleanId = stablePdfDomId(id || href || 'pdf');
       return `
             <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${cleanId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
               <canvas id="pdf-canvas-${cleanId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
@@ -701,6 +759,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
     mode = 'question',
     choiceOptionLabels = false,
     questionType = '',
+    figureRefDisplayByKey = null,
   } = options;
   const useChoiceLabels = choiceOptionLabels
     || (mode === 'question' && (questionType === '单选题' || questionType === '多选题'))
@@ -796,9 +855,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   const refRegex = /\\ref\{([^}]+)\}/g;
   processed = processed.replace(refRegex, (match, label) => {
     const labelPart = label.replace(/^fig:/, '');
-    // 提取数字部分作为显示文本
-    const numMatch = labelPart.match(/(\d+)/);
-    const displayText = numMatch ? numMatch[1] : labelPart;
+    const displayText = figureRefDisplayLabel(labelPart, figureRefDisplayByKey) || labelPart;
     return `<a href="#fig:${labelPart}">${displayText}</a>`;
   });
 
@@ -874,8 +931,10 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   // 处理 <a> 标签中的 href，确保链接正确
   // 注意：<a> 标签可能已经在文本中，需要确保它们被正确处理
   result = result.replace(/<a\s+href=["']#fig:([^"']+)["']>([^<]+)<\/a>/g, (match, id, text) => {
-    // 保持链接格式，但确保 id 正确
-    return `<a href="#fig:${id}" class="latex-ref">${text}</a>`;
+    const displayText = figureRefDisplayLabel(id, figureRefDisplayByKey)
+      || figureRefDisplayLabel(text, figureRefDisplayByKey)
+      || text;
+    return `<a href="#fig:${id}" class="latex-ref">${displayText}</a>`;
   });
   
   return result;
@@ -1508,4 +1567,27 @@ export function processAnswerTextToHTML(text) {
 }
 
 export const renderAnswerHTML = processAnswerTextToHTML;
+
+/** Remove heavy LaTeX env blocks for compact list / export row previews. */
+export function stripListPreviewLatexEnvironments(text) {
+  if (!text) return '';
+  let s = String(text);
+  s = s.replace(/\\begin\{figure\}(?:\[[^\]]*\])?[\s\S]*?\\end\{figure\}/gi, ' ');
+  s = s.replace(/\\begin\{solution\}[\s\S]*?\\end\{solution\}/gi, ' ');
+  s = s.replace(/\\begin\{rmk\}[\s\S]*?\\end\{rmk\}/gi, ' ');
+  s = s.replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/gi, ' ');
+  s = s.replace(/\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}/g, '[图]');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+export function processQuestionListPreviewToHTML(text, originalLaTeX = null, options = {}) {
+  const raw = originalLaTeX || text || '';
+  const stem = stripListPreviewLatexEnvironments(raw) || stripListPreviewLatexEnvironments(text);
+  const mergedOpts = {
+    ...options,
+    figureRefDisplayByKey: options.figureRefDisplayByKey
+      || buildFigureRefDisplayMap(options.images),
+  };
+  return processQuestionTextToHTML(stem || text, null, mergedOpts);
+}
 

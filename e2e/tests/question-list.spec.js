@@ -71,8 +71,8 @@ test.describe('question list pagination and filters', () => {
     await expect(page).toHaveURL(/type=%E5%A1%AB%E7%A9%BA%E9%A2%98|type=填空题/);
     const filteredCards = page.locator('.question-card');
     await expect(filteredCards.first()).toBeVisible({ timeout: 15000 });
-    const badgeText = await filteredCards.first().locator('.badge.bg-secondary').textContent();
-    expect(badgeText).toContain('填空题');
+    const card = filteredCards.first();
+    await expect(card).toContainText('填空题');
 
     await page.getByTestId('question-list-difficulty').selectOption('难');
     await expect(page.getByTestId('question-list-filter-chips')).toBeVisible();

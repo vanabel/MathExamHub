@@ -1,15 +1,21 @@
 <template>
-  <div class="container py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h1 class="page-title mb-0"><i class="bi bi-diagram-3"></i> 章节 / 知识点</h1>
-      <kp-graph-nav-link
-        v-if="canWrite"
-        link-class="btn btn-outline-primary btn-sm"
-        data-testid="kp-excel-import-link"
-      >
-        <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
-      </kp-graph-nav-link>
-    </div>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      class="mb-3"
+      title="章节 / 知识点"
+      icon="bi-diagram-3"
+      test-id="knowledge-points-header"
+    >
+      <template #actions>
+        <kp-graph-nav-link
+          v-if="canWrite"
+          link-class="btn btn-outline-primary btn-sm"
+          data-testid="kp-excel-import-link"
+        >
+          <i class="bi bi-file-earmark-spreadsheet"></i> 知识图谱工作流
+        </kp-graph-nav-link>
+      </template>
+    </page-header>
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <label class="form-label">科目</label>
@@ -20,8 +26,8 @@
       </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-lg-5">
+    <div class="row g-3 kp-manager-panes">
+      <div class="col-12 col-xl-8">
         <div class="card mb-4">
           <div class="card-header">新增节点</div>
           <div class="card-body row g-2">
@@ -49,7 +55,7 @@
           >
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
-                <code class="small">{{ n.path }}</code>
+                <span class="kp-tree-path small">{{ n.path }}</span>
                 <div class="mt-1">
                   <span v-for="tag in n.tags || []" :key="tag" class="badge me-1" :class="tagBadge(tag)">{{ tag }}</span>
                 </div>
@@ -59,11 +65,11 @@
           </li>
         </ul>
       </div>
-      <div v-if="selected" class="col-lg-7">
+      <div v-if="selected" class="col-12 col-xl-4">
         <div class="card" data-testid="kp-detail-panel">
           <div class="card-header">知识点详情</div>
           <div class="card-body">
-            <h5 class="h6"><code>{{ selected.path }}</code></h5>
+            <h5 class="h6 kp-tree-path">{{ selected.path }}</h5>
             <p v-if="selected.objective" class="small"><strong>教学目标：</strong>{{ selected.objective }}</p>
             <p v-if="selected.description" class="small"><strong>说明：</strong>{{ selected.description }}</p>
             <p v-if="selected.cognitiveLevel" class="small text-muted">认知维度：{{ selected.cognitiveLevel }} · 分类：{{ selected.category || '—' }}</p>
@@ -80,10 +86,11 @@
 <script>
 import axios from 'axios';
 import KpGraphNavLink from './KpGraphNavLink.vue';
+import PageHeader from './ui/PageHeader.vue';
 
 export default {
   name: 'KnowledgePointManager',
-  components: { KpGraphNavLink },
+  components: { KpGraphNavLink, PageHeader },
   data() {
     return {
       subject: '解析几何',
@@ -153,3 +160,17 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.kp-tree-path {
+  font-family: inherit;
+  color: var(--text-secondary, #475569);
+  word-break: break-word;
+}
+
+.list-group-item.active {
+  background: var(--color-primary-soft, #eff6ff);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: var(--text-primary, #0f172a);
+}
+</style>

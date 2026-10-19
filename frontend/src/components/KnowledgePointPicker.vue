@@ -2,7 +2,12 @@
   <div class="kp-picker">
     <div v-if="loading" class="text-muted small">加载知识点…</div>
     <div v-else-if="!flatNodes.length" class="text-muted small">暂无知识点，请先在「章节 / 知识点」页维护。</div>
-    <div v-else class="kp-picker-list border rounded p-2 bg-white" :style="{ maxHeight: maxHeight }">
+    <div
+      v-else
+      class="kp-picker-list border rounded p-2 bg-white"
+      data-testid="kp-picker-list"
+      :style="{ maxHeight: maxHeight }"
+    >
       <div v-for="n in flatNodes" :key="n._id" class="form-check form-check-sm mb-1">
         <input
           :id="`kp-${n._id}`"
@@ -111,3 +116,11 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.kp-picker-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

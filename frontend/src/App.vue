@@ -3,7 +3,7 @@
     <!-- 导航栏 - 仅在登录后显示 -->
     <nav
       v-if="showNavbar"
-      class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top app-navbar"
+      class="navbar navbar-expand-lg navbar-dark sticky-top app-navbar"
     >
       <div class="container-fluid navbar-shell">
         <router-link class="navbar-brand fw-bold flex-shrink-0" to="/question-list">
@@ -214,7 +214,11 @@
           </ul>
 
           <div class="navbar-end d-flex align-items-center flex-shrink-0 ms-lg-auto">
-            <bank-selector v-if="showNavbar" class="navbar-bank-selector" @bank-changed="onBankChanged" />
+            <bank-selector
+              v-if="showNavbar"
+              class="navbar-bank-selector bank-selector-wrap"
+              @bank-changed="onBankChanged"
+            />
             <ul class="navbar-nav navbar-user-nav">
               <li class="nav-item dropdown" :class="{ show: showUserMenu }">
                 <a
@@ -255,7 +259,7 @@
     />
 
     <!-- 主内容区域 -->
-    <main :class="{ 'with-navbar': showNavbar }">
+    <main class="app-main" :class="{ 'with-navbar': showNavbar }">
       <router-view />
     </main>
   </div>
@@ -414,71 +418,6 @@ export default {
 </script>
 
 <style>
-#app {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-attachment: fixed;
-}
-
-main {
-  min-height: calc(100vh - 56px);
-  padding: 2rem 0;
-}
-
-main.with-navbar {
-  padding-top: 1rem;
-}
-
-/* 全局样式优化 */
-.card {
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
-}
-
-.btn {
-  border-radius: 8px;
-  padding: 0.5rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-}
-
-.form-control,
-.form-select {
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  padding: 0.75rem;
-  transition: all 0.2s;
-}
-
-.form-control:focus,
-.form-select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.app-navbar,
-.navbar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-}
-
 .navbar-shell {
   gap: 0.25rem;
 }
@@ -507,21 +446,6 @@ main.with-navbar {
   margin-left: 0.15rem;
 }
 
-.nav-link.active {
-  font-weight: 600;
-  background-color: rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-}
-
-.nav-link {
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-}
-
 .navbar-end {
   gap: 0.75rem;
   flex-wrap: nowrap;
@@ -530,20 +454,53 @@ main.with-navbar {
   padding-left: 0.85rem;
   margin-left: 0.35rem;
   border-left: 1px solid rgba(255, 255, 255, 0.22);
+  min-width: 0;
 }
 
 .navbar-bank-selector {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;
 }
 
 .navbar-user-nav {
   flex-shrink: 0;
-  margin-left: 0.15rem;
+  margin-left: 0.5rem;
+}
+
+@media (min-width: 992px) {
+  .navbar-collapse-main {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+    align-content: flex-start;
+  }
+
+  .navbar-primary-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .navbar-end {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border-left: none;
+    margin-left: 0;
+    padding-left: 0;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    overflow: hidden;
+  }
 }
 
 .navbar-user-nav .user-nav-link {
-  max-width: 11rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 10rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
@@ -553,12 +510,32 @@ main.with-navbar {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+  max-width: 6.5rem;
+}
+
+@media (max-width: 1199.98px) {
+  .navbar-user-nav .user-name {
+    display: none;
+  }
+
+  .navbar-user-nav .user-nav-link {
+    max-width: 2.75rem;
+    justify-content: center;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .navbar-user-nav .user-nav-link {
+    max-width: 9rem;
+  }
 }
 
 .dropdown-item.active,
 .dropdown-item:active {
-  background-color: rgba(102, 126, 234, 0.12);
-  color: #4c51bf;
+  background-color: var(--color-primary-soft, #eff6ff);
+  color: var(--color-primary, #2563eb);
   font-weight: 600;
 }
 
@@ -579,26 +556,36 @@ main.with-navbar {
 }
 
 .dropdown-item:hover {
-  background-color: #f8f9fa;
-  color: #667eea;
+  background-color: #f8fafc;
+  color: var(--color-primary, #2563eb);
 }
 
 .dropdown-item i {
   font-size: 1rem;
 }
 
-@media (min-width: 992px) {
-  .navbar-collapse-main {
-    flex-wrap: nowrap !important;
-  }
-
-  .navbar-primary-nav .nav-item {
-    flex-shrink: 0;
-  }
-
+@media (min-width: 992px) and (max-width: 1199.98px) {
   .navbar-end :deep(.bank-selector-select) {
-    max-width: 18rem;
-    width: min(18rem, 22vw);
+    max-width: 10.5rem;
+    width: min(10.5rem, 18vw);
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1200px) {
+  .navbar-end :deep(.bank-selector-select) {
+    max-width: 16rem;
+    width: auto;
+    min-width: 8rem;
+  }
+}
+
+@media (min-width: 992px) {
+
+  .navbar-end :deep(.bank-archive-btn) {
+    flex-shrink: 0;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
   }
 }
 
@@ -622,12 +609,7 @@ main.with-navbar {
   }
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  main {
-    padding: 1rem 0;
-  }
-
   .navbar-brand .brand-text {
     font-size: 0.95rem;
   }

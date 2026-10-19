@@ -1,16 +1,17 @@
 <template>
-  <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-      <div>
-        <h1 class="h3 mb-1"><i class="bi bi-bar-chart"></i> 题库统计</h1>
-        <p class="text-muted mb-0">
-          题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致；CSV 含缺口 listQuery 列）。
-        </p>
-      </div>
-      <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!stats" @click="exportCsv">
-        导出 CSV
-      </button>
-    </div>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      title="题库统计"
+      subtitle="题目分布、知识点覆盖与蓝图抽题缺口（与 examGenerator 规则一致；CSV 含缺口 listQuery 列）。"
+      icon="bi-bar-chart"
+      test-id="bank-stats-header"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="!stats" @click="exportCsv">
+          导出 CSV
+        </button>
+      </template>
+    </page-header>
 
     <div v-if="loading" class="text-muted">加载中…</div>
     <template v-else-if="stats">
@@ -69,6 +70,9 @@
       <div class="card shadow-sm mt-3">
         <div class="card-header">知识点 Top 10</div>
         <div class="card-body">
+          <p v-if="!topKnowledgePoints.length" class="text-muted small mb-0 app-empty__hint">
+            暂无已标注知识点的题目。导入知识点并为题目打标后，此处会显示 Top 10。
+          </p>
           <div v-for="row in topKnowledgePoints" :key="row.knowledgePointId" class="mb-2">
             <div class="d-flex justify-content-between small mb-1">
               <span class="text-truncate me-2">{{ row.path }}</span><span>{{ row.count }}</span>
@@ -124,9 +128,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'BankStatsView',
+  components: { PageHeader },
   data() {
     return { stats: null, loading: false };
   },

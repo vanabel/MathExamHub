@@ -1,17 +1,21 @@
 <template>
-  <div class="exam-wizard-container">
-    <div class="container py-4">
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+  <div class="exam-wizard-container app-page">
+    <div class="app-container container-xl py-4">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
-              <router-link to="/question-list">题目列表</router-link>
+              <router-link to="/question-list" class="text-decoration-none">题目列表</router-link>
             </li>
-            <li class="breadcrumb-item active">组卷向导</li>
+            <li class="breadcrumb-item active" aria-current="page">组卷向导</li>
           </ol>
         </nav>
-        <h1 class="h3 mb-1"><i class="bi bi-magic"></i> 自动组卷向导</h1>
-        <p class="text-muted mb-0">编辑蓝图 → 约束抽题 → 页内预览 → 换题微调 → 导出 LaTeX</p>
+        <page-header
+          title="自动组卷向导"
+          subtitle="编辑蓝图 → 约束抽题 → 页内预览 → 换题微调 → 导出 LaTeX"
+          icon="bi-magic"
+          test-id="exam-wizard-header"
+        />
       </div>
 
       <ul class="nav nav-pills mb-4">
@@ -46,7 +50,7 @@
 
       <!-- Step 1 -->
       <div v-show="step === 1" class="row g-4">
-        <div class="col-lg-7">
+        <div class="col-lg-8">
           <div class="card shadow-sm">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
               <span class="fw-semibold">组卷蓝图</span>
@@ -84,12 +88,6 @@
                     title="连续尝试 N 个种子，报告最好/最差缺口"
                   />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                  <div class="form-check">
-                    <input id="allowRelax" v-model="blueprint.allowRelaxation" class="form-check-input" type="checkbox" />
-                    <label class="form-check-label" for="allowRelax">允许自动放宽约束</label>
-                  </div>
-                </div>
                 <div class="col-md-4">
                   <label class="form-label">A/B 重合率上限（%）</label>
                   <input
@@ -101,7 +99,15 @@
                     class="form-control"
                   />
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label invisible d-block">选项</label>
+                  <div class="form-check">
+                    <input id="allowRelax" v-model="blueprint.allowRelaxation" class="form-check-input" type="checkbox" />
+                    <label class="form-check-label" for="allowRelax">允许自动放宽约束</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label invisible d-block">选项</label>
                   <div class="form-check">
                     <input id="genAb" v-model="generateAbPair" class="form-check-input" type="checkbox" />
                     <label class="form-check-label" for="genAb">同时生成 A/B 双卷</label>
@@ -139,12 +145,37 @@
                       <input v-model.number="section.difficultyMix.难" type="number" min="0" class="form-control" placeholder="难" />
                     </div>
                   </div>
-                  <div class="col-12">
-                    <label class="form-label small mb-1">知识点约束（可选，含子树）</label>
-                    <knowledge-point-picker
-                      v-model="section.knowledgePointIds"
-                      :subject="blueprint.subject"
-                    />
+                  <div class="col-12 wizard-kp-constraint-block">
+                    <button
+                      type="button"
+                      class="wizard-kp-constraint-toggle btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center gap-2 w-100 text-start text-body"
+                      data-testid="wizard-kp-constraint-toggle"
+                      :aria-expanded="isKpConstraintOpen(idx) ? 'true' : 'false'"
+                      :aria-controls="`wizard-kp-constraint-body-${idx}`"
+                      @click="toggleKpConstraint(idx)"
+                    >
+                      <i
+                        class="bi flex-shrink-0"
+                        :class="isKpConstraintOpen(idx) ? 'bi-chevron-down' : 'bi-chevron-right'"
+                        aria-hidden="true"
+                      ></i>
+                      <span class="small fw-semibold mb-0">知识点约束（可选，含子树）</span>
+                      <span
+                        class="badge rounded-pill text-bg-light border ms-auto flex-shrink-0"
+                        data-testid="wizard-kp-constraint-count"
+                      >{{ kpConstraintCountLabel(section) }}</span>
+                    </button>
+                    <div
+                      v-show="isKpConstraintOpen(idx)"
+                      :id="`wizard-kp-constraint-body-${idx}`"
+                      class="mt-2"
+                      data-testid="wizard-kp-constraint-body"
+                    >
+                      <knowledge-point-picker
+                        v-model="section.knowledgePointIds"
+                        :subject="blueprint.subject"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -179,7 +210,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-5">
+        <div class="col-lg-4">
           <div class="card shadow-sm mb-3">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
               <span class="fw-semibold">蓝图模板库</span>
@@ -490,6 +521,7 @@ import { processQuestionTextToHTML, renderQuestionImagesHtml } from '../utils/la
 import ChoiceOptionsList from './ChoiceOptionsList.vue';
 import { isChoiceQuestionType, shouldUseChoiceOptionLabels } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
+import PageHeader from './ui/PageHeader.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 import {
   formatFilterStageSummary,
@@ -508,7 +540,7 @@ function baseDefaultSection(type = '填空题', scoreEach = 4) {
 
 export default {
   name: 'ExamWizard',
-  components: { KnowledgePointPicker, ChoiceOptionsList },
+  components: { KnowledgePointPicker, ChoiceOptionsList, PageHeader },
   data() {
     return {
       step: 1,
@@ -551,6 +583,7 @@ export default {
       scoreGapModalOpen: false,
       pendingScoreGap: null,
       pendingGeneratePreview: null,
+      kpConstraintOpenBySection: {},
     };
   },
   computed: {
@@ -567,6 +600,20 @@ export default {
     this.openFromRouteQuery();
   },
   methods: {
+    isKpConstraintOpen(idx) {
+      return !!this.kpConstraintOpenBySection[idx];
+    },
+    toggleKpConstraint(idx) {
+      const next = !this.isKpConstraintOpen(idx);
+      this.kpConstraintOpenBySection = {
+        ...this.kpConstraintOpenBySection,
+        [idx]: next,
+      };
+    },
+    kpConstraintCountLabel(section) {
+      const n = (section.knowledgePointIds || []).length;
+      return `已设 ${n} 项`;
+    },
     formatFilterStageSummary,
     reasonCodeLabel,
     formatScoreDelta(delta) {
@@ -1077,5 +1124,11 @@ export default {
 }
 .max-w-600 {
   max-width: 36rem;
+}
+
+.wizard-kp-constraint-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.35));
+  border-radius: 6px;
 }
 </style>

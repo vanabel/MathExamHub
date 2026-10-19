@@ -1,8 +1,13 @@
 <template>
-  <div class="container py-4">
-    <h2 class="mb-3">回收站</h2>
+  <div class="app-page app-container container-xl py-4">
+    <page-header
+      title="回收站"
+      subtitle="恢复已删除的题目或已归档的题库"
+      icon="bi-trash"
+      test-id="recycle-bin-header"
+    />
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs app-tabs mb-3">
       <li class="nav-item">
         <button
           type="button"
@@ -41,7 +46,24 @@
         <span class="text-muted ms-2">加载中…</span>
       </div>
 
-      <table v-if="!loading && items.length" class="table table-sm align-middle">
+      <div v-if="!loading && items.length" class="d-md-none recycle-mobile-list">
+        <div v-for="item in items" :key="item._id" class="card app-card mb-2">
+          <div class="card-body py-3">
+            <div class="d-flex justify-content-between gap-2 mb-1">
+              <span class="badge bg-light text-dark border">{{ item.type }}</span>
+              <span class="small text-muted">{{ formatDate(item.deletedAt) }}</span>
+            </div>
+            <div class="small text-muted mb-1">{{ item.subject }}</div>
+            <p class="small mb-2 preview">{{ truncate(item.questionText) }}</p>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-sm btn-outline-primary" :disabled="!canWrite" @click="restore(item._id)">恢复</button>
+              <button class="btn btn-sm btn-outline-danger" :disabled="!canWrite" @click="permanentDelete(item._id)">永久删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="!loading && items.length" class="table-responsive d-none d-md-block">
+      <table class="table table-sm align-middle app-table">
         <thead>
           <tr>
             <th>题型</th>
@@ -76,6 +98,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
       <div v-if="!loading && !items.length" class="text-center py-5 text-muted" data-testid="recycle-bin-empty">
         <i class="bi bi-trash3 display-6 d-block mb-2"></i>
         题目回收站为空
@@ -89,7 +112,17 @@
         <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
         <span class="text-muted ms-2">加载中…</span>
       </div>
-      <table v-if="!bankLoading && archivedBanks.length" class="table table-sm align-middle" data-testid="bank-recycle-list">
+      <div v-if="!bankLoading && archivedBanks.length" class="d-md-none">
+        <div v-for="b in archivedBanks" :key="b._id" class="card app-card mb-2" data-testid="bank-recycle-list-mobile">
+          <div class="card-body py-3">
+            <div class="fw-semibold mb-1">{{ b.name }}</div>
+            <div class="small text-muted mb-2">题目 {{ b.questionCount ?? '—' }} · {{ formatDate(b.deletedAt) }}</div>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-testid="bank-recycle-restore" @click="restoreBank(b._id)">恢复</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="!bankLoading && archivedBanks.length" class="table-responsive d-none d-md-block">
+      <table class="table table-sm align-middle app-table" data-testid="bank-recycle-list">
         <thead>
           <tr>
             <th>名称</th>
@@ -116,6 +149,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
       <div v-if="!bankLoading && !archivedBanks.length" class="text-center py-5 text-muted" data-testid="bank-recycle-empty">
         <i class="bi bi-archive display-6 d-block mb-2"></i>
         没有已归档的题库
@@ -126,9 +160,11 @@
 
 <script>
 import axios from 'axios';
+import PageHeader from '@/components/ui/PageHeader.vue';
 
 export default {
   name: 'RecycleBinView',
+  components: { PageHeader },
   data() {
     return {
       tab: 'questions',

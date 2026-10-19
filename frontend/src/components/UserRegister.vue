@@ -1,6 +1,6 @@
 <template>
-  <div class="register-container">
-    <div class="register-card">
+  <div class="auth-layout">
+    <div class="auth-card register-card">
       <div class="register-header">
         <div class="logo-circle">
           <i class="bi bi-person-plus"></i>
@@ -169,7 +169,7 @@ export default {
 .logo-circle {
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -177,7 +177,7 @@ export default {
   margin: 0 auto 1.5rem;
   font-size: 2rem;
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
 }
 
 .register-header h2 {

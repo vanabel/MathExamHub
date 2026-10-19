@@ -1,9 +1,8 @@
 <template>
-  <div class="latex-export-container">
-    <div class="container">
-      <!-- 页面头部 -->
-      <div class="page-header mb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
+  <div class="latex-export-container app-page">
+    <div class="app-container container-xl">
+      <div class="mb-4">
+        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -13,17 +12,18 @@
             <li class="breadcrumb-item active" aria-current="page">导出 LaTeX 文件</li>
           </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h1 class="page-title mb-1">
-              <i class="bi bi-download"></i> 导出 LaTeX 文件
-            </h1>
-            <p class="text-muted mb-0">选择题目并导出为 LaTeX 格式的试卷文件</p>
-          </div>
-          <router-link to="/question-list" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> 返回列表
-          </router-link>
-        </div>
+        <page-header
+          title="导出 LaTeX 文件"
+          subtitle="选择题目并导出为 LaTeX 格式的试卷文件"
+          icon="bi-download"
+          test-id="latex-export-header"
+        >
+          <template #actions>
+            <router-link to="/question-list" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> 返回列表
+            </router-link>
+          </template>
+        </page-header>
       </div>
 
       <div
@@ -133,13 +133,19 @@
                     <i class="bi bi-magic"></i> 智能选择
                   </button>
                 </div>
-                <div class="text-muted">
+                <div
+                  class="export-list-selection text-muted"
+                  data-testid="latex-export-selection-summary"
+                >
                   已选择 <strong>{{ selectedQuestions.length }}</strong> 道题目
+                  <span v-if="selectedQuestions.length > 0" class="export-list-selection__score">
+                    · 合计 <strong>{{ selectedTotalScore }}</strong> 分
+                  </span>
                 </div>
               </div>
 
               <!-- 题目列表 -->
-              <div class="question-list" style="max-height: 500px; overflow-y: auto">
+              <div class="export-question-list">
                 <div v-if="loading" class="text-center py-5">
                   <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">加载中...</span>
@@ -153,56 +159,28 @@
                   v-else
                   v-for="question in questions"
                   :key="question._id"
-                  class="question-item mb-2 p-3 border rounded"
-                  :class="{ 'selected': isSelected(question._id) }"
+                  class="export-question-row"
+                  :class="{ 'export-question-row--selected': isSelected(question._id) }"
                   @click="toggleSelection(question._id)"
                 >
-                  <div class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      :checked="isSelected(question._id)"
-                      @change="toggleSelection(question._id)"
-                      @click.stop
-                    />
-                    <label class="form-check-label w-100">
-                      <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                          <span class="badge bg-primary me-2">{{ question.subject }}</span>
-                          <span class="badge bg-secondary me-2">{{ question.type }}</span>
-                          <span class="badge" :class="getDifficultyClass(question.difficulty)" style="margin-right: 0.5rem;">
-                            {{ question.difficulty }}
-                          </span>
-                          <span class="badge bg-info">{{ question.totalScore }} 分</span>
-                        </div>
-                      </div>
-                      <!-- 预览模式：渲染 HTML -->
-                      <div v-if="previewMode" class="question-preview-content">
-                        <div 
-                          v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
-                          ref="questionContent"
-                          class="question-text-content mb-2"
-                        ></div>
-                        <!-- 选项（如果是选择题） -->
-                        <div v-if="question.type === '单选题' || question.type === '多选题'" class="question-options mb-2">
-                          <ChoiceOptionsList :options="question.options" class="small">
-                            <template #default="{ entry }">
-                              <vue-mathjax :formula="entry.text" :options="mathjaxOptions"></vue-mathjax>
-                            </template>
-                          </ChoiceOptionsList>
-                        </div>
-                        <!-- 答案 -->
-                        <div v-if="showAnswerBlock(question)" class="question-answer mb-0">
-                          <strong>答案：</strong>
-                          <vue-mathjax
-                            :formula="processAnswerText(answerForDisplay(question))"
-                            :options="mathjaxOptions"
-                          ></vue-mathjax>
-                        </div>
-                      </div>
-                      <!-- 文本模式：显示原始 LaTeX -->
-                      <p v-else class="mb-0 small text-muted font-monospace">{{ question.originalLaTeX || question.questionText }}</p>
-                    </label>
+                  <input
+                    class="form-check-input export-question-row__check flex-shrink-0"
+                    type="checkbox"
+                    :checked="isSelected(question._id)"
+                    :aria-label="'选择题目 ' + question._id"
+                    @change="toggleSelection(question._id)"
+                    @click.stop
+                  />
+                  <div class="export-question-row__body min-width-0">
+                    <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                      <span class="badge badge-type-export">{{ question.type }}</span>
+                      <span class="badge bg-info text-dark">{{ question.totalScore }} 分</span>
+                      <span class="badge bg-light text-dark border">{{ question.subject }}</span>
+                    </div>
+                    <div
+                      class="export-question-row__preview question-text-content small"
+                      v-html="exportRowPreviewHtml(question)"
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -212,13 +190,14 @@
 
         <!-- 导出配置区域 -->
         <div class="col-lg-4">
-          <div class="card">
+          <div class="card export-config-card h-100">
             <div class="card-header bg-light">
               <h5 class="mb-0">
                 <i class="bi bi-gear"></i> 导出配置
               </h5>
             </div>
-            <div class="card-body">
+            <div class="card-body export-config-card__body">
+              <div class="export-config-card__fields">
               <div class="mb-3">
                 <label for="filename" class="form-label">文件名（不含扩展名）</label>
                 <input
@@ -395,28 +374,30 @@
                 </div>
               </div>
 
-              <div
-                v-if="exportStatusMessage"
-                class="alert py-2 small mb-2"
-                :class="exportStatusError ? 'alert-danger' : 'alert-success'"
-                role="status"
-                data-testid="latex-export-status"
-              >
-                {{ exportStatusMessage }}
               </div>
-              <button
-                type="button"
-                class="btn btn-primary w-100"
-                @click="exportToLatex"
-                :disabled="selectedQuestions.length === 0 || exporting"
-              >
-                <span v-if="exporting" class="spinner-border spinner-border-sm me-2"></span>
-                <i v-else class="bi bi-download"></i>
-                {{ exporting ? "导出中..." : "导出 LaTeX 文件" }}
-              </button>
-
-              <div v-if="selectedQuestions.length === 0" class="alert alert-warning mt-3 mb-0">
-                <small><i class="bi bi-exclamation-triangle"></i> 请至少选择一道题目</small>
+              <div class="export-config-card__footer">
+                <div
+                  v-if="exportStatusMessage"
+                  class="alert py-2 small mb-2"
+                  :class="exportStatusError ? 'alert-danger' : 'alert-success'"
+                  role="status"
+                  data-testid="latex-export-status"
+                >
+                  {{ exportStatusMessage }}
+                </div>
+                <div v-if="selectedQuestions.length === 0" class="alert alert-warning mb-3">
+                  <small><i class="bi bi-exclamation-triangle"></i> 请至少选择一道题目</small>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-primary w-100"
+                  @click="exportToLatex"
+                  :disabled="selectedQuestions.length === 0 || exporting"
+                >
+                  <span v-if="exporting" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-download"></i>
+                  {{ exporting ? "导出中..." : "导出 LaTeX 文件" }}
+                </button>
               </div>
             </div>
           </div>
@@ -572,24 +553,26 @@
 
 <script>
 import axios from "axios";
-import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
-import { processQuestionText, processAnswerText, processQuestionTextToHTML } from "../utils/latexProcessor";
-import ChoiceOptionsList from "./ChoiceOptionsList.vue";
+import {
+  processQuestionText,
+  processAnswerText,
+  processQuestionTextToHTML,
+  processQuestionListPreviewToHTML,
+  buildFigureRefDisplayMap,
+} from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
-import { answerForDisplay, showAnswerBlock } from "../utils/questionAnswerDisplay";
+import { answerForDisplay } from "../utils/questionAnswerDisplay";
 import {
   normalizeAcademicYearOverride,
   suggestedAcademicYearLabel,
   localIsoDateString,
 } from "../utils/latexExamDateForm";
+import PageHeader from "./ui/PageHeader.vue";
 
 export default {
   name: "LatexExport",
-  components: {
-    "vue-mathjax": VueMathjaxNext,
-    ChoiceOptionsList,
-  },
+  components: { PageHeader },
   data() {
     return {
       questions: [],
@@ -694,6 +677,9 @@ export default {
       }
       return questions;
     },
+    selectedTotalScore() {
+      return this.selectedQuestions.reduce((sum, q) => sum + (Number(q.totalScore) || 0), 0);
+    },
     // 获取当前筛选后的题目（用于智能选择）
     filteredQuestions() {
       // 防御性检查：确保 questions 是数组
@@ -728,25 +714,30 @@ export default {
   },
   updated() {
     // 组件更新后重新渲染 MathJax 和 PDF
-    if (this.previewMode) {
-      this.$nextTick(() => {
-        setTimeout(() => {
-          this.renderMathJax();
-          const hasRenderingPDFs = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
-          if (!hasRenderingPDFs) {
-            this.renderPDFs();
-          }
-        }, 100);
-      });
-    }
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.renderMathJax();
+        const hasRenderingPDFs = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
+        if (!hasRenderingPDFs) {
+          this.renderPDFs();
+        }
+      }, 100);
+    });
   },
   methods: {
     // 导入处理函数
     processQuestionText,
     processAnswerText,
     processQuestionTextToHTML,
-    showAnswerBlock,
+    processQuestionListPreviewToHTML,
     answerForDisplay,
+    exportRowPreviewHtml(question) {
+      return this.processQuestionListPreviewToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        this.questionPreviewOpts(question),
+      );
+    },
     questionPreviewOpts(question) {
       const opts = question?.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
@@ -754,6 +745,8 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
+        images: question?.images,
+        figureRefDisplayByKey: buildFigureRefDisplayMap(question?.images),
         choiceOptionLabels: shouldUseChoiceOptionLabels({
           questionType: question?.type,
           hasOptions,
@@ -1437,12 +1430,12 @@ export default {
 }
 
 .breadcrumb-item a {
-  color: #667eea;
+  color: var(--color-primary, #2563eb);
   transition: color 0.2s;
 }
 
 .breadcrumb-item a:hover {
-  color: #764ba2;
+  color: var(--color-primary-hover, #1d4ed8);
 }
 
 .page-title {
@@ -1454,6 +1447,84 @@ export default {
   gap: 0.75rem;
 }
 
+.export-question-list {
+  max-height: min(520px, 55vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-bg, #f8fafc);
+}
+
+.export-question-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle, #e2e8f0);
+  cursor: pointer;
+  background: #fff;
+  transition: background 0.15s ease;
+}
+
+.export-question-row:last-child {
+  border-bottom: none;
+}
+
+.export-question-row:hover {
+  background: var(--color-primary-soft, #eff6ff);
+}
+
+.export-question-row--selected {
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: inset 3px 0 0 var(--color-primary, #2563eb);
+}
+
+.badge-type-export {
+  background: var(--color-primary-soft, #eff6ff);
+  color: var(--color-primary, #2563eb);
+  font-weight: 600;
+}
+
+.export-question-row__preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.45;
+  max-height: 4.35rem;
+  color: var(--text-primary, #0f172a);
+  word-break: break-word;
+}
+
+.export-question-row__mono {
+  max-width: 100%;
+}
+
+.export-list-selection__score {
+  color: var(--text-secondary, #475569);
+  font-weight: 500;
+}
+
+.export-config-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.export-config-card__fields {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.export-config-card__footer {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle, #e2e8f0);
+}
+
 .question-item {
   cursor: pointer;
   transition: all 0.2s;
@@ -1462,12 +1533,12 @@ export default {
 
 .question-item:hover {
   background: #f8f9fa;
-  border-color: #667eea !important;
+  border-color: var(--color-primary, #2563eb) !important;
 }
 
 .question-item.selected {
   background: #e8f0fe;
-  border-color: #667eea !important;
+  border-color: var(--color-primary, #2563eb) !important;
 }
 
 .form-check-input {
@@ -1491,6 +1562,7 @@ export default {
 }
 
 .question-answer {
+  border-left-color: var(--color-primary, #2563eb);
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid #e9ecef;
