@@ -87,58 +87,111 @@
         本任务没有待审核条目（可能已全部处理或无匹配题目）。
       </p>
 
-      <div v-if="displayRows.length" class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead>
-            <tr>
-              <th scope="col">题干</th>
-              <th scope="col">建议知识点</th>
-              <th scope="col">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in displayRows" :key="row.questionId" :class="rowClass(row)">
-              <td class="small" style="max-width: 280px">
-                <div class="kp-stem-preview" v-html="stemHtml(row.questionText)"></div>
-              </td>
-              <td>
-                <select
+      <div v-if="displayRows.length" class="kp-tag-review-rows">
+        <div
+          v-for="row in displayRows"
+          :key="row.questionId"
+          class="card app-card mb-2 d-md-none kp-review-mobile-card"
+          :class="rowClass(row)"
+        >
+          <div class="card-body small">
+            <div class="kp-stem-preview mb-2" v-html="stemHtml(row.questionText)"></div>
+            <div class="kp-tag-kp-checklist border rounded p-2 mb-2">
+              <label
+                v-for="kp in kpOptions"
+                :key="kp.id"
+                class="form-check form-check-sm d-block"
+              >
+                <input
                   v-model="row.acceptedKnowledgePointIds"
-                  class="form-select kp-tag-kp-select mb-1"
-                  multiple
-                  :size="Math.min(4, Math.max(2, kpOptions.length))"
+                  class="form-check-input"
+                  type="checkbox"
+                  :value="kp.id"
                   :disabled="!!job?.appliedAt"
                   @change="onRowEdited(row)"
-                >
-                  <option v-for="kp in kpOptions" :key="kp.id" :value="kp.id">
-                    {{ kp.path }}
-                  </option>
-                </select>
-                <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted">
-                  {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
-                </div>
-              </td>
-              <td>
-                <div class="d-flex flex-wrap gap-2 kp-review-row-actions">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary"
-                    :disabled="!!job?.appliedAt"
-                    aria-label="接受本题建议"
-                    @click="setStatus(row, 'accepted')"
-                  >接受</button>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger"
-                    :disabled="!!job?.appliedAt"
-                    aria-label="拒绝本题建议"
-                    @click="setStatus(row, 'rejected')"
-                  >拒绝</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                />
+                <span class="form-check-label">{{ kp.path }}</span>
+              </label>
+            </div>
+            <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted mb-1">
+              {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
+            </div>
+            <div class="d-grid gap-2 kp-review-mobile-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                :disabled="!!job?.appliedAt"
+                @click="setStatus(row, 'accepted')"
+              >接受</button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                :disabled="!!job?.appliedAt"
+                data-testid="kp-tag-row-reject-mobile"
+                @click="setStatus(row, 'rejected')"
+              >拒绝</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive d-none d-md-block">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th scope="col">题干</th>
+                <th scope="col">建议知识点</th>
+                <th scope="col">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in displayRows" :key="row.questionId" :class="rowClass(row)">
+                <td class="small" style="max-width: 280px">
+                  <div class="kp-stem-preview" v-html="stemHtml(row.questionText)"></div>
+                </td>
+                <td>
+                  <div class="kp-tag-kp-checklist border rounded p-2 mb-1">
+                    <label
+                      v-for="kp in kpOptions"
+                      :key="kp.id"
+                      class="form-check form-check-sm d-block"
+                    >
+                      <input
+                        v-model="row.acceptedKnowledgePointIds"
+                        class="form-check-input"
+                        type="checkbox"
+                        :value="kp.id"
+                        :disabled="!!job?.appliedAt"
+                        @change="onRowEdited(row)"
+                      />
+                      <span class="form-check-label">{{ kp.path }}</span>
+                    </label>
+                  </div>
+                  <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted">
+                    {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
+                  </div>
+                </td>
+                <td class="kp-review-actions-col">
+                  <div class="d-flex flex-column gap-2 kp-review-row-actions">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      :disabled="!!job?.appliedAt"
+                      aria-label="接受本题建议"
+                      @click="setStatus(row, 'accepted')"
+                    >接受</button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      :disabled="!!job?.appliedAt"
+                      aria-label="拒绝本题建议"
+                      @click="setStatus(row, 'rejected')"
+                    >拒绝</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

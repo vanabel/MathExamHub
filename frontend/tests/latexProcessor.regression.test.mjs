@@ -149,6 +149,20 @@ test('figureRefDisplayLabel strips bank-year-term prefix', async () => {
   assert.equal(P.figureRefDisplayLabel('fig:demo-2024-1-正方体'), '正方体');
 });
 
+test('figureRefDisplayLabel resolves fig3-style refs via image map', async () => {
+  const P = await loadProcessor();
+  const map = P.buildFigureRefDisplayMap([{ label: 'fig3-midterm', caption: '期中图' }]);
+  assert.equal(P.figureRefDisplayLabel('fig3', map), 'midterm');
+  assert.equal(P.figureRefDisplayLabel('fig3-midterm', map), 'midterm');
+  const html = P.processQuestionListPreviewToHTML(
+    '如图\\ref{fig:fig3}所示',
+    null,
+    { figureRefDisplayByKey: map },
+  );
+  assert.match(html, />midterm</);
+  assert.doesNotMatch(html, />3</);
+});
+
 test('index.html MathJax2 macros match mathjaxMacros.json', () => {
   const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const json = JSON.parse(fs.readFileSync(path.join(root, 'src/utils/mathjaxMacros.json'), 'utf8'));

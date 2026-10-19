@@ -365,7 +365,7 @@
                     {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
                   </button>
                   <button
-                    v-if="cardHasAnswerDetail(question)"
+                    v-if="showRevealAnswerButton(question)"
                     type="button"
                     class="btn btn-link btn-sm p-0 question-card__expand"
                     data-testid="question-list-reveal-answer"
@@ -374,14 +374,24 @@
                     {{ isAnswerRevealed(question._id) ? '隐藏答案' : '查看答案' }}
                   </button>
                 </div>
-                <div v-if="showCardDetail(question)" class="question-card__detail mt-2">
+                <div
+                  v-if="showCardDetail(question)"
+                  class="question-card__detail mt-2"
+                  :data-answer-detail-qid="question._id"
+                >
                   <div v-if="showAnswerBlock(question)" class="question-answer small mb-2">
                     <strong>答案：</strong>
-                    <div class="answer-text-content" v-html="renderAnswer(answerForDisplay(question))"></div>
+                    <div
+                      class="answer-text-content question-card__math-scroll"
+                      v-html="renderAnswer(answerForDisplay(question))"
+                    ></div>
                   </div>
                   <div v-if="showSolutionBlock(question)" class="question-solution small">
                     <strong>解答：</strong>
-                    <div class="solution-text-content" v-html="renderAnswer(question.solution)"></div>
+                    <div
+                      class="solution-text-content question-card__math-scroll"
+                      v-html="renderAnswer(question.solution)"
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -423,6 +433,7 @@ import {
   processQuestionListPreviewToHTML,
   processAnswerTextToHTML,
   renderQuestionImagesHtml,
+  buildFigureRefDisplayMap,
 } from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels, listChoiceOptionEntries, isChoiceQuestionType } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
@@ -602,10 +613,25 @@ export default {
     },
     toggleRevealAnswer(id) {
       const key = String(id);
+      const revealing = !this.revealedAnswerIds[key];
       this.revealedAnswerIds = {
         ...this.revealedAnswerIds,
-        [key]: !this.revealedAnswerIds[key],
+        [key]: revealing,
       };
+      if (revealing) {
+        this.$nextTick(() => this.typesetQuestionCardDetail(id));
+      }
+    },
+    typesetQuestionCardDetail(qid) {
+      if (!this.$el || !window.MathJax?.Hub) return;
+      const el = this.$el.querySelector(`[data-answer-detail-qid="${qid}"]`);
+      if (!el) return;
+      window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, el]);
+    },
+    showRevealAnswerButton(question) {
+      if (!this.cardHasAnswerDetail(question)) return false;
+      if (this.isCardExpanded(question._id)) return false;
+      return true;
     },
     showCardDetail(question) {
       return this.isCardExpanded(question._id) || this.isAnswerRevealed(question._id);
@@ -710,10 +736,13 @@ export default {
     questionRenderOptions(question) {
       const opts = question && question.options;
       const hasOptions = opts && typeof opts === 'object' && Object.keys(opts).length > 0;
+      const figureRefDisplayByKey = buildFigureRefDisplayMap(question?.images);
       return {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
+        images: question?.images,
+        figureRefDisplayByKey,
         choiceOptionLabels: shouldUseChoiceOptionLabels({
           questionType: question?.type,
           hasOptions,
@@ -1184,6 +1213,21 @@ export default {
   border-radius: 8px;
   border-left: 3px solid #22c55e;
   font-size: 0.95rem;
+}
+
+.question-card__math-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.question-card__detail :deep(.MathJax_Display),
+.question-card__detail :deep(mjx-container[display="true"]) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  text-align: left !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .question-actions {

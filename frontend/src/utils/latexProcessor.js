@@ -29,20 +29,57 @@ function stablePdfDomId(seed) {
   return cleaned || 'pdf';
 }
 
-/** Human-readable figure name for \\ref{fig:…} (strip bank-year-term prefix). */
-export function figureRefDisplayLabel(labelRaw) {
-  let label = String(labelRaw ?? '').trim().replace(/^fig:/i, '');
+function normalizeFigureRefKey(labelRaw) {
+  return String(labelRaw ?? '').trim().replace(/^fig:/i, '');
+}
+
+/** Build lookup for \\ref{fig:…} display text from structured question.images. */
+export function buildFigureRefDisplayMap(images) {
+  const map = Object.create(null);
+  for (const img of images || []) {
+    const key = normalizeFigureRefKey(img?.label);
+    if (!key) continue;
+    const figSlug = key.match(/^fig(\d+)-(.+)$/i);
+    const display = figSlug
+      ? figSlug[2]
+      : (String(img?.caption || '').trim() || key);
+    map[key] = display;
+    const figShort = key.match(/^(fig\d+)/i);
+    if (figShort) map[figShort[1].toLowerCase()] = display;
+  }
+  return map;
+}
+
+/** Human-readable figure name for \\ref{fig:…} (shared: list collapsed/expanded + export). */
+export function figureRefDisplayLabel(labelRaw, figureRefDisplayByKey = null) {
+  const label = normalizeFigureRefKey(labelRaw);
   if (!label) return '';
+  if (figureRefDisplayByKey && figureRefDisplayByKey[label]) {
+    return figureRefDisplayByKey[label];
+  }
+  const figSlug = label.match(/^fig(\d+)-(.+)$/i);
+  if (figSlug) return figSlug[2];
+  const figOnly = label.match(/^fig(\d+)$/i);
+  if (figOnly && figureRefDisplayByKey) {
+    const fromMap = figureRefDisplayByKey[`fig${figOnly[1]}`.toLowerCase()];
+    if (fromMap) return fromMap;
+  }
   const stripped = label
     .replace(/^[^-]+-\d{4}-\d+-/, '')
     .replace(/^\d{4}-\d+-/, '');
-  if (stripped && stripped !== label) return stripped;
+  if (stripped && stripped !== label) {
+    if (figureRefDisplayByKey && figureRefDisplayByKey[stripped]) {
+      return figureRefDisplayByKey[stripped];
+    }
+    return figureRefDisplayLabel(stripped, figureRefDisplayByKey);
+  }
   const parts = label.split('-').filter(Boolean);
   const last = parts[parts.length - 1] || label;
   if (/^\d+$/.test(last) && parts.length > 1) {
-    const prev = parts[parts.length - 2];
-    if (prev && !/^\d+$/.test(prev)) return prev;
+    const namePart = [...parts].reverse().find((p) => p && !/^\d+$/.test(p));
+    if (namePart) return figureRefDisplayLabel(namePart, figureRefDisplayByKey);
   }
+  if (/^fig\d+$/i.test(label)) return label;
   return last;
 }
 
@@ -726,6 +763,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
     mode = 'question',
     choiceOptionLabels = false,
     questionType = '',
+    figureRefDisplayByKey = null,
   } = options;
   const useChoiceLabels = choiceOptionLabels
     || (mode === 'question' && (questionType === '单选题' || questionType === '多选题'))
@@ -821,7 +859,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   const refRegex = /\\ref\{([^}]+)\}/g;
   processed = processed.replace(refRegex, (match, label) => {
     const labelPart = label.replace(/^fig:/, '');
-    const displayText = figureRefDisplayLabel(labelPart) || labelPart;
+    const displayText = figureRefDisplayLabel(labelPart, figureRefDisplayByKey) || labelPart;
     return `<a href="#fig:${labelPart}">${displayText}</a>`;
   });
 
@@ -897,7 +935,9 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   // 处理 <a> 标签中的 href，确保链接正确
   // 注意：<a> 标签可能已经在文本中，需要确保它们被正确处理
   result = result.replace(/<a\s+href=["']#fig:([^"']+)["']>([^<]+)<\/a>/g, (match, id, text) => {
-    const displayText = figureRefDisplayLabel(id) || figureRefDisplayLabel(text) || text;
+    const displayText = figureRefDisplayLabel(id, figureRefDisplayByKey)
+      || figureRefDisplayLabel(text, figureRefDisplayByKey)
+      || text;
     return `<a href="#fig:${id}" class="latex-ref">${displayText}</a>`;
   });
   
@@ -1547,6 +1587,11 @@ export function stripListPreviewLatexEnvironments(text) {
 export function processQuestionListPreviewToHTML(text, originalLaTeX = null, options = {}) {
   const raw = originalLaTeX || text || '';
   const stem = stripListPreviewLatexEnvironments(raw) || stripListPreviewLatexEnvironments(text);
-  return processQuestionTextToHTML(stem || text, null, options);
+  const mergedOpts = {
+    ...options,
+    figureRefDisplayByKey: options.figureRefDisplayByKey
+      || buildFigureRefDisplayMap(options.images),
+  };
+  return processQuestionTextToHTML(stem || text, null, mergedOpts);
 }
 

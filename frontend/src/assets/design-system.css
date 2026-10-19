@@ -479,3 +479,23 @@ main.app-main.with-navbar {
   min-width: 11rem;
   max-width: 100%;
 }
+
+.kp-tag-kp-checklist {
+  max-height: 10rem;
+  overflow-y: auto;
+  background: var(--surface-muted, #f8fafc);
+}
+
+.kp-review-actions-col {
+  min-width: 5.5rem;
+  vertical-align: top;
+}
+
+.kp-review-mobile-actions .btn {
+  width: 100%;
+}
+
+.kp-manager-panes .list-group {
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}

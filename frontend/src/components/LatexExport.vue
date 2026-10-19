@@ -559,6 +559,7 @@ import {
   processAnswerText,
   processQuestionTextToHTML,
   processQuestionListPreviewToHTML,
+  buildFigureRefDisplayMap,
 } from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay } from "../utils/questionAnswerDisplay";
@@ -744,6 +745,8 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
+        images: question?.images,
+        figureRefDisplayByKey: buildFigureRefDisplayMap(question?.images),
         choiceOptionLabels: shouldUseChoiceOptionLabels({
           questionType: question?.type,
           hasOptions,

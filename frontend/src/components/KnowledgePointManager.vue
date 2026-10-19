@@ -26,8 +26,8 @@
       </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-lg-6">
+    <div class="row g-3 kp-manager-panes">
+      <div class="col-12 col-xl-8">
         <div class="card mb-4">
           <div class="card-header">新增节点</div>
           <div class="card-body row g-2">
@@ -65,7 +65,7 @@
           </li>
         </ul>
       </div>
-      <div v-if="selected" class="col-lg-6">
+      <div v-if="selected" class="col-12 col-xl-4">
         <div class="card" data-testid="kp-detail-panel">
           <div class="card-header">知识点详情</div>
           <div class="card-body">
