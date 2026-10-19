@@ -449,3 +449,33 @@ main.app-main.with-navbar {
     padding-right: 0.75rem;
   }
 }
+
+.page-breadcrumb .breadcrumb-item a {
+  text-decoration: none;
+  color: var(--color-primary, #2563eb);
+}
+
+.page-breadcrumb .breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+.kp-job-subject-cell {
+  white-space: nowrap;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kp-review-row-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.kp-review-row-actions .btn {
+  flex-shrink: 0;
+}
+
+.kp-tag-kp-select {
+  min-width: 11rem;
+  max-width: 100%;
+}

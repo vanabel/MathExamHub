@@ -104,9 +104,9 @@
               <td>
                 <select
                   v-model="row.acceptedKnowledgePointIds"
-                  class="form-select form-select-sm mb-1"
+                  class="form-select kp-tag-kp-select mb-1"
                   multiple
-                  size="3"
+                  :size="Math.min(4, Math.max(2, kpOptions.length))"
                   :disabled="!!job?.appliedAt"
                   @change="onRowEdited(row)"
                 >

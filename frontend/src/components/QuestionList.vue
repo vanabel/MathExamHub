@@ -265,7 +265,7 @@
       </div>
 
       <!-- 题目列表 -->
-      <div v-if="!loading && questions.length > 0" class="row g-3">
+      <div v-if="!loading && questions.length > 0" ref="questionListMain" class="row g-3">
         <div
           v-for="question in questions"
           :key="question._id"
@@ -337,20 +337,44 @@
                   <div
                     v-if="question.images && question.images.length"
                     class="question-images mt-2"
-                    v-html="renderQuestionImagesHtml(question.images)"
+                    v-html="questionImagesHtml(question)"
                   ></div>
+                  <div
+                    v-if="isCardExpanded(question._id) && choiceOptionsFor(question).length"
+                    class="mathexam-abcd latex-choice-options mt-2"
+                    data-testid="question-list-choice-options"
+                  >
+                    <div
+                      v-for="entry in choiceOptionsFor(question)"
+                      :key="entry.label"
+                      class="mathexam-abcd-item latex-choice-option-item"
+                    >
+                      <span class="mathexam-abcd-label choice-option-label">{{ entry.displayLabel }}</span>
+                      <span class="mathexam-abcd-body" v-html="choiceOptionBodyHtml(entry.text)"></span>
+                    </div>
+                  </div>
                 </div>
-                <div class="question-card__expand-row">
+                <div class="question-card__expand-row d-flex flex-wrap gap-2 align-items-center">
                   <button
                     v-if="cardNeedsExpand(question._id)"
                     type="button"
                     class="btn btn-link btn-sm p-0 question-card__expand"
+                    data-testid="question-list-expand-toggle"
                     @click="toggleCardExpanded(question._id)"
                   >
                     {{ isCardExpanded(question._id) ? '收起' : '展开全文' }}
                   </button>
+                  <button
+                    v-if="cardHasAnswerDetail(question)"
+                    type="button"
+                    class="btn btn-link btn-sm p-0 question-card__expand"
+                    data-testid="question-list-reveal-answer"
+                    @click="toggleRevealAnswer(question._id)"
+                  >
+                    {{ isAnswerRevealed(question._id) ? '隐藏答案' : '查看答案' }}
+                  </button>
                 </div>
-                <div v-if="isCardExpanded(question._id)" class="question-card__detail mt-2">
+                <div v-if="showCardDetail(question)" class="question-card__detail mt-2">
                   <div v-if="showAnswerBlock(question)" class="question-answer small mb-2">
                     <strong>答案：</strong>
                     <div class="answer-text-content" v-html="renderAnswer(answerForDisplay(question))"></div>
@@ -400,7 +424,7 @@ import {
   processAnswerTextToHTML,
   renderQuestionImagesHtml,
 } from "../utils/latexProcessor";
-import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
+import { shouldUseChoiceOptionLabels, listChoiceOptionEntries, isChoiceQuestionType } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 import {
   loadCoverageGapBatch,
@@ -441,6 +465,7 @@ export default {
       gapBatchIndex: 0,
       gapBatchSeed: null,
       expandedCardIds: {},
+      revealedAnswerIds: {},
       overflowCardIds: {},
     };
   },
@@ -509,6 +534,17 @@ export default {
     this.readFiltersFromRoute();
     this.loadKnowledgePoints();
     this.pushFiltersToRoute();
+    this._onWindowResize = () => this.schedulePreviewOverflowCheck();
+    window.addEventListener("resize", this._onWindowResize, { passive: true });
+    if (typeof ResizeObserver !== "undefined") {
+      this._previewResizeObserver = new ResizeObserver(() => this.schedulePreviewOverflowCheck());
+    }
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this._onWindowResize);
+    if (this._previewResizeObserver) this._previewResizeObserver.disconnect();
+    if (this._overflowCheckTimer) clearTimeout(this._overflowCheckTimer);
+    if (this._layoutPassTimer) clearTimeout(this._layoutPassTimer);
   },
   watch: {
     '$route.query': {
@@ -525,16 +561,12 @@ export default {
     currentPage(val) {
       this.pageJumpInput = val;
     },
-  },
-  updated() {
-    this.$nextTick(() => {
-      setTimeout(() => {
-        this.renderMathJax();
-        const rendering = document.querySelectorAll('.pdf-canvas[data-rendering="true"]').length > 0;
-        if (!rendering) this.renderPDFs();
-        this.schedulePreviewOverflowCheck();
-      }, 80);
-    });
+    questions: {
+      handler() {
+        this._questionImagesHtmlCache = new Map();
+        this.scheduleListLayoutPass("questions");
+      },
+    },
   },
   methods: {
     processQuestionTextToHTML,
@@ -563,6 +595,82 @@ export default {
         ...this.expandedCardIds,
         [key]: !this.expandedCardIds[key],
       };
+      this.scheduleListLayoutPass("expand");
+    },
+    isAnswerRevealed(id) {
+      return !!this.revealedAnswerIds[String(id)];
+    },
+    toggleRevealAnswer(id) {
+      const key = String(id);
+      this.revealedAnswerIds = {
+        ...this.revealedAnswerIds,
+        [key]: !this.revealedAnswerIds[key],
+      };
+    },
+    showCardDetail(question) {
+      return this.isCardExpanded(question._id) || this.isAnswerRevealed(question._id);
+    },
+    cardHasAnswerDetail(question) {
+      return showAnswerBlock(question) || showSolutionBlock(question);
+    },
+    choiceOptionsFor(question) {
+      if (!question || !isChoiceQuestionType(question.type)) return [];
+      return listChoiceOptionEntries(question.options);
+    },
+    choiceOptionBodyHtml(text) {
+      return processQuestionTextToHTML(text || "", null, { mode: "question" });
+    },
+    questionImagesHtml(question) {
+      if (!this._questionImagesHtmlCache) this._questionImagesHtmlCache = new Map();
+      const key = String(question._id);
+      const sig = JSON.stringify(question.images || []);
+      const cached = this._questionImagesHtmlCache.get(key);
+      if (cached && cached.sig === sig) return cached.html;
+      const html = renderQuestionImagesHtml(question.images);
+      this._questionImagesHtmlCache.set(key, { sig, html });
+      return html;
+    },
+    overflowMapsEqual(a, b) {
+      const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+      for (const k of keys) {
+        if (!!(a && a[k]) !== !!(b && b[k])) return false;
+      }
+      return true;
+    },
+    scheduleListLayoutPass() {
+      if (this._layoutPassTimer) clearTimeout(this._layoutPassTimer);
+      this._layoutPassTimer = setTimeout(() => this.runListLayoutPass(), 160);
+    },
+    runListLayoutPass() {
+      if (this._layoutPassInFlight) return;
+      this._layoutPassInFlight = true;
+      this.$nextTick(() => {
+        this.typesetAndRenderMedia().finally(() => {
+          this._layoutPassInFlight = false;
+        });
+      });
+    },
+    typesetAndRenderMedia() {
+      return new Promise((resolve) => {
+        const finish = () => {
+          this.renderPDFs();
+          this.observePreviewBoxes();
+          this.schedulePreviewOverflowCheck();
+          resolve();
+        };
+        if (window.MathJax && window.MathJax.Hub) {
+          window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, this.$el], finish);
+        } else {
+          finish();
+        }
+      });
+    },
+    observePreviewBoxes() {
+      if (!this._previewResizeObserver || !this.$el) return;
+      this._previewResizeObserver.disconnect();
+      this.$el.querySelectorAll(".question-card__preview").forEach((el) => {
+        this._previewResizeObserver.observe(el);
+      });
     },
     cardNeedsExpand(qid) {
       if (this.isCardExpanded(qid)) return true;
@@ -574,14 +682,14 @@ export default {
     },
     recheckPreviewOverflow() {
       if (!this.$el) return;
-      const next = { ...this.overflowCardIds };
-      this.$el.querySelectorAll('.question-card__preview:not(.question-card__preview--expanded)').forEach((el) => {
-        const qid = el.getAttribute('data-qid');
+      const next = {};
+      this.$el.querySelectorAll(".question-card__preview:not(.question-card__preview--expanded)").forEach((el) => {
+        const qid = el.getAttribute("data-qid");
         if (!qid) return;
         const overflow = el.scrollHeight > el.clientHeight + 2;
         if (overflow) next[qid] = true;
-        else delete next[qid];
       });
+      if (this.overflowMapsEqual(this.overflowCardIds, next)) return;
       this.overflowCardIds = next;
     },
     previewHtml(question) {
@@ -617,15 +725,13 @@ export default {
     renderAnswer(content) {
       return processAnswerTextToHTML(this.answerToText(content));
     },
-    renderMathJax() {
-      if (window.MathJax && window.MathJax.Hub) {
-        window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, this.$el]);
-      }
-    },
     renderPDFs() {
-      if (typeof window.pdfjsLib === "undefined") return;
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      if (typeof window.pdfjsLib === "undefined" || !this.$el) return;
+      if (!this._pdfWorkerConfigured) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        this._pdfWorkerConfigured = true;
+      }
       this.$el.querySelectorAll(".pdf-container[data-pdf-url]").forEach((container) => {
         const pdfUrl = container.getAttribute("data-pdf-url");
         const canvas = container.querySelector(".pdf-canvas");
@@ -647,6 +753,7 @@ export default {
           .then(() => {
             canvas.dataset.rendered = "true";
             canvas.dataset.rendering = "false";
+            this.schedulePreviewOverflowCheck();
           })
           .catch((error) => {
             canvas.dataset.rendering = "false";
@@ -872,6 +979,7 @@ export default {
         console.error('Failed to retrieve question list:', error);
       } finally {
         this.loading = false;
+        this.scheduleListLayoutPass("fetch");
       }
     },
     handleSearch() {

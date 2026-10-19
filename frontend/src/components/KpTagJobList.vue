@@ -38,7 +38,7 @@
               :class="{ 'table-active': j._id === selectedJobId }"
               @click="$emit('select', j._id)"
             >
-              <td class="small">{{ j.subject || '—' }}</td>
+              <td class="small kp-job-subject-cell">{{ j.subject || '—' }}</td>
               <td class="small">
                 <span data-testid="kp-job-status-label">{{ jobStatusLabel(j) }}</span>
               </td>

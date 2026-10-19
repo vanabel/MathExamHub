@@ -21,6 +21,31 @@ function escapeHtmlAttr(value) {
     .replace(/</g, '&lt;');
 }
 
+function stablePdfDomId(seed) {
+  const cleaned = String(seed ?? 'pdf')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 96);
+  return cleaned || 'pdf';
+}
+
+/** Human-readable figure name for \\ref{fig:…} (strip bank-year-term prefix). */
+export function figureRefDisplayLabel(labelRaw) {
+  let label = String(labelRaw ?? '').trim().replace(/^fig:/i, '');
+  if (!label) return '';
+  const stripped = label
+    .replace(/^[^-]+-\d{4}-\d+-/, '')
+    .replace(/^\d{4}-\d+-/, '');
+  if (stripped && stripped !== label) return stripped;
+  const parts = label.split('-').filter(Boolean);
+  const last = parts[parts.length - 1] || label;
+  if (/^\d+$/.test(last) && parts.length > 1) {
+    const prev = parts[parts.length - 2];
+    if (prev && !/^\d+$/.test(prev)) return prev;
+  }
+  return last;
+}
+
 function stepScoreBadgeHtml(points) {
   const n = String(points).trim();
   return `<span class="step-score-line"><span class="step-score-badge">(${escapeHtmlAttr(n)}分)</span></span>`;
@@ -47,7 +72,7 @@ export function renderQuestionImagesHtml(images) {
     const widthStyle = img.width ? `max-width:${escapeHtmlAttr(img.width)};` : 'max-width:100%;';
     let media = '';
     if (isPdf) {
-      const uid = `pdf-${label || index}-${Date.now()}`;
+      const uid = stablePdfDomId(label || url || index);
       media = `<div class="pdf-container" data-pdf-url="${escapeHtmlAttr(fileUrl)}" data-pdf-id="${uid}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:10px;background:#f5f5f5;margin:10px 0;"><canvas id="pdf-canvas-${uid}" class="pdf-canvas" style="max-width:100%;display:block;margin:0 auto;"></canvas></div>`;
     } else {
       media = `<img src="${escapeHtmlAttr(fileUrl)}" alt="${escapeHtmlAttr(caption || label || '图片')}" class="latex-figure question-structured-image" style="${widthStyle}height:auto;display:block;margin:0.75rem auto;" />`;
@@ -130,7 +155,7 @@ function expandImageTagsToHtml(fragment) {
     const fileUrl = href ? `${backendBaseURL}/uploads/${encodeURIComponent(href)}` : '';
     const isPdf = href && /\.pdf$/i.test(href);
     if (isPdf) {
-      let cleanId = (id || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+      const cleanId = stablePdfDomId(id || href || 'pdf');
       return `
             <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${cleanId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
               <canvas id="pdf-canvas-${cleanId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
@@ -796,9 +821,7 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   const refRegex = /\\ref\{([^}]+)\}/g;
   processed = processed.replace(refRegex, (match, label) => {
     const labelPart = label.replace(/^fig:/, '');
-    // 提取数字部分作为显示文本
-    const numMatch = labelPart.match(/(\d+)/);
-    const displayText = numMatch ? numMatch[1] : labelPart;
+    const displayText = figureRefDisplayLabel(labelPart) || labelPart;
     return `<a href="#fig:${labelPart}">${displayText}</a>`;
   });
 
@@ -874,8 +897,8 @@ export function processQuestionTextToHTML(text, originalLaTeX = null, options = 
   // 处理 <a> 标签中的 href，确保链接正确
   // 注意：<a> 标签可能已经在文本中，需要确保它们被正确处理
   result = result.replace(/<a\s+href=["']#fig:([^"']+)["']>([^<]+)<\/a>/g, (match, id, text) => {
-    // 保持链接格式，但确保 id 正确
-    return `<a href="#fig:${id}" class="latex-ref">${text}</a>`;
+    const displayText = figureRefDisplayLabel(id) || figureRefDisplayLabel(text) || text;
+    return `<a href="#fig:${id}" class="latex-ref">${displayText}</a>`;
   });
   
   return result;

@@ -1,8 +1,20 @@
 /**
  * Seed screenshot bank via Playwright APIRequest (same session cookies as the page).
  */
+const fs = require('fs');
+const path = require('path');
+
 const appOrigin = (process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 const apiBase = process.env.PLAYWRIGHT_API_URL || `${appOrigin}/api`;
+
+function ensurePdfFixtureInUploads(filename) {
+  const src = path.join(__dirname, '../../backend/test/fixtures/fig2.pdf');
+  const destDir = path.join(__dirname, '../../backend/uploads');
+  const dest = path.join(destDir, filename);
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+  if (!fs.existsSync(dest)) fs.copyFileSync(src, dest);
+  return filename;
+}
 
 async function seedViaPageRequest(page, bankId) {
   const hdr = (extra = {}) => ({
@@ -76,6 +88,22 @@ async function seedViaPageRequest(page, bankId) {
       questionText: '直线 $y=kx+1$ 与圆 $x^2+y^2=4$ 相切，则 $k=$',
       options: { A: '$\\pm 1$', B: '$\\pm \\sqrt{3}$', C: '$0$', D: '$\\pm 2$' },
       correctAnswer: 'B',
+    },
+  });
+
+  const pdfFile = ensurePdfFixtureInUploads(`ui-v2-cube-${String(bankId).slice(-8)}.pdf`);
+  const figLabel = 'demo-2024-1-正方体';
+  await page.request.post(`${apiBase}/questions/create`, {
+    headers: hdr({ 'Content-Type': 'application/json' }),
+    data: {
+      type: '解答题',
+      subject: '解析几何',
+      difficulty: '中',
+      totalScore: 8,
+      questionText: `如图\\ref{fig:${figLabel}}，求正方体体积。`,
+      correctAnswer: '见解答',
+      solution: '$V=a^3$。',
+      images: [{ url: pdfFile, label: figLabel, caption: '正方体' }],
     },
   });
 

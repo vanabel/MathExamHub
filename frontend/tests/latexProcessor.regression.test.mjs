@@ -143,6 +143,12 @@ test('regression fixtures: processQuestionTextToHTML / processAnswerTextToHTML',
   }
 });
 
+test('figureRefDisplayLabel strips bank-year-term prefix', async () => {
+  const P = await loadProcessor();
+  assert.equal(P.figureRefDisplayLabel('demo-2024-1-正方体'), '正方体');
+  assert.equal(P.figureRefDisplayLabel('fig:demo-2024-1-正方体'), '正方体');
+});
+
 test('index.html MathJax2 macros match mathjaxMacros.json', () => {
   const indexHtml = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const json = JSON.parse(fs.readFileSync(path.join(root, 'src/utils/mathjaxMacros.json'), 'utf8'));
