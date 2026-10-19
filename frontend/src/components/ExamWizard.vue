@@ -66,8 +66,14 @@
                   <input v-model="blueprint.title" class="form-control" placeholder="例如：高等代数期中" />
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">科目</label>
-                  <input v-model="blueprint.subject" class="form-control" placeholder="例如：高等代数" />
+                  <label class="form-label" for="wizard-blueprint-subject">科目</label>
+                  <subject-combobox
+                    v-model="blueprint.subject"
+                    select-id="wizard-blueprint-subject"
+                    allow-empty
+                    empty-label="不限科目"
+                    test-id-prefix="wizard-subject"
+                  />
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">目标总分</label>
@@ -184,7 +190,13 @@
               </button>
             </div>
             <div class="card-footer d-flex gap-2 flex-wrap align-items-center">
-              <button type="button" class="btn btn-secondary" :disabled="savingBlueprint" @click="saveBlueprint">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-testid="wizard-save-blueprint"
+                :disabled="savingBlueprint"
+                @click="saveBlueprint"
+              >
                 {{ savingBlueprint ? '保存中…' : '保存蓝图' }}
               </button>
               <button
@@ -522,6 +534,7 @@ import ChoiceOptionsList from './ChoiceOptionsList.vue';
 import { isChoiceQuestionType, shouldUseChoiceOptionLabels } from '../utils/choiceOptions';
 import KnowledgePointPicker from './KnowledgePointPicker.vue';
 import PageHeader from './ui/PageHeader.vue';
+import SubjectCombobox from './ui/SubjectCombobox.vue';
 import { saveCoverageGapBatch } from '../utils/coverageGapBatch';
 import {
   formatFilterStageSummary,
@@ -540,7 +553,7 @@ function baseDefaultSection(type = '填空题', scoreEach = 4) {
 
 export default {
   name: 'ExamWizard',
-  components: { KnowledgePointPicker, ChoiceOptionsList, PageHeader },
+  components: { KnowledgePointPicker, ChoiceOptionsList, PageHeader, SubjectCombobox },
   data() {
     return {
       step: 1,
