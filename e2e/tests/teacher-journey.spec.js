@@ -1,4 +1,16 @@
 const { test, expect } = require('@playwright/test');
+
+async function setWizardSubject(page, subject) {
+  const select = page.getByTestId('wizard-subject-select');
+  await expect(select).toBeVisible({ timeout: 15000 });
+  const hasOption = await select.locator(`option[value="${subject}"]`).count();
+  if (hasOption) {
+    await select.selectOption(subject);
+    return;
+  }
+  await select.selectOption('__custom__');
+  await page.getByTestId('wizard-subject-custom').fill(subject);
+}
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -140,13 +152,13 @@ test.describe('Teacher journey', () => {
 
     await page.goto(wizardPath, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/exam-wizard/, { timeout: 30000 });
-    await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('高等代数');
+    await setWizardSubject(page, '高等代数');
     await page.locator('#allowRelax').uncheck();
     await page.getByTestId('wizard-coverage-check').click();
     await expect(page.getByTestId('wizard-coverage-result')).toContainText(/缺口/, { timeout: 180000 });
     await page.screenshot({ path: path.join(shots, 'journey-wizard-gap.png'), fullPage: true });
 
-    await page.locator('label.form-label', { hasText: '科目' }).locator('..').locator('input').fill('解析几何');
+    await setWizardSubject(page, '解析几何');
     await page.locator('#allowRelax').check();
     await page.getByTestId('wizard-coverage-check').click();
     await expect(page.getByTestId('wizard-coverage-result')).toContainText(/覆盖检查通过/, { timeout: 180000 });
