@@ -159,13 +159,19 @@
                 id="navToolsMenu"
                 role="button"
                 data-bs-toggle="dropdown"
+                data-bs-boundary="viewport"
+                data-bs-display="static"
                 aria-expanded="false"
                 :class="{ active: isToolsMenuActive }"
                 data-testid="nav-menu-tools"
               >
                 <i class="bi bi-tools"></i> 工具
               </a>
-              <ul class="dropdown-menu" aria-labelledby="navToolsMenu">
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="navToolsMenu"
+                data-testid="nav-menu-tools-panel"
+              >
                 <li>
                   <router-link
                     class="dropdown-item"
@@ -221,13 +227,15 @@
               @bank-changed="onBankChanged"
             />
             <ul class="navbar-nav navbar-user-nav">
-              <li class="nav-item dropdown" :class="{ show: showUserMenu }">
+              <li class="nav-item dropdown">
                 <a
                   class="nav-link dropdown-toggle user-nav-link"
                   href="#"
                   id="navbarDropdown"
                   role="button"
-                  @click.prevent="toggleUserMenu"
+                  data-bs-toggle="dropdown"
+                  data-bs-boundary="viewport"
+                  data-bs-display="static"
                   aria-expanded="false"
                   data-testid="nav-user-menu"
                 >
@@ -236,8 +244,8 @@
                 </a>
                 <ul
                   class="dropdown-menu dropdown-menu-end"
-                  :class="{ show: showUserMenu }"
                   aria-labelledby="navbarDropdown"
+                  data-testid="nav-user-menu-panel"
                 >
                   <li>
                     <a class="dropdown-item" href="#" @click.prevent="logout">
@@ -294,7 +302,6 @@ export default {
   data() {
     return {
       currentUser: null,
-      showUserMenu: false,
       onboardingDismissed: false,
     };
   },
@@ -337,15 +344,10 @@ export default {
   },
   mounted() {
     this.loadUser();
-    document.addEventListener('click', this.handleClickOutside);
-  },
-  beforeUnmount() {
-    document.removeEventListener('click', this.handleClickOutside);
   },
   watch: {
     $route() {
       this.loadUser();
-      this.showUserMenu = false;
     },
   },
   methods: {
@@ -376,16 +378,6 @@ export default {
         }
       }
     },
-    toggleUserMenu(event) {
-      event.stopPropagation();
-      this.showUserMenu = !this.showUserMenu;
-    },
-    handleClickOutside(event) {
-      const dropdown = event.target.closest('.dropdown');
-      if (!dropdown && this.showUserMenu) {
-        this.showUserMenu = false;
-      }
-    },
     onBankChanged() {
       window.dispatchEvent(new CustomEvent('mathexam-bank-changed'));
       if (this.$route.name === 'question-list') {
@@ -402,8 +394,6 @@ export default {
       this.onboardingDismissed = true;
     },
     async logout() {
-      this.showUserMenu = false;
-
       try {
         await axios.post('/auth/logout');
       } catch (error) {

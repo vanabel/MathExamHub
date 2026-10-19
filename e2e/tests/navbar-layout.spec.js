@@ -71,6 +71,30 @@ async function openQuestionList(page) {
   await expect(page.getByTestId('navbar-bank-select')).toBeVisible({ timeout: 15000 });
 }
 
+async function expandMobileNavbar(page) {
+  const toggler = page.locator('.navbar-toggler');
+  if (await toggler.isVisible().catch(() => false)) {
+    await toggler.click();
+    await page.locator('#navbarNav.show, #navbarNav.collapsing').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  }
+}
+
+async function assertPanelWithinViewport(page, panelTestId) {
+  const metrics = await page.evaluate((testId) => {
+    const el = document.querySelector(`[data-testid="${testId}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      left: r.left,
+      right: r.right,
+      innerWidth: window.innerWidth,
+    };
+  }, panelTestId);
+  expect(metrics).toBeTruthy();
+  expect(metrics.right).toBeLessThanOrEqual(metrics.innerWidth + 0.5);
+  expect(metrics.left).toBeGreaterThanOrEqual(-0.5);
+}
+
 test.describe('navbar desktop single row', () => {
   for (const width of ROW_ALIGN_WIDTHS) {
     test(`nav items align on one row at ${width}px`, async ({ page }) => {
@@ -106,6 +130,49 @@ test.describe('navbar desktop single row', () => {
       };
     });
     expect(intersects(boxes.header, boxes.user)).toBe(false);
+  });
+});
+
+const DROPDOWN_VIEWPORT_WIDTHS = [1440, 1280, 992];
+
+test.describe('navbar dropdown viewport bounds', () => {
+  for (const width of DROPDOWN_VIEWPORT_WIDTHS) {
+    test(`user menu panel stays in viewport at ${width}px`, async ({ page }) => {
+      const uid = `nav_user_dd_${width}_${Date.now()}`;
+      await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+      await page.setViewportSize({ width, height: 900 });
+      await openQuestionList(page);
+
+      await page.getByTestId('nav-user-menu').click();
+      await expect(page.getByTestId('nav-user-menu-panel')).toHaveClass(/show/);
+      await assertPanelWithinViewport(page, 'nav-user-menu-panel');
+    });
+
+    test(`tools menu panel stays in viewport at ${width}px`, async ({ page }) => {
+      const uid = `nav_tools_dd_${width}_${Date.now()}`;
+      await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+      await page.setViewportSize({ width, height: 900 });
+      await openQuestionList(page);
+
+      await page.getByTestId('nav-menu-tools').click();
+      await expect(page.getByTestId('nav-menu-tools-panel')).toHaveClass(/show/);
+      await assertPanelWithinViewport(page, 'nav-menu-tools-panel');
+    });
+  }
+
+  test('user menu panel stays in viewport at 390px inside collapsed navbar', async ({ page }) => {
+    const uid = `nav_user_dd_390_${Date.now()}`;
+    await registerAndLogin(page, { uid, password: 'E2EPass123!', email: `${uid}@example.com` });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+    const skip = page.getByTestId('onboarding-skip');
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+    await expandMobileNavbar(page);
+    await expect(page.getByTestId('nav-user-menu')).toBeVisible({ timeout: 15000 });
+
+    await page.getByTestId('nav-user-menu').click();
+    await expect(page.getByTestId('nav-user-menu-panel')).toHaveClass(/show/);
+    await assertPanelWithinViewport(page, 'nav-user-menu-panel');
   });
 });
 
