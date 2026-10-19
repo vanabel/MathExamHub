@@ -33,54 +33,50 @@ function normalizeFigureRefKey(labelRaw) {
   return String(labelRaw ?? '').trim().replace(/^fig:/i, '');
 }
 
+/**
+ * Short figure name for UI: strip fig: prefix, then last '-' segment; fig3 → 3.
+ * (LaTeX \\label/\\ref keys in export stay unchanged — display only.)
+ */
+export function figureRefShortDisplayName(labelRaw) {
+  const label = normalizeFigureRefKey(labelRaw);
+  if (!label) return '';
+  const figNum = label.match(/^fig(\d+)$/i);
+  if (figNum) return figNum[1];
+  const parts = label.split('-').filter(Boolean);
+  return parts[parts.length - 1] || label;
+}
+
 /** Build lookup for \\ref{fig:…} display text from structured question.images. */
 export function buildFigureRefDisplayMap(images) {
   const map = Object.create(null);
   for (const img of images || []) {
     const key = normalizeFigureRefKey(img?.label);
     if (!key) continue;
-    const figSlug = key.match(/^fig(\d+)-(.+)$/i);
-    const display = figSlug
-      ? figSlug[2]
-      : (String(img?.caption || '').trim() || key);
+    const display = figureRefShortDisplayName(key);
     map[key] = display;
-    const figShort = key.match(/^(fig\d+)/i);
-    if (figShort) map[figShort[1].toLowerCase()] = display;
+    const figOnly = key.match(/^fig(\d+)$/i);
+    if (figOnly) {
+      map[`fig${figOnly[1]}`.toLowerCase()] = display;
+      map[`fig${figOnly[1]}`] = display;
+    }
+    const parts = key.split('-').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (/^\d+$/.test(last)) {
+      map[`fig${last}`.toLowerCase()] = last;
+      map[`fig${last}`] = last;
+    }
   }
   return map;
 }
 
-/** Human-readable figure name for \\ref{fig:…} (shared: list collapsed/expanded + export). */
+/** Human-readable figure name for \\ref{fig:…} (list collapsed/expanded + export rows). */
 export function figureRefDisplayLabel(labelRaw, figureRefDisplayByKey = null) {
   const label = normalizeFigureRefKey(labelRaw);
   if (!label) return '';
-  if (figureRefDisplayByKey && figureRefDisplayByKey[label]) {
-    return figureRefDisplayByKey[label];
-  }
-  const figSlug = label.match(/^fig(\d+)-(.+)$/i);
-  if (figSlug) return figSlug[2];
-  const figOnly = label.match(/^fig(\d+)$/i);
-  if (figOnly && figureRefDisplayByKey) {
-    const fromMap = figureRefDisplayByKey[`fig${figOnly[1]}`.toLowerCase()];
-    if (fromMap) return fromMap;
-  }
-  const stripped = label
-    .replace(/^[^-]+-\d{4}-\d+-/, '')
-    .replace(/^\d{4}-\d+-/, '');
-  if (stripped && stripped !== label) {
-    if (figureRefDisplayByKey && figureRefDisplayByKey[stripped]) {
-      return figureRefDisplayByKey[stripped];
-    }
-    return figureRefDisplayLabel(stripped, figureRefDisplayByKey);
-  }
-  const parts = label.split('-').filter(Boolean);
-  const last = parts[parts.length - 1] || label;
-  if (/^\d+$/.test(last) && parts.length > 1) {
-    const namePart = [...parts].reverse().find((p) => p && !/^\d+$/.test(p));
-    if (namePart) return figureRefDisplayLabel(namePart, figureRefDisplayByKey);
-  }
-  if (/^fig\d+$/i.test(label)) return label;
-  return last;
+  if (figureRefDisplayByKey?.[label]) return figureRefDisplayByKey[label];
+  const lower = label.toLowerCase();
+  if (figureRefDisplayByKey?.[lower]) return figureRefDisplayByKey[lower];
+  return figureRefShortDisplayName(label);
 }
 
 function stepScoreBadgeHtml(points) {

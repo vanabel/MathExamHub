@@ -96,26 +96,18 @@
         >
           <div class="card-body small">
             <div class="kp-stem-preview mb-2" v-html="stemHtml(row.questionText)"></div>
-            <div class="kp-tag-kp-checklist border rounded p-2 mb-2">
-              <label
-                v-for="kp in kpOptions"
-                :key="kp.id"
-                class="form-check form-check-sm d-block"
-              >
-                <input
-                  v-model="row.acceptedKnowledgePointIds"
-                  class="form-check-input"
-                  type="checkbox"
-                  :value="kp.id"
-                  :disabled="!!job?.appliedAt"
-                  @change="onRowEdited(row)"
-                />
-                <span class="form-check-label">{{ kp.path }}</span>
-              </label>
-            </div>
-            <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted mb-1">
-              {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
-            </div>
+            <kp-tag-row-kp-cell
+              class="mb-2"
+              :row="row"
+              :job="job"
+              :kp-edit-open="isKpEditOpen(row.questionId)"
+              :kp-edit-search="kpEditSearch[row.questionId] || ''"
+              :filtered-options="filteredKpPickerOptions(row)"
+              :kp-path-by-id="kpPathById"
+              @toggle-edit="toggleKpEdit(row.questionId)"
+              @update:search="(v) => setKpEditSearch(row.questionId, v)"
+              @toggle-kp="(id, on) => onRowKpToggle(row, id, on)"
+            />
             <div class="d-grid gap-2 kp-review-mobile-actions">
               <button
                 type="button"
@@ -149,26 +141,17 @@
                   <div class="kp-stem-preview" v-html="stemHtml(row.questionText)"></div>
                 </td>
                 <td>
-                  <div class="kp-tag-kp-checklist border rounded p-2 mb-1">
-                    <label
-                      v-for="kp in kpOptions"
-                      :key="kp.id"
-                      class="form-check form-check-sm d-block"
-                    >
-                      <input
-                        v-model="row.acceptedKnowledgePointIds"
-                        class="form-check-input"
-                        type="checkbox"
-                        :value="kp.id"
-                        :disabled="!!job?.appliedAt"
-                        @change="onRowEdited(row)"
-                      />
-                      <span class="form-check-label">{{ kp.path }}</span>
-                    </label>
-                  </div>
-                  <div v-for="s in row.suggestions" :key="s.knowledgePointId" class="small text-muted">
-                    {{ s.path }} · {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
-                  </div>
+                  <kp-tag-row-kp-cell
+                    :row="row"
+                    :job="job"
+                    :kp-edit-open="isKpEditOpen(row.questionId)"
+                    :kp-edit-search="kpEditSearch[row.questionId] || ''"
+                    :filtered-options="filteredKpPickerOptions(row)"
+                    :kp-path-by-id="kpPathById"
+                    @toggle-edit="toggleKpEdit(row.questionId)"
+                    @update:search="(v) => setKpEditSearch(row.questionId, v)"
+                    @toggle-kp="(id, on) => onRowKpToggle(row, id, on)"
+                  />
                 </td>
                 <td class="kp-review-actions-col">
                   <div class="d-flex flex-column gap-2 kp-review-row-actions">
@@ -200,9 +183,11 @@
 <script>
 import axios from 'axios';
 import { processQuestionTextToHTML } from '../utils/latexProcessor';
+import KpTagRowKpCell from './KpTagRowKpCell.vue';
 
 export default {
   name: 'KpTagJobReviewPanel',
+  components: { KpTagRowKpCell },
   props: {
     subject: { type: String, required: true },
     kpTree: { type: Array, default: () => [] },
@@ -225,6 +210,8 @@ export default {
       saveState: '',
       rowActionHint: '',
       rowActionTimer: null,
+      kpEditOpenIds: {},
+      kpEditSearch: {},
     };
   },
   computed: {
@@ -283,6 +270,41 @@ export default {
   methods: {
     stemHtml(text) {
       return processQuestionTextToHTML(String(text || '').slice(0, 400));
+    },
+    kpPathById(id) {
+      const hit = this.kpOptions.find((o) => o.id === String(id));
+      return hit?.path || String(id);
+    },
+    isKpEditOpen(questionId) {
+      return !!this.kpEditOpenIds[String(questionId)];
+    },
+    toggleKpEdit(questionId) {
+      const key = String(questionId);
+      this.kpEditOpenIds = { ...this.kpEditOpenIds, [key]: !this.kpEditOpenIds[key] };
+      if (!this.kpEditOpenIds[key]) {
+        const next = { ...this.kpEditSearch };
+        delete next[key];
+        this.kpEditSearch = next;
+      }
+    },
+    setKpEditSearch(questionId, value) {
+      this.kpEditSearch = { ...this.kpEditSearch, [String(questionId)]: value };
+    },
+    filteredKpPickerOptions(row) {
+      const q = (this.kpEditSearch[row.questionId] || '').trim().toLowerCase();
+      let list = this.kpOptions;
+      if (q) {
+        list = list.filter((o) => (o.path || '').toLowerCase().includes(q));
+      }
+      return list.slice(0, 80);
+    },
+    onRowKpToggle(row, kpId, checked) {
+      const ids = new Set(row.acceptedKnowledgePointIds || []);
+      const key = String(kpId);
+      if (checked) ids.add(key);
+      else ids.delete(key);
+      row.acceptedKnowledgePointIds = [...ids];
+      this.onRowEdited(row);
     },
     rowClass(row) {
       if (row.status === 'rejected') return 'table-secondary';

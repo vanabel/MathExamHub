@@ -72,4 +72,52 @@ test.describe('question list reveal answer', () => {
       }, { timeout: 20000 })
       .toBe(true);
   });
+
+  test('display formula not clipped left at 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const uid = `ql390_${Date.now()}`;
+    const password = 'E2EPass123!';
+    await registerAndLogin(page, { uid, password, email: `${uid}@example.com` });
+
+    const bankId = await page.evaluate(() => localStorage.getItem('currentBankId'));
+    await page.evaluate(async ({ base, bank }) => {
+      const hdr = { 'Content-Type': 'application/json', 'X-Bank-Id': bank };
+      await fetch(`${base}/onboarding/import-sample`, { method: 'POST', credentials: 'include', headers: hdr });
+      await fetch(`${base}/questions/create`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: hdr,
+        body: JSON.stringify({
+          type: '填空题',
+          subject: '解析几何',
+          difficulty: '中',
+          totalScore: 5,
+          questionText: '求角。',
+          correctAnswer: '$$\\cos\\alpha + \\sin\\beta = 1$$',
+        }),
+      });
+    }, { base: apiBase, bank: bankId });
+
+    await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
+    const skip = page.getByTestId('onboarding-skip');
+    if (await skip.isVisible().catch(() => false)) await skip.click();
+
+    await page.getByTestId('question-list-reveal-answer').first().click();
+    const scroll = page.locator('.question-card__math-scroll').first();
+    await expect(scroll).toBeVisible({ timeout: 20000 });
+
+    await expect
+      .poll(async () => scroll.locator('mjx-container[display="true"], .MathJax_Display').count())
+      .toBeGreaterThan(0);
+
+    const aligned = await page.evaluate(() => {
+      const box = document.querySelector('.question-card__math-scroll');
+      const math = box?.querySelector('mjx-container[display="true"], .MathJax_Display');
+      if (!box || !math) return false;
+      const br = box.getBoundingClientRect();
+      const mr = math.getBoundingClientRect();
+      return mr.left >= br.left - 2;
+    });
+    expect(aligned).toBe(true);
+  });
 });
