@@ -1218,24 +1218,20 @@ export default {
 .question-card__math-scroll {
   overflow-x: auto;
   max-width: 100%;
+  padding-left: 0.35rem;
+  padding-right: 0.25rem;
   -webkit-overflow-scrolling: touch;
 }
 
-.question-card__detail :deep(.MathJax_Display),
-.question-card__detail :deep(mjx-container[display="true"]) {
-  display: block;
+.question-card__math-scroll :deep(.MathJax_Display) {
   text-align: left !important;
   margin: 0 !important;
-  overflow: visible;
-  max-width: none;
-  width: max-content;
-  min-width: min(100%, max-content);
+  max-width: 100%;
 }
 
-.question-card__detail :deep(.MathJax_Display > span),
-.question-card__detail :deep(mjx-container[display="true"] > *) {
-  min-width: max-content;
+.question-card__math-scroll :deep(mjx-container[display="true"]) {
   text-align: left !important;
+  margin: 0 !important;
 }
 
 .question-actions {

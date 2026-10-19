@@ -81,6 +81,21 @@ async function seedViaPageRequest(page, bankId) {
   await page.request.post(`${apiBase}/questions/create`, {
     headers: hdr({ 'Content-Type': 'application/json' }),
     data: {
+      type: '解答题',
+      subject: '解析几何',
+      difficulty: '中',
+      totalScore: 10,
+      questionText: '已知 $\\vec a,\\vec b$，求夹角。',
+      correctAnswer:
+        '$$\\cos\\alpha,\\ \\cos\\beta,\\ \\cos\\gamma$$ 即 '
+        + '$$\\sec^2\\theta = 1 + \\tan^2\\theta$$ '
+        + '$$\\cos\\alpha + \\sin\\beta = 1$$',
+    },
+  });
+
+  await page.request.post(`${apiBase}/questions/create`, {
+    headers: hdr({ 'Content-Type': 'application/json' }),
+    data: {
       type: '单选题',
       subject: '解析几何',
       difficulty: '中',

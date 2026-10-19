@@ -2,6 +2,11 @@ const { test, expect } = require('@playwright/test');
 
 const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
 
+const WIDE_ANSWER =
+  '$$\\cos\\alpha,\\ \\cos\\beta,\\ \\cos\\gamma$$ 即 '
+  + '$$\\sec^2\\theta = 1 + \\tan^2\\theta$$ '
+  + '$$\\cos\\alpha + \\sin\\beta = 1$$';
+
 async function registerAndLogin(page, { uid, password, email }) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.evaluate(async ({ base, username, pass, mail }) => {
@@ -26,98 +31,106 @@ async function registerAndLogin(page, { uid, password, email }) {
   }, { base: apiBase, username: uid, pass: password, mail: email });
 }
 
+async function seedWideAnswerQuestion(page, bankId) {
+  await page.evaluate(async ({ base, bank, answer }) => {
+    const hdr = { 'Content-Type': 'application/json', 'X-Bank-Id': bank };
+    await fetch(`${base}/onboarding/import-sample`, { method: 'POST', credentials: 'include', headers: hdr });
+    await fetch(`${base}/questions/create`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: hdr,
+      body: JSON.stringify({
+        type: '解答题',
+        subject: '解析几何',
+        difficulty: '中',
+        totalScore: 10,
+        questionText: '已知向量 $\\vec a,\\vec b$，求夹角。',
+        correctAnswer: answer,
+      }),
+    });
+  }, { base: apiBase, bank: bankId, answer: WIDE_ANSWER });
+}
+
+async function openListAndRevealAnswer(page) {
+  await page.goto('/question-list?q=求夹角', { waitUntil: 'domcontentloaded' });
+  const skip = page.getByTestId('onboarding-skip');
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  const card = page.locator('.question-card').filter({ hasText: '求夹角' }).first();
+  await expect(card).toBeVisible({ timeout: 30000 });
+  await card.getByTestId('question-list-reveal-answer').click();
+  await expect(page.locator('[data-answer-detail-qid]').first()).toBeVisible();
+  await expect
+    .poll(async () => page.locator('.question-card__math-scroll .MathJax_Display').count())
+    .toBeGreaterThan(0);
+}
+
+/** @returns {string[]} issue messages */
+async function collectAnswerDisplayMathIssues(page) {
+  return page.evaluate(() => {
+    const issues = [];
+    const scrollBoxes = document.querySelectorAll('.question-card__math-scroll');
+    for (const box of scrollBoxes) {
+      const displays = box.querySelectorAll('.MathJax_Display');
+      if (box.scrollWidth >= 3 * box.clientWidth) {
+        issues.push(`scrollWidth ${box.scrollWidth} >= 3*clientWidth ${box.clientWidth}`);
+      }
+      for (const disp of displays) {
+        const br = box.getBoundingClientRect();
+        const mr = disp.getBoundingClientRect();
+        if (mr.width <= 0 || mr.height <= 0) {
+          issues.push('display box has zero size');
+          continue;
+        }
+        const glyph = disp.querySelector('.math span') || disp.querySelector('.math') || disp;
+        const gr = glyph.getBoundingClientRect();
+        if (gr.left < br.left - 1) {
+          issues.push(`glyph left ${gr.left} < box left ${br.left}`);
+        }
+        const sampleX = Math.min(br.right - 3, Math.max(br.left + 3, gr.left + Math.min(8, gr.width / 2)));
+        const sampleY = gr.top + gr.height / 2;
+        const hit = document.elementFromPoint(sampleX, sampleY);
+        if (!hit || !box.contains(hit)) {
+          issues.push('no visible glyph at sample point');
+        }
+      }
+    }
+    return issues;
+  });
+}
+
 test.describe('question list reveal answer', () => {
   test('MathJax typesets revealed answer on collapsed card', async ({ page }) => {
     const uid = `qlans_${Date.now()}`;
     const password = 'E2EPass123!';
     await registerAndLogin(page, { uid, password, email: `${uid}@example.com` });
-
     const bankId = await page.evaluate(() => localStorage.getItem('currentBankId'));
-    await page.evaluate(async ({ base, bank }) => {
-      const hdr = { 'Content-Type': 'application/json', 'X-Bank-Id': bank };
-      await fetch(`${base}/onboarding/import-sample`, { method: 'POST', credentials: 'include', headers: hdr });
-      await fetch(`${base}/questions/create`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: hdr,
-        body: JSON.stringify({
-          type: '填空题',
-          subject: '解析几何',
-          difficulty: '中',
-          totalScore: 5,
-          questionText: '求 $x$ 使 $x^2=4$。',
-          correctAnswer: '$x=\\pm 2$ 或 $$\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$$',
-        }),
-      });
-    }, { base: apiBase, bank: bankId });
-
-    await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
-    const skip = page.getByTestId('onboarding-skip');
-    if (await skip.isVisible().catch(() => false)) await skip.click();
-
-    await expect(page.getByTestId('question-list-reveal-answer').first()).toBeVisible({ timeout: 30000 });
-    await page.getByTestId('question-list-reveal-answer').first().click();
+    await seedWideAnswerQuestion(page, bankId);
+    await openListAndRevealAnswer(page);
 
     const detail = page.locator('[data-answer-detail-qid]').first();
-    await expect(detail).toBeVisible();
-
     await expect
-      .poll(async () => {
-        return detail.evaluate((el) => {
-          const hasMathJax = !!el.querySelector('#MathJax_Message, .MathJax, mjx-container, .MathJax_Display');
-          const text = el.innerText || '';
-          const hasRawDollar = /\$\$|\$[^$]+\$/.test(text);
-          return hasMathJax && !hasRawDollar;
-        });
-      }, { timeout: 20000 })
+      .poll(async () => detail.evaluate((el) => {
+        const hasMathJax = !!el.querySelector('.MathJax_Display, .MathJax');
+        const text = el.innerText || '';
+        const hasRawDollar = /\$\$|\$[^$]+\$/.test(text);
+        return hasMathJax && !hasRawDollar;
+      }), { timeout: 20000 })
       .toBe(true);
   });
 
-  test('display formula not clipped left at 390px', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const uid = `ql390_${Date.now()}`;
-    const password = 'E2EPass123!';
-    await registerAndLogin(page, { uid, password, email: `${uid}@example.com` });
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    test(`display formulas healthy in answer box at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const uid = `qlmath_${viewport.width}_${Date.now()}`;
+      const password = 'E2EPass123!';
+      await registerAndLogin(page, { uid, password, email: `${uid}@example.com` });
+      const bankId = await page.evaluate(() => localStorage.getItem('currentBankId'));
+      await seedWideAnswerQuestion(page, bankId);
+      await openListAndRevealAnswer(page);
 
-    const bankId = await page.evaluate(() => localStorage.getItem('currentBankId'));
-    await page.evaluate(async ({ base, bank }) => {
-      const hdr = { 'Content-Type': 'application/json', 'X-Bank-Id': bank };
-      await fetch(`${base}/onboarding/import-sample`, { method: 'POST', credentials: 'include', headers: hdr });
-      await fetch(`${base}/questions/create`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: hdr,
-        body: JSON.stringify({
-          type: '填空题',
-          subject: '解析几何',
-          difficulty: '中',
-          totalScore: 5,
-          questionText: '求角。',
-          correctAnswer: '$$\\cos\\alpha + \\sin\\beta = 1$$',
-        }),
-      });
-    }, { base: apiBase, bank: bankId });
-
-    await page.goto('/question-list', { waitUntil: 'domcontentloaded' });
-    const skip = page.getByTestId('onboarding-skip');
-    if (await skip.isVisible().catch(() => false)) await skip.click();
-
-    await page.getByTestId('question-list-reveal-answer').first().click();
-    const scroll = page.locator('.question-card__math-scroll').first();
-    await expect(scroll).toBeVisible({ timeout: 20000 });
-
-    await expect
-      .poll(async () => scroll.locator('mjx-container[display="true"], .MathJax_Display').count())
-      .toBeGreaterThan(0);
-
-    const aligned = await page.evaluate(() => {
-      const box = document.querySelector('.question-card__math-scroll');
-      const math = box?.querySelector('mjx-container[display="true"], .MathJax_Display');
-      if (!box || !math) return false;
-      const br = box.getBoundingClientRect();
-      const mr = math.getBoundingClientRect();
-      return mr.left >= br.left - 2;
+      await expect
+        .poll(async () => collectAnswerDisplayMathIssues(page), { timeout: 20000 })
+        .toEqual([]);
     });
-    expect(aligned).toBe(true);
-  });
+  }
 });

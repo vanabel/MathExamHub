@@ -261,6 +261,12 @@ export default {
         if (on && !this.jobId) this.tryLoadLatestOpen();
       },
     },
+    localRows: {
+      handler() {
+        this.$nextTick(() => this.typesetStemPreviews());
+      },
+      deep: true,
+    },
   },
   beforeUnmount() {
     this.stopPoll();
@@ -270,6 +276,12 @@ export default {
   methods: {
     stemHtml(text) {
       return processQuestionTextToHTML(String(text || '').slice(0, 400));
+    },
+    typesetStemPreviews() {
+      if (!window.MathJax?.Hub || !this.$el) return;
+      const nodes = this.$el.querySelectorAll('.kp-stem-preview');
+      if (!nodes.length) return;
+      window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, Array.from(nodes)]);
     },
     kpPathById(id) {
       const hit = this.kpOptions.find((o) => o.id === String(id));
