@@ -45,12 +45,6 @@ const ROLE_LABELS = {
 export default {
   name: 'BankSelector',
   components: { BankLatexMetadataEditor },
-  data() {
-    return {
-      banks: [],
-      currentBankId: localStorage.getItem('currentBankId') || '',
-    };
-  },
   computed: {
     currentBank() {
       return this.banks.find((b) => b._id === this.currentBankId) || null;
@@ -63,15 +57,40 @@ export default {
       return b && b.role === 'owner' && !b.isPersonalDefault;
     },
   },
+  data() {
+    return {
+      banks: [],
+      currentBankId: localStorage.getItem('currentBankId') || '',
+      midDesktopViewport: false,
+      midDesktopMq: null,
+    };
+  },
   async mounted() {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      this.midDesktopMq = window.matchMedia('(min-width: 992px) and (max-width: 1199.98px)');
+      this.syncMidDesktopViewport = () => {
+        this.midDesktopViewport = this.midDesktopMq.matches;
+      };
+      this.syncMidDesktopViewport();
+      this.midDesktopMq.addEventListener('change', this.syncMidDesktopViewport);
+    }
     await this.loadBanks();
+  },
+  beforeUnmount() {
+    if (this.midDesktopMq && this.syncMidDesktopViewport) {
+      this.midDesktopMq.removeEventListener('change', this.syncMidDesktopViewport);
+    }
   },
   methods: {
     roleLabel(role) {
+      if (this.midDesktopViewport && role === 'owner') {
+        return '拥';
+      }
       return ROLE_LABELS[role] || role;
     },
     formatBankTitle(bank) {
-      return `${bank.name}（${this.roleLabel(bank.role)}）`;
+      const role = ROLE_LABELS[bank.role] || bank.role;
+      return `${bank.name}（${role}）`;
     },
     formatBankOption(bank) {
       const role = this.roleLabel(bank.role);
@@ -151,10 +170,10 @@ export default {
 }
 
 .bank-selector-select {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  width: 100%;
+  width: auto;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background-color: rgba(255, 255, 255, 0.97);

@@ -4,6 +4,7 @@
     <nav
       v-if="showNavbar"
       class="navbar navbar-expand-lg navbar-dark sticky-top app-navbar"
+      data-testid="app-navbar"
     >
       <div class="container-fluid navbar-shell">
         <router-link class="navbar-brand fw-bold flex-shrink-0" to="/question-list">
@@ -458,7 +459,7 @@ export default {
 }
 
 .navbar-bank-selector {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
 }
@@ -469,30 +470,33 @@ export default {
 }
 
 @media (min-width: 992px) {
+  .navbar-shell {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
   .navbar-collapse-main {
-    flex-wrap: wrap;
-    row-gap: 0.35rem;
-    align-content: flex-start;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
   }
 
   .navbar-primary-nav {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
-    max-width: 100%;
   }
 
   .navbar-end {
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
     min-width: 0;
-    border-left: none;
-    margin-left: 0;
-    padding-left: 0;
+    margin-left: auto;
     justify-content: flex-end;
     align-items: center;
-    gap: 0.65rem 1rem;
-    overflow: hidden;
+    gap: 0.65rem;
+    overflow: visible;
   }
 }
 
@@ -566,8 +570,8 @@ export default {
 
 @media (min-width: 992px) and (max-width: 1199.98px) {
   .navbar-end :deep(.bank-selector-select) {
-    max-width: 10.5rem;
-    width: min(10.5rem, 18vw);
+    max-width: 12rem;
+    width: auto;
     min-width: 0;
   }
 }

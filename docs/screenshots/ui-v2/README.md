@@ -26,4 +26,4 @@ Output layout:
 - `before/{1440|390}/<slug>.png`
 - `after/{1440|390}/<slug>.png`
 
-Slugs: `login`, `register`, `question-list`, `question-add`, `question-edit`, `latex-import`, `latex-export`, `knowledge-points`, `kp-import`, `kp-tag-review`, `duplicates`, `recycle-bin`, `exam-wizard`, `exam-history`, `question-quality`, `bank-stats`, `admin-forbidden`, `not-found`.
+Slugs: `login`, `register`, `navbar` (navbar strip only, 1440), `question-list`, `question-add`, `question-edit`, `latex-import`, `latex-export`, `knowledge-points`, `kp-import`, `kp-tag-review`, `duplicates`, `recycle-bin`, `exam-wizard`, `exam-history`, `question-quality`, `bank-stats`, `admin-forbidden`, `not-found`.
