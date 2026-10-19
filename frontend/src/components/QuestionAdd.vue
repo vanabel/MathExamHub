@@ -101,8 +101,8 @@
                 </div>
 
                 <!-- 题目和答案 -->
-                <div class="row g-3 mb-4">
-                  <div class="col-md-6">
+                <div class="row g-3 mb-3 question-form-stem-pair">
+                  <div class="col-12 col-md-6 question-form-stem-col">
                     <label for="questionText" class="form-label">
                       <i class="bi bi-file-text"></i> 试题文本
                     </label>
@@ -110,32 +110,39 @@
                       id="questionText"
                       v-model="questionText"
                       @input="performSearch"
-                      class="form-control form-textarea-auto"
-                      rows="8"
+                      class="form-control form-textarea-auto question-form-field-textarea"
+                      rows="5"
+                      data-testid="question-form-text"
                       placeholder="请输入题目内容..."
                       required
                     ></textarea>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-12 col-md-6 question-form-stem-col">
                     <label for="questionAnswer" class="form-label">
                       <i class="bi bi-check-circle"></i> 试题答案
                     </label>
                     <textarea
                       id="questionAnswer"
                       v-model="questionAnswer"
-                      class="form-control form-textarea-auto"
+                      class="form-control form-textarea-auto question-form-field-textarea"
                       rows="5"
+                      data-testid="question-form-answer"
                       placeholder="请输入答案..."
                       required
                     ></textarea>
-                    <label for="questionSolution" class="form-label mt-3">
+                  </div>
+                </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-12 question-form-solution-col">
+                    <label for="questionSolution" class="form-label">
                       <i class="bi bi-journal-text"></i> 解答过程（可选，LaTeX）
                     </label>
                     <textarea
                       id="questionSolution"
                       v-model="questionSolution"
-                      class="form-control form-textarea-auto"
-                      rows="6"
+                      class="form-control form-textarea-auto question-form-field-textarea"
+                      rows="5"
+                      data-testid="question-form-solution"
                       placeholder="详细推导或说明，可与短答案分开填写。"
                     ></textarea>
                   </div>
