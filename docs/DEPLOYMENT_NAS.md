@@ -78,9 +78,10 @@ location /api/ {
 
 在**同一 `MONGODB_URI`** 上按顺序执行（先备份）：
 
-1. `node backend/scripts/migrate-m2-schema.js`
-2. `node backend/scripts/migrate-m3-banks.js`（dry-run）→ `node backend/scripts/migrate-m3-banks.js --apply`（为用户创建个人题库并绑定 orphan 题目；无 `createdBy` 时可加 `--fallback-username=vanabel`）
-3. `node backend/scripts/migrate-bank-latex-metadata.js`（如有 LaTeX 元数据字段）
+1. `node backend/scripts/migrate-stem-html-images.js`（默认 dry-run）→ `node backend/scripts/migrate-stem-html-images.js --apply`（题干内嵌图片迁入 `images[]`）
+2. `node backend/scripts/migrate-m2-schema.js`
+3. `node backend/scripts/migrate-m3-banks.js`（dry-run）→ `node backend/scripts/migrate-m3-banks.js --apply`（为用户创建个人题库并绑定 orphan 题目；无 `createdBy` 时可加 `--fallback-username=vanabel`）
+4. `node backend/scripts/migrate-bank-latex-metadata.js`（如有 LaTeX 元数据字段）
 
 新装空库可跳过；注册用户时会自动创建个人题库。
 
@@ -171,3 +172,24 @@ export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 ### 11.5 与 Docker 文档的差异
 
 本文 §4–§5 的 Nginx/`docker compose` 流程适用于容器部署；PM2 裸机路径见本节，二者勿混用同一端口映射。
+
+### 11.6 日常生产更新（无数据库迁移）
+
+在 NAS checkout（如 `/volume1/web/nodejs/MathExamHub`）上，**已配置好 `backend/.env` 且 PM2 在跑** 时，拉代码 + 构建 + 重启：
+
+```bash
+pnpm run update
+# 等价：npm run update  或  bash deploy/pm2/update.sh
+```
+
+行为摘要：
+
+- 拒绝有**已跟踪未提交修改**的工作区；**未跟踪**的 `backend/uploads/`、`logs/` 可忽略。
+- `git fetch` + `git pull --ff-only`；打印 `old -> new` commit；若已是最新且未传 `--force` 则输出 `already up to date` 并退出。
+- **不**运行任何 `migrate-*` 脚本，**不**修改 `backend/.env`。
+- 仅当 `backend/` 或 `frontend/` 的 `package.json` / 对应 lockfile 相对旧 commit 有变更时才执行 `npm ci` 或 `pnpm install --frozen-lockfile`（按各子目录现有 lockfile 选择，不会把 npm lock 换成 pnpm）。
+- 构建前端；`pm2 restart mathexam-backend mathexam-frontend --update-env`（`GIT_COMMIT=<新 short sha>`），`pm2 save`。
+- Node **20**（Synology 上可用 `NODE20_BIN`）；PM2 默认 `~/pm2-local/node_modules/.bin/pm2`。
+- 轮询 `http://127.0.0.1:19897/api/health` 直到 `commit` 匹配；失败时打印 `git reset --hard <old sha>` + 重建 + 重启的回滚提示。
+
+强制在同 commit 上重建/重启：`pnpm run update -- --force`（pnpm 需用 `--` 传递脚本参数）。

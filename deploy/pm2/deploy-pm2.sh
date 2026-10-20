@@ -3,15 +3,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
-# shellcheck source=deploy/pm2/pm2-bin.sh
-source "$ROOT/deploy/pm2/pm2-bin.sh"
+# shellcheck source=deploy/pm2/common.sh
+source "$ROOT/deploy/pm2/common.sh"
 
 echo "MathExamHub PM2 deploy (repo: $ROOT)"
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "Node.js is required (Node 20 recommended)." >&2
-  exit 1
-fi
+ensure_node20
 echo "Node: $(node --version)"
 
 if [[ ! -f backend/.env ]]; then
@@ -20,11 +17,15 @@ if [[ ! -f backend/.env ]]; then
 fi
 
 echo "Installing backend dependencies..."
-npm ci --prefix backend
+pkg_install_in_dir "$ROOT/backend"
 
 echo "Building frontend..."
-npm ci --prefix frontend
-npm run build --prefix frontend
+pkg_install_in_dir "$ROOT/frontend"
+if [[ -f "$ROOT/frontend/pnpm-lock.yaml" ]] && command -v pnpm >/dev/null 2>&1; then
+  (cd "$ROOT/frontend" && pnpm run build)
+else
+  (cd "$ROOT/frontend" && npm run build)
+fi
 
 mkdir -p logs
 

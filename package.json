@@ -9,7 +9,8 @@
     "start:electron": "nodemon electron/main.js",
     "start:dev": "npm-run-all --parallel start:backend start:frontend",
     "test": "npm --prefix backend test",
-    "test:e2e": "npm --prefix e2e test"
+    "test:e2e": "npm --prefix e2e test",
+    "update": "bash deploy/pm2/update.sh"
   },
   "keywords": [],
   "author": "",
