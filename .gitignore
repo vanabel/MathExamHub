@@ -39,3 +39,14 @@ yarn-error.log*
 *.tmp
 *.temp
 
+
+# Runtime user uploads (figures etc.) — data, never commit
+backend/uploads/
+
+# Database backups / dumps
+*.archive.gz
+*.archive
+dump/
+
+# Audit / delivery-test data (e.g. the 交付审计-解析几何 bank) — never commit
+*交付审计*
