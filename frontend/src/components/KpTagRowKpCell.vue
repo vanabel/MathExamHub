@@ -22,6 +22,7 @@
     <div v-for="s in row.suggestions" :key="'meta-' + s.knowledgePointId" class="small text-muted mb-1">
       {{ Math.round((s.confidence || 0) * 100) }}% — {{ s.reason }}
     </div>
+    <span v-if="row.llmError" class="text-warning small d-block mb-1">{{ row.llmError }}</span>
 
     <button
       v-if="!job?.appliedAt"

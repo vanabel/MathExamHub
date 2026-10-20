@@ -22,6 +22,7 @@ const { assessQuestionQuality } = require('../utils/questionQuality');
 const { buildBankLabelSet } = require('../utils/latexRefLabels');
 const { extractImagesFromStem } = require('../utils/questionImages');
 const platformSettingsService = require('../services/platformSettingsService');
+const { sanitizeLlmLogMessage } = require('../utils/sanitizeLlmLogMessage');
 const { buildRelabelSuggestionsForQuestions } = require('../services/llmRelabelService');
 const {
   buildKpTagSuggestionsForQuestions,
@@ -296,6 +297,14 @@ router.post('/llm-tag-knowledge-points', requireBankWrite, async (req, res) => {
       },
     );
     const wouldAdd = suggestions.filter((s) => s.wouldAddKnowledgePointIds?.length);
+
+    const suggestLlmError = suggestions.map((s) => s.llmError).find((e) => e && String(e).trim());
+    if (suggestLlmError) {
+      console.warn(
+        'llm-tag-knowledge-points LLM assist error (first suggestion)',
+        { bankId: req.bankId, message: sanitizeLlmLogMessage(suggestLlmError) },
+      );
+    }
 
     if (!dryRun) {
       const updates = (req.body?.updates?.length ? req.body.updates : suggestions)

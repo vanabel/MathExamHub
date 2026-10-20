@@ -8,6 +8,7 @@ const { buildKpTagSuggestionsForQuestions } = require('./llmKpTagService');
 const { applyKpTagUpdates } = require('./llmKpTagService');
 const { mapWithConcurrency } = require('./latexImportLlmHelper');
 const { countReviewRows, isJobReviewOpen } = require('../utils/kpTagJobReviewCounts');
+const { sanitizeLlmLogMessage } = require('../utils/sanitizeLlmLogMessage');
 
 function summarizeJob(job) {
   const reviewCounts = countReviewRows(job.rows);
@@ -112,6 +113,14 @@ async function runKpTagJob(jobId, questions) {
         );
       }
     });
+
+    const jobLlmError = rows.map((r) => r.llmError).find((e) => e && String(e).trim());
+    if (jobLlmError) {
+      console.warn(
+        'kp tag job LLM assist error (first row)',
+        { jobId, message: sanitizeLlmLogMessage(jobLlmError) },
+      );
+    }
 
     await KpTagJob.updateOne(
       { _id: jobId },

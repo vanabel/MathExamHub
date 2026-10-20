@@ -29,15 +29,30 @@ function resolveEnvProvider() {
 }
 
 function resolveDefaultModel(settings) {
+  if (isUnsetProvider(settings?.llmProvider)) {
+    return process.env.LLM_MODEL
+      || process.env.SILICONFLOW_MODEL
+      || settings?.llmModel
+      || DEFAULT_LLM_MODEL;
+  }
   return settings?.llmModel
     || process.env.LLM_MODEL
     || process.env.SILICONFLOW_MODEL
     || DEFAULT_LLM_MODEL;
 }
 
+function storedBaseUrlForResolution(settings) {
+  if (isUnsetProvider(settings?.llmProvider)) {
+    return '';
+  }
+  const raw = settings?.llmApiBaseUrl && String(settings.llmApiBaseUrl).trim();
+  return raw || '';
+}
+
 function resolveDefaultBaseUrl(settings) {
-  if (settings?.llmApiBaseUrl && String(settings.llmApiBaseUrl).trim()) {
-    return settings.llmApiBaseUrl;
+  const stored = storedBaseUrlForResolution(settings);
+  if (stored) {
+    return stored;
   }
   if (process.env.LLM_API_BASE_URL && String(process.env.LLM_API_BASE_URL).trim()) {
     return process.env.LLM_API_BASE_URL;
