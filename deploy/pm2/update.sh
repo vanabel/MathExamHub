@@ -47,7 +47,7 @@ NEW_SHORT="$(git rev-parse --short HEAD)"
 echo "Git: ${OLD_SHORT} -> ${NEW_SHORT}"
 
 if tree_changed_between "$OLD_SHA" "$NEW_SHA" \
-  backend/package.json backend/package-lock.json backend/pnpm-lock.yaml; then
+  backend/package.json backend/package-lock.json; then
   echo "Installing backend dependencies (lockfile or package.json changed)..."
   pkg_install_in_dir "$ROOT/backend"
 else

@@ -58,15 +58,15 @@ pkg_install_in_dir() {
   else
     npm install
   fi
-  cd "$prev"
+  cd "$prev" || return 1
 }
 
 pkg_run_build() {
   local dir="$1"
   local prev="$PWD"
-  cd "$dir"
+  cd "$dir" || return 1
   npm run build
-  cd "$prev"
+  cd "$prev" || return 1
 }
 
 # Returns 0 if any of the path globs changed between two commits.

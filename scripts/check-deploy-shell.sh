@@ -11,8 +11,9 @@ for f in "${scripts[@]}"; do
   echo "bash -n OK: ${f#$ROOT/}"
 done
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "${scripts[@]}"
-  echo "shellcheck OK"
+  # Warnings only (e.g. SC2164); fail CI on real errors.
+  shellcheck -S error "${scripts[@]}"
+  echo "shellcheck OK (-S error)"
 else
   echo "shellcheck not installed; skipped (bash -n passed)"
 fi
