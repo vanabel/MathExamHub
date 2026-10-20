@@ -82,6 +82,28 @@ describe('llmProviderResolve', () => {
     }
   });
 
+  it('prefers SiliconFlow env over mock platform doc with legacy OpenAI base URL', () => {
+    const keys = ['SILICONFLOW_API_KEY', 'LLM_API_BASE_URL', 'LLM_PROVIDER', 'LLM_API_PROVIDER'];
+    const prev = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    keys.forEach((k) => delete process.env[k]);
+    process.env.SILICONFLOW_API_KEY = 'sk-sf-test';
+    try {
+      const s = settingsForLlmAssist({
+        llmProvider: 'mock',
+        llmApiBaseUrl: 'https://api.openai.com/v1',
+        llmModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
+      });
+      assert.equal(s.llmProvider, 'openai_compatible');
+      assert.match(s.llmApiBaseUrl, /siliconflow/);
+      assert.doesNotMatch(s.llmApiBaseUrl, /api\.openai\.com/);
+    } finally {
+      keys.forEach((k) => {
+        if (prev[k] === undefined) delete process.env[k];
+        else process.env[k] = prev[k];
+      });
+    }
+  });
+
   it('honors LLM_API_PROVIDER as alias for LLM_PROVIDER', () => {
     const prevProvider = process.env.LLM_PROVIDER;
     const prevAlias = process.env.LLM_API_PROVIDER;

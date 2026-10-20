@@ -5,7 +5,7 @@ function toPublicSettings(doc) {
   return {
     llmAssistEnabled: !!doc.llmAssistEnabled,
     llmProvider: doc.llmProvider || 'mock',
-    llmApiBaseUrl: doc.llmApiBaseUrl || 'https://api.openai.com/v1',
+    llmApiBaseUrl: doc.llmApiBaseUrl || '',
     llmModel: doc.llmModel || DEFAULT_LLM_MODEL,
     llmTimeoutMs: doc.llmTimeoutMs ?? DEFAULT_LLM_TIMEOUT_MS,
     llmPreviewMaxQuestions: doc.llmPreviewMaxQuestions ?? 20,

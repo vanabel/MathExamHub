@@ -8,7 +8,7 @@ const platformSettingsSchema = new mongoose.Schema({
     enum: ['mock', 'openai_compatible'],
     default: 'mock',
   },
-  llmApiBaseUrl: { type: String, default: 'https://api.openai.com/v1', trim: true },
+  llmApiBaseUrl: { type: String, default: '', trim: true },
   llmModel: { type: String, default: 'deepseek-ai/DeepSeek-V4.1-Flash', trim: true },
   llmApiKey: { type: String, select: false },
   llmTimeoutMs: { type: Number, default: 120000, min: 3000, max: 300000 },
