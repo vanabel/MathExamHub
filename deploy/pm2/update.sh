@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Production code update (no DB migrations, does not modify backend/.env).
-# Usage: pnpm run update | npm run update
+# Entry: pnpm run update | npm run update  (root script; deps install via npm ci in backend/frontend)
 #        ./deploy/pm2/update.sh [--force]
 set -euo pipefail
 
@@ -51,23 +51,19 @@ if tree_changed_between "$OLD_SHA" "$NEW_SHA" \
   echo "Installing backend dependencies (lockfile or package.json changed)..."
   pkg_install_in_dir "$ROOT/backend"
 else
-  echo "Skipping backend npm/pnpm install (no dependency manifest changes)."
+  echo "Skipping backend npm ci (no dependency manifest changes)."
 fi
 
 if tree_changed_between "$OLD_SHA" "$NEW_SHA" \
-  frontend/package.json frontend/package-lock.json frontend/pnpm-lock.yaml; then
-  echo "Installing frontend dependencies (lockfile or package.json changed)..."
+  frontend/package.json frontend/package-lock.json; then
+  echo "Installing frontend dependencies (package-lock.json or package.json changed)..."
   pkg_install_in_dir "$ROOT/frontend"
 else
-  echo "Skipping frontend npm/pnpm install (no dependency manifest changes)."
+  echo "Skipping frontend npm ci (no dependency manifest changes)."
 fi
 
-echo "Building frontend..."
-if [[ -f "$ROOT/frontend/pnpm-lock.yaml" ]] && command -v pnpm >/dev/null 2>&1; then
-  (cd "$ROOT/frontend" && pnpm run build)
-else
-  (cd "$ROOT/frontend" && npm run build)
-fi
+echo "Building frontend (npm run build)..."
+pkg_run_build "$ROOT/frontend"
 
 echo "Restarting PM2 (mathexam-backend, mathexam-frontend)..."
 pm2_restart_mathexam "$NEW_SHORT"
@@ -77,6 +73,7 @@ if ! wait_for_health_commit "$NEW_SHORT"; then
   echo "Health check failed: /api/health did not report commit $NEW_SHORT" >&2
   echo "Rollback hint:" >&2
   echo "  cd $ROOT && git reset --hard $OLD_SHA" >&2
+  echo "  export PATH=\"${NAS_NVM_NODE20_DIR:-\$HOME/.nvm/versions/node/v20.19.5/bin}:\$PATH\"" >&2
   echo "  cd frontend && npm run build && cd .." >&2
   echo "  GIT_COMMIT=$OLD_SHORT $PM2_BIN restart mathexam-backend mathexam-frontend --update-env && $PM2_BIN save" >&2
   exit 1

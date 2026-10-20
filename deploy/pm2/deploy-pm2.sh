@@ -19,13 +19,9 @@ fi
 echo "Installing backend dependencies..."
 pkg_install_in_dir "$ROOT/backend"
 
-echo "Building frontend..."
+echo "Building frontend (npm run build)..."
 pkg_install_in_dir "$ROOT/frontend"
-if [[ -f "$ROOT/frontend/pnpm-lock.yaml" ]] && command -v pnpm >/dev/null 2>&1; then
-  (cd "$ROOT/frontend" && pnpm run build)
-else
-  (cd "$ROOT/frontend" && npm run build)
-fi
+pkg_run_build "$ROOT/frontend"
 
 mkdir -p logs
 

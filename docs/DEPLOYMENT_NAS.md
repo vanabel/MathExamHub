@@ -153,12 +153,21 @@ GitHub Actions 运行 `npm test`、`npm run test:scenario`；M6 起增加 `npm r
 
 ### 11.3 构建与 PM2
 
-Node **20**；PM2 若装在 `~/pm2-local` 且不在 `PATH`：
+Synology 上 **Node / npm / pnpm 不在默认 PATH**，需先把 nvm 的 Node 20 放在最前（与手工部署相同；`deploy/pm2/*.sh` 也会自动尝试该目录，失败时再手动 export）：
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
+node -v   # 期望 v20.19.5
+```
+
+PM2 若装在 `~/pm2-local` 且不在 `PATH`：
 
 ```bash
 export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 ./deploy/pm2/deploy-pm2.sh
 ```
+
+仓库 **backend/**、**frontend/** 均为 **`package-lock.json` + `npm ci`**；不要用 pnpm 改写 lockfile。
 
 - 后端：`backend/server.js`，端口由 `backend/.env` 的 `PORT` 决定（默认生产 **19897**）。
 - 前端：`deploy/pm2/start-frontend.sh` → `serve -s frontend/dist --listen=19896`。
@@ -178,18 +187,22 @@ export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 在 NAS checkout（如 `/volume1/web/nodejs/MathExamHub`）上，**已配置好 `backend/.env` 且 PM2 在跑** 时，拉代码 + 构建 + 重启：
 
 ```bash
+export PATH="$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
 pnpm run update
 # 等价：npm run update  或  bash deploy/pm2/update.sh
 ```
+
+根目录 **`package.json` 的 `update` 脚本**只是入口；`pnpm run update` 在 NAS 上可用（pnpm 与 node 同在前述 PATH 中），但 **依赖安装始终在 backend/frontend 内用 `npm ci`**（不引入 `pnpm-lock.yaml`、不把仓库切到 pnpm）。
 
 行为摘要：
 
 - 拒绝有**已跟踪未提交修改**的工作区；**未跟踪**的 `backend/uploads/`、`logs/` 可忽略。
 - `git fetch` + `git pull --ff-only`；打印 `old -> new` commit；若已是最新且未传 `--force` 则输出 `already up to date` 并退出。
 - **不**运行任何 `migrate-*` 脚本，**不**修改 `backend/.env`。
-- 仅当 `backend/` 或 `frontend/` 的 `package.json` / 对应 lockfile 相对旧 commit 有变更时才执行 `npm ci` 或 `pnpm install --frozen-lockfile`（按各子目录现有 lockfile 选择，不会把 npm lock 换成 pnpm）。
-- 构建前端；`pm2 restart mathexam-backend mathexam-frontend --update-env`（`GIT_COMMIT=<新 short sha>`），`pm2 save`。
-- Node **20**（Synology 上可用 `NODE20_BIN`）；PM2 默认 `~/pm2-local/node_modules/.bin/pm2`。
+- 仅当 `backend/` 或 `frontend/` 的 `package.json` / `package-lock.json` 相对旧 commit 有变更时才 **`npm ci`**。
+- **`npm run build`** 构建前端；`pm2 restart mathexam-backend mathexam-frontend --update-env`（`GIT_COMMIT=<新 short sha>`），`pm2 save`。
+- 脚本内 **`ensure_node20`**：若当前 `node` 不是 20，会 prepend `~/.nvm/versions/node/v20.19.5/bin`（可通过 `NAS_NVM_NODE20_DIR` 覆盖）。
+- PM2 默认 `~/pm2-local/node_modules/.bin/pm2`。
 - 轮询 `http://127.0.0.1:19897/api/health` 直到 `commit` 匹配；失败时打印 `git reset --hard <old sha>` + 重建 + 重启的回滚提示。
 
 强制在同 commit 上重建/重启：`pnpm run update -- --force`（pnpm 需用 `--` 传递脚本参数）。

@@ -36,19 +36,19 @@ assert_clean_worktree() {
   done < <(git status --porcelain)
 }
 
-# Install dependencies in a package dir using its lockfile (never cross package managers).
+# Install dependencies with the lockfile already in that directory (repo: npm + package-lock.json).
 pkg_install_in_dir() {
   local dir="$1"
   local prev="$PWD"
   cd "$dir"
-  if [[ -f pnpm-lock.yaml ]]; then
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  elif [[ -f pnpm-lock.yaml ]]; then
     if ! command -v pnpm >/dev/null 2>&1; then
       echo "pnpm-lock.yaml present but pnpm not on PATH ($dir)" >&2
       return 1
     fi
     pnpm install --frozen-lockfile
-  elif [[ -f package-lock.json ]]; then
-    npm ci
   elif [[ -f yarn.lock ]]; then
     if ! command -v yarn >/dev/null 2>&1; then
       echo "yarn.lock present but yarn not on PATH ($dir)" >&2
@@ -58,6 +58,14 @@ pkg_install_in_dir() {
   else
     npm install
   fi
+  cd "$prev"
+}
+
+pkg_run_build() {
+  local dir="$1"
+  local prev="$PWD"
+  cd "$dir"
+  npm run build
   cd "$prev"
 }
 

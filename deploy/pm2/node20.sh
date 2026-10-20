@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# Prefer Node.js 20 on Synology / NAS (may not be first on PATH).
+# Prefer Node.js 20 on Synology / NAS (nvm often not on default PATH).
+
+# Synology prod (verified): ~/.nvm/versions/node/v20.19.5/bin
+NAS_NVM_NODE20_DIR="${NAS_NVM_NODE20_DIR:-${HOME}/.nvm/versions/node/v20.19.5/bin}"
+
+nas_node20_path_hint() {
+  echo "Export Node 20 before deploy/update (same as manual NAS ops):" >&2
+  echo "  export PATH=\"${NAS_NVM_NODE20_DIR}:\$PATH\"" >&2
+}
 
 ensure_node20() {
   _use_node_if_v20() {
@@ -24,7 +32,11 @@ ensure_node20() {
     return 0
   fi
 
-  local candidate
+  if [[ -x "${NAS_NVM_NODE20_DIR}/node" ]] && _use_node_if_v20 "${NAS_NVM_NODE20_DIR}/node"; then
+    return 0
+  fi
+
+  local candidate bin
   for candidate in \
     "${HOME}/.nvm/versions/node/v20."*/bin/node \
     "${HOME}/.local/share/fnm/node-versions/v20."*/installation/bin/node \
@@ -40,6 +52,7 @@ ensure_node20() {
   done
 
   echo "Node.js 20 is required (found: $(command -v node 2>/dev/null || echo none); $(node --version 2>/dev/null || true))." >&2
-  echo "Set NODE20_BIN=/path/to/node20 or put Node 20 first on PATH." >&2
+  nas_node20_path_hint
+  echo "Or set NODE20_BIN=/path/to/node20." >&2
   return 1
 }
