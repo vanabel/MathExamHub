@@ -40,7 +40,7 @@ assert_clean_worktree() {
 pkg_install_in_dir() {
   local dir="$1"
   local prev="$PWD"
-  cd "$dir"
+  cd "$dir" || return 1
   if [[ -f package-lock.json ]]; then
     npm ci
   elif [[ -f pnpm-lock.yaml ]]; then
