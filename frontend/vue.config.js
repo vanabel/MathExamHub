@@ -2,6 +2,8 @@ const { defineConfig } = require("@vue/cli-service");
 
 module.exports = defineConfig({
   transpileDependencies: true,
+  // Avoid //# sourceMappingURL in prod bundles (Safari/Chrome log CORS errors when .map is missing or blocked).
+  productionSourceMap: false,
   devServer: {
     historyApiFallback: {
       index: "/index.html",
