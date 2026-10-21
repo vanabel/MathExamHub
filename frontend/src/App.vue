@@ -3,7 +3,7 @@
     <!-- 导航栏 - 仅在登录后显示 -->
     <nav
       v-if="showNavbar"
-      class="navbar navbar-expand-lg navbar-dark sticky-top app-navbar"
+      class="navbar navbar-expand-lg navbar-light sticky-top app-navbar app-navbar--mac"
       data-testid="app-navbar"
     >
       <div class="container-fluid navbar-shell">
@@ -247,6 +247,19 @@
                   aria-labelledby="navbarDropdown"
                   data-testid="nav-user-menu-panel"
                 >
+                  <li class="dropdown-header small text-muted">外观</li>
+                  <li v-for="opt in colorSchemeOptions" :key="opt.value">
+                    <button
+                      type="button"
+                      class="dropdown-item d-flex align-items-center justify-content-between"
+                      :data-testid="`nav-theme-${opt.value}`"
+                      @click="setColorScheme(opt.value)"
+                    >
+                      <span>{{ opt.label }}</span>
+                      <i v-if="colorSchemePref === opt.value" class="bi bi-check2" aria-hidden="true" />
+                    </button>
+                  </li>
+                  <li><hr class="dropdown-divider" /></li>
                   <li>
                     <a class="dropdown-item" href="#" @click.prevent="logout">
                       <i class="bi bi-box-arrow-right"></i> 退出登录
@@ -278,6 +291,11 @@
 import axios from 'axios';
 import BankSelector from './components/BankSelector.vue';
 import OnboardingTour from './components/OnboardingTour.vue';
+import {
+  applyColorScheme,
+  COLOR_SCHEME_LABELS,
+  getStoredColorScheme,
+} from './utils/colorScheme';
 
 const BANK_MENU_ROUTES = new Set([
   'question-add',
@@ -303,9 +321,17 @@ export default {
     return {
       currentUser: null,
       onboardingDismissed: false,
+      colorSchemePref: getStoredColorScheme(),
     };
   },
   computed: {
+    colorSchemeOptions() {
+      return [
+        { value: 'system', label: COLOR_SCHEME_LABELS.system },
+        { value: 'light', label: COLOR_SCHEME_LABELS.light },
+        { value: 'dark', label: COLOR_SCHEME_LABELS.dark },
+      ];
+    },
     showNavbar() {
       return this.$route.name !== 'login' && this.$route.name !== 'register';
     },
@@ -393,6 +419,10 @@ export default {
     onOnboardingClosed() {
       this.onboardingDismissed = true;
     },
+    setColorScheme(value) {
+      applyColorScheme(value);
+      this.colorSchemePref = value;
+    },
     async logout() {
       try {
         await axios.post('/auth/logout');
@@ -445,7 +475,7 @@ export default {
   align-items: center;
   padding-left: 0.85rem;
   margin-left: 0.35rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  border-left: 1px solid var(--border-hairline, rgba(0, 0, 0, 0.08));
   min-width: 0;
 }
 
@@ -527,38 +557,6 @@ export default {
   }
 }
 
-.dropdown-item.active,
-.dropdown-item:active {
-  background-color: var(--color-primary-soft, #eff6ff);
-  color: var(--color-primary, #2563eb);
-  font-weight: 600;
-}
-
-/* 下拉菜单样式 */
-.dropdown-menu {
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  margin-top: 0.5rem;
-}
-
-.dropdown-item {
-  padding: 0.65rem 1.1rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dropdown-item:hover {
-  background-color: #f8fafc;
-  color: var(--color-primary, #2563eb);
-}
-
-.dropdown-item i {
-  font-size: 1rem;
-}
-
 @media (min-width: 992px) and (max-width: 1199.98px) {
   .navbar-end :deep(.bank-selector-select) {
     max-width: 12rem;
@@ -594,7 +592,7 @@ export default {
     width: 100%;
     justify-content: space-between;
     padding-top: 0.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: 1px solid var(--border-hairline, rgba(0, 0, 0, 0.08));
     margin-top: 0.25rem;
   }
 

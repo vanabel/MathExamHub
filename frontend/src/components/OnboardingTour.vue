@@ -7,9 +7,9 @@
       aria-labelledby="onboardingTitle"
       data-testid="onboarding-panel"
     >
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <div class="card-header d-flex justify-content-between align-items-center">
         <span id="onboardingTitle"><i class="bi bi-stars"></i> 快速上手 MathExamHub</span>
-        <button type="button" class="btn-close btn-close-white" aria-label="关闭" @click="skipTour" />
+        <button type="button" class="btn-close" aria-label="关闭" @click="skipTour" />
       </div>
       <div class="card-body">
         <div v-if="step === 0" class="step-body">

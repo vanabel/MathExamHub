@@ -1,6 +1,11 @@
 // main.js
 import "bootstrap/dist/css/bootstrap.css";
 import "./assets/design-system.css";
+import "./assets/macos-components.css";
+import "./assets/theme-dark.css";
+import { initColorScheme } from "./utils/colorScheme";
+
+initColorScheme();
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import { createApp } from "vue";
 import App from "./App.vue";

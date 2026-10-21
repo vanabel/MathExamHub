@@ -161,7 +161,7 @@ export default {
 }
 
 .bank-selector-label {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   margin-bottom: 0;
   white-space: nowrap;
@@ -174,9 +174,10 @@ export default {
   min-width: 0;
   max-width: 100%;
   width: auto;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background-color: rgba(255, 255, 255, 0.97);
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-hairline);
+  background-color: var(--surface-card);
+  color: var(--text-primary);
   font-size: 0.875rem;
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -186,7 +187,7 @@ export default {
 }
 
 .bank-selector-select:focus {
-  border-color: rgba(255, 255, 255, 0.75);
-  box-shadow: 0 0 0 0.15rem rgba(255, 255, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 </style>

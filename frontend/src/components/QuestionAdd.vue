@@ -382,10 +382,11 @@ export default {
 }
 
 .page-header {
-  background: white;
+  background: var(--surface-card);
   padding: 1.5rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 .breadcrumb {
@@ -404,7 +405,7 @@ export default {
 }
 
 .page-title {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 700;
   margin-bottom: 0.5rem;
   display: flex;
@@ -418,7 +419,7 @@ export default {
 
 .form-label {
   font-weight: 500;
-  color: #495057;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -430,7 +431,7 @@ export default {
 }
 
 .options-section {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   padding: 1.5rem;
   border-radius: 8px;
 }
@@ -443,11 +444,11 @@ export default {
 .similar-question-item {
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--surface-card);
 }
 
 .similar-question-item:hover {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   border-color: var(--color-primary, #2563eb) !important;
 }
 

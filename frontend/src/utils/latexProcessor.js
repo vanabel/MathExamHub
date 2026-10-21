@@ -106,7 +106,7 @@ export function renderQuestionImagesHtml(images) {
     let media = '';
     if (isPdf) {
       const uid = stablePdfDomId(label || url || index);
-      media = `<div class="pdf-container" data-pdf-url="${escapeHtmlAttr(fileUrl)}" data-pdf-id="${uid}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:10px;background:#f5f5f5;margin:10px 0;"><canvas id="pdf-canvas-${uid}" class="pdf-canvas" style="max-width:100%;display:block;margin:0 auto;"></canvas></div>`;
+      media = `<div class="pdf-container" data-pdf-url="${escapeHtmlAttr(fileUrl)}" data-pdf-id="${uid}"><canvas id="pdf-canvas-${uid}" class="pdf-canvas" style="max-width:100%;display:block;margin:0 auto;"></canvas></div>`;
     } else {
       media = `<img src="${escapeHtmlAttr(fileUrl)}" alt="${escapeHtmlAttr(caption || label || '图片')}" class="latex-figure question-structured-image" style="${widthStyle}height:auto;display:block;margin:0.75rem auto;" />`;
     }
@@ -190,7 +190,7 @@ function expandImageTagsToHtml(fragment) {
     if (isPdf) {
       const cleanId = stablePdfDomId(id || href || 'pdf');
       return `
-            <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${cleanId}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f5f5f5; margin: 10px 0;">
+            <div class="pdf-container" data-pdf-url="${fileUrl}" data-pdf-id="${cleanId}">
               <canvas id="pdf-canvas-${cleanId}" class="pdf-canvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
               <div style="text-align: center; margin-top: 10px;">
                 <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">

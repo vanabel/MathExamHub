@@ -1,34 +1,40 @@
 /**
- * MathExamHub UI v2 — design tokens & global patterns
+ * MathExamHub UI — macOS-style design tokens & global patterns
+ * Spec: docs/design/macos-style.md
  */
 :root {
-  --bs-primary: #2563eb;
-  --bs-primary-rgb: 37, 99, 235;
-  --bs-body-font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
-    'Noto Sans SC', 'Segoe UI', sans-serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
-    'Noto Sans SC', 'Segoe UI', sans-serif;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-soft: #eff6ff;
-  --color-accent: #0d9488;
-  --surface-bg: #f1f5f9;
+  --bs-primary: #007aff;
+  --bs-primary-rgb: 0, 122, 255;
+  --bs-body-font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC',
+    'Helvetica Neue', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC',
+    'Helvetica Neue', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --color-primary: #007aff;
+  --color-primary-hover: #0066d6;
+  --color-primary-soft: rgba(0, 122, 255, 0.12);
+  --color-accent: #007aff;
+  --surface-bg: #ebebeb;
   --surface-card: #ffffff;
   --surface-elevated: #ffffff;
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --radius-sm: 6px;
+  --surface-muted: #f5f5f7;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --border-hairline: rgba(0, 0, 0, 0.08);
+  --text-primary: #1d1d1f;
+  --text-secondary: #424245;
+  --text-muted: #6e6e73;
+  --success: #34c759;
+  --warning: #ff9500;
+  --danger: #ff3b30;
+  --radius-sm: 8px;
   --radius-md: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1);
+  --radius-lg: 12px;
+  --radius-pill: 980px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+  --shadow-sheet: 0 1px 0 rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 24px 48px rgba(0, 0, 0, 0.18);
   --space-page-y: 1.25rem;
   --space-section: 1.5rem;
   --text-xs: 0.75rem;
@@ -37,7 +43,17 @@
   --text-lg: 1.125rem;
   --text-xl: 1.35rem;
   --text-2xl: 1.65rem;
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  --focus-ring: 0 0 0 3px rgba(0, 122, 255, 0.35);
+  --transition-fast: 0.15s ease;
+  --transition-ui: 0.2s ease;
+  --navbar-blur: saturate(180%) blur(20px);
+  --table-stripe-bg: rgba(0, 0, 0, 0.03);
+  --code-bg: #f5f5f7;
+  --code-fg: #1d1d1f;
+  --media-frame-bg: #f5f5f7;
+  --pill-muted-bg: rgba(0, 0, 0, 0.06);
+  --pill-muted-fg: var(--text-secondary);
+  --pill-muted-border: var(--border-subtle);
 }
 
 html {
@@ -49,6 +65,7 @@ html {
 body {
   font-family: var(--font-sans);
   color: var(--text-primary);
+  background: var(--surface-bg);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
   max-width: 100%;
@@ -81,7 +98,7 @@ main.app-main.with-navbar {
 }
 
 .app-page {
-  animation: app-fade-in 0.2s ease-out;
+  animation: app-fade-in var(--transition-ui) ease-out;
 }
 
 @keyframes app-fade-in {
@@ -89,30 +106,48 @@ main.app-main.with-navbar {
   to { opacity: 1; transform: none; }
 }
 
-/* Navbar */
-.app-navbar {
-  background: var(--color-primary) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: var(--shadow-sm);
+@media (prefers-reduced-motion: reduce) {
+  .app-page {
+    animation: none;
+  }
+}
+
+/* Navbar — frosted macOS-style chrome */
+.app-navbar.app-navbar--mac {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: var(--navbar-blur);
+  -webkit-backdrop-filter: var(--navbar-blur);
+  border-bottom: 1px solid var(--border-hairline);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+.app-navbar.app-navbar--mac .navbar-brand {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .app-navbar .nav-link {
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   padding: 0.4rem 0.65rem;
-  color: rgba(255, 255, 255, 0.92) !important;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.app-navbar .nav-link.active {
-  background: rgba(255, 255, 255, 0.18);
+.app-navbar.app-navbar--mac .nav-link {
+  color: var(--text-secondary) !important;
+}
+
+.app-navbar.app-navbar--mac .nav-link.active {
+  background: var(--color-primary-soft);
   font-weight: 600;
-  color: #fff !important;
+  color: var(--color-accent) !important;
 }
 
-.app-navbar .nav-link:hover,
-.app-navbar .nav-link:focus-visible {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff !important;
+.app-navbar.app-navbar--mac .nav-link:hover,
+.app-navbar.app-navbar--mac .nav-link:focus-visible {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary) !important;
 }
 
 .app-navbar .nav-link:focus-visible {
@@ -120,13 +155,12 @@ main.app-main.with-navbar {
   outline: none;
 }
 
-.app-navbar .navbar-brand {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.app-navbar.app-navbar--mac .navbar-end {
+  border-left-color: var(--border-hairline);
 }
 
-.app-navbar .navbar-end {
-  border-left-color: rgba(255, 255, 255, 0.2);
+.app-navbar.app-navbar--mac .navbar-toggler {
+  border-color: var(--border-strong);
 }
 
 .app-navbar .navbar-user-nav .nav-item.dropdown {
@@ -246,7 +280,7 @@ main.app-main.with-navbar {
 }
 
 .table.app-table tbody tr:nth-child(even) {
-  background: rgba(241, 245, 249, 0.6);
+  background: var(--table-stripe-bg);
 }
 
 .table.app-table tbody tr:hover {
@@ -385,7 +419,7 @@ main.app-main.with-navbar {
 
 /* Loading skeleton */
 .app-skeleton {
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface-bg) 50%, var(--surface-muted) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: var(--radius-sm);
@@ -403,7 +437,7 @@ main.app-main.with-navbar {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: linear-gradient(160deg, #eff6ff 0%, var(--surface-bg) 45%, #ecfdf5 100%);
+  background: linear-gradient(160deg, var(--surface-muted) 0%, var(--surface-bg) 55%, var(--surface-card) 100%);
 }
 
 .auth-card {

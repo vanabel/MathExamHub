@@ -2,7 +2,7 @@
   <div>
     <button
       type="button"
-      class="btn btn-outline-light btn-sm bank-header-btn"
+      class="btn btn-outline-secondary btn-sm bank-header-btn"
       :class="{ 'bank-header-btn--navbar': variant === 'navbar' }"
       :disabled="!bankId || loading"
       :title="'编辑当前题库的 LaTeX 试卷头默认值'"
@@ -12,6 +12,7 @@
       试卷头
     </button>
 
+    <Teleport to="body">
     <div v-if="showModal" class="modal fade show d-block bank-latex-modal-root" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-scrollable bank-latex-modal-dialog">
         <div class="modal-content bank-latex-modal-content">
@@ -222,6 +223,7 @@
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -363,15 +365,18 @@ export default {
 <style scoped>
 .bank-latex-modal-root {
   background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 1060;
 }
 
 .bank-latex-modal-dialog {
   max-width: min(1100px, 96vw);
+  pointer-events: auto;
 }
 
 .bank-latex-modal-header,
 .bank-latex-modal-footer {
-  background: #fff;
+  background: var(--surface-card);
   z-index: 2;
 }
 
@@ -389,7 +394,7 @@ export default {
   color: var(--color-primary, #2563eb);
   margin-bottom: 0.65rem;
   padding-bottom: 0.35rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .bank-latex-preview-pane {
@@ -397,9 +402,9 @@ export default {
 }
 
 .bank-latex-preamble {
-  background: #1e1e2e;
-  color: #e2e8f0;
-  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: var(--radius-md, 8px);
   padding: 0.75rem;
   max-height: 220px;
   overflow: auto;
@@ -416,8 +421,8 @@ export default {
   --bs-btn-padding-x: 0.65rem;
   font-size: 0.875rem;
   line-height: 1.25;
-  border-radius: 6px;
-  border-color: rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-sm, 6px);
+  border-color: var(--border-strong);
 }
 
 :deep(.exam-header-preview-inner) {
