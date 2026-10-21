@@ -30,7 +30,14 @@ async function seedViaPageRequest(page, bankId) {
   const importRes = await page.request.post(`${apiBase}/onboarding/import-sample`, {
     headers: hdr(),
   });
-  const importBody = importRes.ok() ? await importRes.json() : {};
+  let importBody = {};
+  if (importRes.ok()) {
+    try {
+      importBody = await importRes.json();
+    } catch {
+      importBody = {};
+    }
+  }
 
   await page.request.patch(`${apiBase}/banks/${bankId}/latex-metadata`, {
     headers: hdr({ 'Content-Type': 'application/json' }),

@@ -35,14 +35,15 @@
         {{ exportHeaderWarning }}
       </div>
 
-      <div class="row">
+      <div class="latex-io-export-grid">
         <!-- 题目选择区域 -->
-        <div class="col-lg-8">
-          <div class="card mb-4">
-            <div class="card-header bg-light">
+        <div class="latex-io-export-main">
+          <div class="card latex-io-card mb-4">
+            <div class="card-header latex-io-panel-header">
               <h5 class="mb-0">
                 <i class="bi bi-list-check"></i> 选择题目
               </h5>
+              <p class="small text-muted mb-0 mt-1">从当前题库筛选并勾选要写入试卷的题目</p>
             </div>
             <div class="card-body">
               <!-- 搜索和筛选 -->
@@ -168,8 +169,8 @@
                   <div class="export-question-row__body min-width-0">
                     <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
                       <span class="badge badge-type-export">{{ question.type }}</span>
-                      <span class="badge bg-info text-dark">{{ question.totalScore }} 分</span>
-                      <span class="badge bg-light text-dark border">{{ question.subject }}</span>
+                      <span class="badge bg-secondary">{{ question.totalScore }} 分</span>
+                      <span class="badge pill-muted">{{ question.subject }}</span>
                     </div>
                     <div
                       class="export-question-row__preview question-text-content small"
@@ -183,12 +184,13 @@
         </div>
 
         <!-- 导出配置区域 -->
-        <div class="col-lg-4">
-          <div class="card export-config-card h-100">
-            <div class="card-header bg-light">
+        <div class="latex-io-export-sidebar">
+          <div class="card latex-io-card export-config-card h-100">
+            <div class="card-header latex-io-panel-header">
               <h5 class="mb-0">
                 <i class="bi bi-gear"></i> 导出配置
               </h5>
+              <p class="small text-muted mb-0 mt-1">试卷头、A/B 卷、答案卷与下载选项</p>
             </div>
             <div class="card-body export-config-card__body">
               <div class="export-config-card__fields">
@@ -369,7 +371,16 @@
               </div>
 
               </div>
-              <div class="export-config-card__footer">
+
+              <div
+                class="preview-surface rounded p-3 mb-3 mt-2"
+                data-testid="latex-export-structure-preview"
+              >
+                <div class="small fw-semibold mb-2">导出结构预览</div>
+                <pre class="latex-io-preview-pre">{{ exportStructurePreviewText }}</pre>
+              </div>
+
+              <div class="export-config-card__footer latex-io-export-actions" data-testid="latex-export-action-bar">
                 <div
                   v-if="exportStatusMessage"
                   class="alert py-2 small mb-2"
@@ -384,13 +395,14 @@
                 </div>
                 <button
                   type="button"
-                  class="btn btn-primary w-100"
+                  class="btn btn-primary flex-grow-1"
                   @click="exportToLatex"
                   :disabled="selectedQuestions.length === 0 || exporting"
+                  data-testid="latex-export-download-btn"
                 >
                   <span v-if="exporting" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-download"></i>
-                  {{ exporting ? "导出中..." : "导出 LaTeX 文件" }}
+                  {{ exporting ? "导出中..." : "下载 LaTeX / ZIP" }}
                 </button>
               </div>
             </div>
@@ -525,7 +537,7 @@
                     {{ enableTypeDistribution ? '禁用' : '启用' }}
                   </button>
                 </div>
-                <div v-if="enableTypeDistribution" class="border rounded p-3 smart-select-type-panel">
+                <div v-if="enableTypeDistribution" class="border rounded p-3 preview-surface smart-select-type-panel">
                   <small class="text-muted d-block mb-2">
                     <i class="bi bi-info-circle"></i>
                     设置每种题型的数量或比例。留空表示不限制。
@@ -766,6 +778,51 @@ export default {
         0,
       );
       return total / this.smartSelectCandidates.length;
+    },
+    exportModeLabel() {
+      const map = {
+        exam: '试卷卷（隐藏答案）',
+        answer: '答案卷',
+        both: '试卷 + 答案',
+      };
+      return map[this.metadata.exportMode] || this.metadata.exportMode;
+    },
+    exportStructurePreviewText() {
+      const m = this.metadata;
+      const fname = String(m.filename || 'mathexam').trim() || 'mathexam';
+      const lines = [
+        `% ${fname}.tex / .zip`,
+        `\\university{${String(m.university || '…').trim() || '…'}}`,
+        `\\school{${String(m.school || '…').trim() || '…'}}`,
+        `\\course{${String(m.course || '…').trim() || '…'}}`,
+        `\\examdate{${String(m.examDate || '…')}} · ${m.AorB || 'A'} 卷 · ${m.openclose || '闭卷'}`,
+        `\\totaltime{${String(m.totaltime || '120')}} 分钟`,
+        '',
+        `% 导出内容：${this.exportModeLabel}`,
+      ];
+      if (m.includeAnswerSheet && (m.exportMode === 'exam' || m.exportMode === 'both')) {
+        lines.push('% + 答题卡 (\\answertable)');
+      }
+      const selected = this.selectedQuestions;
+      if (!selected.length) {
+        lines.push('% （尚未选择题目）');
+        return lines.join('\n');
+      }
+      lines.push(`% 共 ${selected.length} 题，合计 ${this.selectedTotalScore} 分`);
+      const byType = {};
+      for (const q of selected) {
+        const t = q.type || '未知题型';
+        byType[t] = (byType[t] || 0) + 1;
+      }
+      const order = this.typeOrder || [];
+      const types = [
+        ...order.filter((t) => byType[t]),
+        ...Object.keys(byType).filter((t) => !order.includes(t)).sort(),
+      ];
+      for (const t of types) {
+        lines.push(`%   · ${t} × ${byType[t]}`);
+      }
+      return lines.join('\n');
     },
   },
   watch: {

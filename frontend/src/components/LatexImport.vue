@@ -25,12 +25,13 @@
           </template>
         </page-header>
         <MathexamImportGuideCard />
+        <ImportFlowSteps :step="importFlowStep" />
       </div>
 
       <div class="row">
         <div class="col-lg-8 mx-auto">
-          <div class="card">
-            <div class="card-body">
+          <div class="card latex-io-card">
+            <div class="card-body latex-io-card-body">
               <div v-if="formError" class="alert alert-danger" role="alert" data-testid="latex-import-form-error">
                 {{ formError }}
               </div>
@@ -38,7 +39,7 @@
                 {{ previewError }}
               </div>
               <!-- 文件上传区域 -->
-              <div class="upload-area mb-4">
+              <div v-show="importFlowStep <= 2" class="upload-area mb-4" data-testid="latex-import-upload-zone">
                 <input
                   ref="fileInput"
                   type="file"
@@ -59,7 +60,8 @@
                 />
                 <label
                   for="fileInput"
-                  class="upload-label"
+                  class="upload-label latex-io-upload-label"
+                  data-testid="latex-import-upload-label"
                   :class="{ 'dragover': isDragging, 'has-file': selectedTexFiles.length }"
                   @dragover.prevent="isDragging = true"
                   @dragleave.prevent="isDragging = false"
@@ -96,35 +98,11 @@
               </div>
 
               <!-- 导入选项 -->
-              <div class="import-options mb-4">
+              <div v-show="importFlowStep <= 2" class="import-options latex-io-import-options mb-4">
                 <h5 class="mb-3">
                   <i class="bi bi-gear"></i> 导入选项
                 </h5>
                 <div class="row g-3">
-                  <div class="col-md-6">
-                    <label for="createdBy" class="form-label">创建者</label>
-                    <input
-                      v-model="createdBy"
-                      id="createdBy"
-                      type="text"
-                      class="form-control"
-                      placeholder="系统导入"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label for="duplicateThreshold" class="form-label">重复检测相似度阈值</label>
-                    <input
-                      v-model.number="duplicateThreshold"
-                      id="duplicateThreshold"
-                      type="number"
-                      class="form-control"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      placeholder="0.85"
-                    />
-                    <small class="form-text text-muted">0-1之间，值越大要求越严格</small>
-                  </div>
                   <div class="col-md-12">
                     <div class="form-check">
                       <input
@@ -148,58 +126,45 @@
                         自动跳过重复题目（不导入）
                       </label>
                     </div>
-                    <div class="form-check mt-2">
-                      <input id="llmPreview" v-model="useLlmPreview" class="form-check-input" type="checkbox" />
-                      <label class="form-check-label" for="llmPreview">
-                        预览 LLM 建议的难度与知识点（需在平台管理开启）
-                      </label>
-                    </div>
                   </div>
                 </div>
-              </div>
-
-              <!-- 操作按钮 -->
-              <div class="d-flex gap-2">
-                <button
-                  type="button"
-                  class="btn btn-info"
-                  @click="previewFile"
-                  :disabled="!selectedTexFiles.length || previewing || importing"
-                >
-                  <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-eye"></i>
-                  {{ previewing ? '预览中...' : '预览题目' }}
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  @click="importFile"
-                  :disabled="!selectedTexFiles.length || importing || previewing"
-                  v-if="!previewData"
-                >
-                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-upload"></i>
-                  {{ importing ? '导入中...' : '直接导入' }}
-                </button>
-                <button
-                  v-if="previewData"
-                  type="button"
-                  class="btn btn-success"
-                  @click="confirmImport"
-                  :disabled="importing || !(previewData?.partialImportAllowed || previewData?.success)"
-                >
-                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-check-circle"></i>
-                  {{ importing ? '导入中...' : '确认导入' }}
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary"
-                  @click="resetForm"
-                  :disabled="importing || previewing"
-                >
-                  <i class="bi bi-arrow-clockwise"></i> 重置
-                </button>
+                <details class="latex-io-advanced mt-3" data-testid="latex-import-advanced-options">
+                  <summary class="small fw-semibold text-secondary user-select-none">高级选项</summary>
+                  <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                      <label for="createdBy" class="form-label">创建者</label>
+                      <input
+                        v-model="createdBy"
+                        id="createdBy"
+                        type="text"
+                        class="form-control"
+                        placeholder="系统导入"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label for="duplicateThreshold" class="form-label">重复检测相似度阈值</label>
+                      <input
+                        v-model.number="duplicateThreshold"
+                        id="duplicateThreshold"
+                        type="number"
+                        class="form-control"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        placeholder="0.85"
+                      />
+                      <small class="form-text text-muted">0-1之间，值越大要求越严格</small>
+                    </div>
+                    <div class="col-12">
+                      <div class="form-check">
+                        <input id="llmPreview" v-model="useLlmPreview" class="form-check-input" type="checkbox" />
+                        <label class="form-check-label" for="llmPreview">
+                          预览 LLM 建议的难度与知识点（需在平台管理开启）
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <!-- 预览区域 -->
@@ -247,9 +212,13 @@
                 </div>
               </div>
 
-              <div v-if="previewData && !importResult" class="preview-area mt-4">
+              <div
+                v-if="previewData && !importResult"
+                class="preview-area mt-4"
+                data-testid="latex-import-preview-panel"
+              >
                 <div class="card">
-                  <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                  <div class="card-header latex-io-panel-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                       <i class="bi bi-eye"></i> 预览识别到的题目
                     </h5>
@@ -257,7 +226,7 @@
                       <button
                         type="button"
                         class="btn btn-sm"
-                        :class="previewMode ? 'btn-light' : 'btn-outline-light'"
+                        :class="previewMode ? 'btn-primary' : 'btn-outline-secondary'"
                         @click="previewMode = !previewMode"
                       >
                         <i :class="previewMode ? 'bi bi-eye-fill' : 'bi bi-eye'"></i>
@@ -328,8 +297,8 @@
                       <div
                         v-for="(question, index) in previewQuestions"
                         :key="index"
-                        class="question-item mb-3 p-3 border rounded"
-                        :class="{ 'border-warning': isDuplicateQuestion(question) }"
+                        class="question-item latex-io-preview-item mb-3 p-3"
+                        :class="{ 'latex-io-preview-item--warn': isDuplicateQuestion(question) }"
                       >
                         <div class="d-flex justify-content-between align-items-start mb-2">
                           <div>
@@ -346,7 +315,8 @@
                         <div v-if="previewMode" class="question-preview-content mathexam-preview">
                           <div 
                             v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
-                            class="question-text-content mb-2 mathexam-question-body"
+                            class="question-text-content preview-surface mathexam-question-body mb-2"
+                            data-testid="latex-import-preview-question-body"
                           ></div>
                           <!-- 选项（如果是选择题） -->
                           <div v-if="question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)" class="question-options mb-2">
@@ -357,11 +327,18 @@
                             </ChoiceOptionsList>
                           </div>
                           <!-- 答案 -->
-                          <div class="question-answer mb-0" v-if="showAnswerBlock(question)">
+                          <div
+                            class="question-answer mathexam-callout-answer mb-0 mt-2"
+                            v-if="showAnswerBlock(question)"
+                            data-testid="latex-import-preview-answer"
+                          >
                             <strong>答案：</strong>
                             <div v-html="processAnswerTextToHTML(answerForDisplay(question))"></div>
                           </div>
-                          <div v-if="showSolutionBlock(question)" class="question-solution mb-0 mt-2">
+                          <div
+                            v-if="showSolutionBlock(question)"
+                            class="question-solution mathexam-callout-solution mb-0 mt-2"
+                          >
                             <strong>解答：</strong>
                             <div v-html="processAnswerTextToHTML(question.solution)"></div>
                           </div>
@@ -370,15 +347,15 @@
                         <div v-else class="text-mode">
                           <div class="mb-2">
                             <strong>题目：</strong>
-                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.originalLaTeX || question.questionText }}</pre>
+                            <pre class="small mb-0 preview-surface p-2 rounded">{{ question.originalLaTeX || question.questionText }}</pre>
                           </div>
                           <div v-if="showAnswerBlock(question)" class="mb-2">
                             <strong>答案：</strong>
-                            <pre class="small mb-0 bg-light p-2 rounded">{{ answerForDisplay(question) }}</pre>
+                            <pre class="small mb-0 preview-surface p-2 rounded">{{ answerForDisplay(question) }}</pre>
                           </div>
                           <div v-if="showSolutionBlock(question)" class="mb-2">
                             <strong>解答：</strong>
-                            <pre class="small mb-0 bg-light p-2 rounded">{{ question.solution }}</pre>
+                            <pre class="small mb-0 preview-surface p-2 rounded">{{ question.solution }}</pre>
                           </div>
                         </div>
 
@@ -407,7 +384,7 @@
                             <div
                               v-for="(dup, index) in previewData.duplicates"
                               :key="index"
-                              class="duplicate-item mb-3 p-3 bg-white rounded border"
+                              class="duplicate-item mb-3 p-3 preview-surface rounded border"
                             >
                               <div class="d-flex justify-content-between align-items-start mb-2">
                                 <strong class="text-danger">
@@ -420,11 +397,11 @@
                               </div>
                               <div class="mb-2">
                                 <strong>导入的题目：</strong>
-                                <div class="question-preview p-2 bg-light rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
+                                <div class="question-preview p-2 preview-surface rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
                               </div>
                               <div>
                                 <strong>数据库中相似的题目：</strong>
-                                <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 bg-light rounded">
+                                <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 preview-surface rounded">
                                   <div class="d-flex justify-content-between align-items-start mb-1">
                                     <span class="badge bg-secondary">ID: {{ match._id }}</span>
                                     <span class="badge" :class="match.matchType === 'exact' ? 'bg-danger' : 'bg-warning'">
@@ -451,7 +428,7 @@
               </div>
 
               <!-- 导入结果 -->
-              <div v-if="importResult" class="import-result mt-4">
+              <div v-if="importResult" class="import-result mt-4" data-testid="latex-import-result-panel">
                 <div
                   class="alert"
                   :class="{
@@ -498,7 +475,7 @@
                           <div
                             v-for="(dup, index) in importResult.duplicates"
                             :key="index"
-                            class="duplicate-item mb-3 p-3 bg-white rounded border"
+                            class="duplicate-item mb-3 p-3 preview-surface rounded border"
                           >
                             <div class="d-flex justify-content-between align-items-start mb-2">
                               <strong class="text-danger">
@@ -511,11 +488,11 @@
                             </div>
                             <div class="mb-2">
                               <strong>导入的题目：</strong>
-                              <div class="question-preview p-2 bg-light rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
+                              <div class="question-preview p-2 preview-surface rounded mt-1">{{ formatQuestionText(dup.question.questionText) }}</div>
                             </div>
                             <div>
                               <strong>数据库中相似的题目：</strong>
-                              <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 bg-light rounded">
+                              <div v-for="(match, matchIndex) in dup.duplicates" :key="matchIndex" class="match-item mt-2 p-2 preview-surface rounded">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
                                   <span class="badge bg-secondary">ID: {{ match._id }}</span>
                                   <span class="badge" :class="match.matchType === 'exact' ? 'bg-danger' : 'bg-warning'">
@@ -573,6 +550,49 @@
                   </div>
                 </div>
               </div>
+
+              <div v-show="importFlowStep <= 2" class="latex-io-action-bar" data-testid="latex-import-action-bar">
+                <button
+                  type="button"
+                  class="btn btn-info"
+                  @click="previewFile"
+                  :disabled="!selectedTexFiles.length || previewing || importing"
+                >
+                  <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-eye"></i>
+                  {{ previewing ? '预览中...' : '预览题目' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  @click="importFile"
+                  :disabled="!selectedTexFiles.length || importing || previewing"
+                  v-if="!previewData"
+                >
+                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-upload"></i>
+                  {{ importing ? '导入中...' : '直接导入' }}
+                </button>
+                <button
+                  v-if="previewData"
+                  type="button"
+                  class="btn btn-success"
+                  @click="confirmImport"
+                  :disabled="importing || !(previewData?.partialImportAllowed || previewData?.success)"
+                >
+                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-check-circle"></i>
+                  {{ importing ? '导入中...' : '确认导入' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  @click="resetForm"
+                  :disabled="importing || previewing"
+                >
+                  <i class="bi bi-arrow-clockwise"></i> 重置
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -589,6 +609,7 @@ import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/lat
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import PageHeader from "./ui/PageHeader.vue";
 import MathexamImportGuideCard from "./MathexamImportGuideCard.vue";
+import ImportFlowSteps from "./ui/ImportFlowSteps.vue";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 
@@ -601,6 +622,7 @@ export default {
     ChoiceOptionsList,
     PageHeader,
     MathexamImportGuideCard,
+    ImportFlowSteps,
   },
   data() {
     return {
@@ -635,6 +657,11 @@ export default {
     }
   },
   computed: {
+    importFlowStep() {
+      if (this.importResult) return 3;
+      if (this.previewData) return 2;
+      return 1;
+    },
     previewQuestions() {
       // 防御性检查：确保 previewData.questions 是数组
       if (!this.previewData || !this.previewData.questions) {
@@ -1088,19 +1115,10 @@ export default {
   background: var(--surface-muted);
 }
 
-.upload-label:hover {
-  border-color: var(--color-primary, #2563eb);
-  background: #f0f4ff;
-}
-
-.upload-label.dragover {
-  border-color: var(--color-primary, #2563eb);
-  background: #e8f0fe;
-}
-
+.upload-label:hover,
+.upload-label.dragover,
 .upload-label.has-file {
-  border-color: #28a745;
-  background: #f0fff4;
+  /* tokenized in latex-io.css (.latex-io-upload-label) */
 }
 
 .upload-content {
@@ -1197,11 +1215,9 @@ export default {
   vertical-align: baseline;
 }
 
-.preview-area .question-text-content {
+.preview-area .mathexam-question-body.preview-surface {
   padding: 0.75rem 1rem;
-  background: #fafbff;
-  border-radius: 8px;
-  border: 1px solid #e8ecf4;
+  border-radius: var(--radius-md);
 }
 </style>
 

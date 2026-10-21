@@ -3,6 +3,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import "./assets/design-system.css";
 import "./assets/macos-components.css";
 import "./assets/theme-dark.css";
+import "./assets/latex-io.css";
 import { initColorScheme } from "./utils/colorScheme";
 
 initColorScheme();

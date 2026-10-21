@@ -63,6 +63,12 @@
   --preview-surface-bg: var(--surface-muted);
 
   --navbar-blur: saturate(180%) blur(20px);
+
+  --preview-surface-bg: var(--surface-muted);
+  --callout-answer-bg: rgba(10, 132, 255, 0.18);
+  --callout-answer-border: #0a84ff;
+  --callout-solution-bg: rgba(48, 209, 88, 0.16);
+  --callout-solution-border: #30d158;
 }
 
 [data-bs-theme='dark'] .app-navbar.app-navbar--mac {
