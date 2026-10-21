@@ -776,10 +776,17 @@
     }%
   \fi
 }
-\preto{\@enddocumenthook}{
-  \DTLwrite[name=\jobname, overwrite=allow, format=csv, expand=none, add-delimiter=detect]{\jobname.dat}
-  \DTLwrite[name=\jobname, overwrite=allow, format=dbtex-2, expand=full]{\jobname.dbtex}
-  \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}
+\preto{\@enddocumenthook}{%
+  \@ifundefined{DTLwrite}{%
+    \PackageWarningNoLine{mathexam}{%
+      Older datatool without \string\DTLwrite\space detected; skipping CSV/dbtex export at end of document.%
+      Install TeX Live 2022+ (datatool v3.0+) for full grade export.%
+    }%
+  }{%
+    \DTLwrite[name=\jobname, overwrite=allow, format=csv, expand=none, add-delimiter=detect]{\jobname.dat}%
+    \DTLwrite[name=\jobname, overwrite=allow, format=dbtex-2, expand=full]{\jobname.dbtex}%
+  }%
+  \IfFileExists{\jobname.dat}{}{\DTLdisplaydb{\jobname}}%
 }
 %% 
 %% Copyright (C) 2009 by You <van141.abel(AT)gmail.com>
