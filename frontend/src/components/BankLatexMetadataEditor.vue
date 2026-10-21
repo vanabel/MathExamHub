@@ -2,7 +2,7 @@
   <div>
     <button
       type="button"
-      class="btn btn-outline-light btn-sm bank-header-btn"
+      class="btn btn-outline-secondary btn-sm bank-header-btn"
       :class="{ 'bank-header-btn--navbar': variant === 'navbar' }"
       :disabled="!bankId || loading"
       :title="'编辑当前题库的 LaTeX 试卷头默认值'"

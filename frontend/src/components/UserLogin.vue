@@ -146,9 +146,9 @@ export default {
 }
 
 .login-card {
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   padding: 3rem;
   width: 100%;
   max-width: 420px;
@@ -174,7 +174,7 @@ export default {
 .logo-circle {
   width: 80px;
   height: 80px;
-  background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(145deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -186,13 +186,13 @@ export default {
 }
 
 .login-header h2 {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
 
 .login-header p {
-  color: #6c757d;
+  color: var(--text-muted);
   font-size: 0.95rem;
 }
 
