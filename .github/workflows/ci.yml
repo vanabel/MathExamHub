@@ -23,6 +23,16 @@ jobs:
         run: npm ci
       - name: Unit tests (LaTeX processor)
         run: npm test
+      - name: Build frontend (prebuild must not dirty git)
+        run: npm run build
+      - name: Assert clean worktree after frontend build
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Working tree dirty after frontend build (prebuild should not modify tracked files):" >&2
+            git status --porcelain >&2
+            exit 1
+          fi
 
   backend-test:
     runs-on: ubuntu-latest
@@ -52,6 +62,9 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Generate mathexam download assets (frontend prebuild output)
+        working-directory: ${{ github.workspace }}
+        run: node scripts/build-mathexam-downloads.mjs
       - name: Install XeLaTeX (export compile + unit tests with compile)
         run: |
           sudo apt-get update
