@@ -229,6 +229,36 @@ pre,
   color: var(--text-primary) !important;
 }
 
+.preview-surface,
+.bg-light.preview-surface {
+  background: var(--preview-surface-bg) !important;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.mathexam-callout-answer {
+  background: var(--callout-answer-bg);
+  border-left: 3px solid var(--callout-answer-border);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  color: var(--text-primary);
+}
+
+.mathexam-callout-solution {
+  background: var(--callout-solution-bg);
+  border-left: 3px solid var(--callout-solution-border);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  color: var(--text-primary);
+}
+
+[data-bs-theme='dark'] .preview-surface .mjx-chtml,
+[data-bs-theme='dark'] .preview-surface .MathJax,
+[data-bs-theme='dark'] .mathexam-question-body .mjx-chtml,
+[data-bs-theme='dark'] .mathexam-question-body .MathJax {
+  color: var(--text-primary) !important;
+}
+
 .step-score-badge {
   color: var(--text-secondary);
   background: var(--surface-muted);

@@ -26,6 +26,7 @@ const {
 } = require('../helpers/screenshotAuth');
 const { seedViaPageRequest } = require('../helpers/seedUiV2ScreenshotRequest');
 const { assertPageReady, assertNoHorizontalOverflow } = require('../helpers/screenshotAssert');
+const { assertMinContrastIn } = require('../helpers/contrastAssert');
 
 function mathexamZipForImport() {
   if (!fs.existsSync(mathexamTemplateZip)) {
@@ -79,6 +80,9 @@ test.describe('LaTeX IO screenshots', () => {
     await page.locator('#fileInput').setInputFiles(zipPath);
     await page.getByRole('button', { name: '预览题目' }).click({ timeout: 120000 });
     await expect(page.getByTestId('latex-import-preview-panel')).toBeVisible({ timeout: 180000 });
+    if (scheme === 'dark') {
+      await assertMinContrastIn(page, '[data-testid="latex-import-preview-question-body"]', 4.5);
+    }
     await snap(page, 'latex-import-step-2');
 
     await page.getByRole('button', { name: '确认导入' }).click({ timeout: 120000 });

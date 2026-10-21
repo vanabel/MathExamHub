@@ -11,7 +11,10 @@
         }"
         :data-step="item.id"
       >
-        <span class="latex-io-steps__badge">{{ item.id }}</span>
+        <span class="latex-io-steps__badge" :aria-label="step > item.id ? `步骤 ${item.id} 已完成` : `步骤 ${item.id}`">
+          <i v-if="step > item.id" class="bi bi-check-lg" aria-hidden="true"></i>
+          <span v-else>{{ item.id }}</span>
+        </span>
         <span class="latex-io-steps__label">{{ item.label }}</span>
       </li>
     </ol>

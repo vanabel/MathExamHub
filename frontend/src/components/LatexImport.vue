@@ -31,7 +31,7 @@
       <div class="row">
         <div class="col-lg-8 mx-auto">
           <div class="card latex-io-card">
-            <div class="card-body">
+            <div class="card-body latex-io-card-body">
               <div v-if="formError" class="alert alert-danger" role="alert" data-testid="latex-import-form-error">
                 {{ formError }}
               </div>
@@ -165,50 +165,6 @@
                     </div>
                   </div>
                 </details>
-              </div>
-
-              <!-- 操作按钮 -->
-              <div v-show="importFlowStep <= 2" class="latex-io-action-bar" data-testid="latex-import-action-bar">
-                <button
-                  type="button"
-                  class="btn btn-info"
-                  @click="previewFile"
-                  :disabled="!selectedTexFiles.length || previewing || importing"
-                >
-                  <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-eye"></i>
-                  {{ previewing ? '预览中...' : '预览题目' }}
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  @click="importFile"
-                  :disabled="!selectedTexFiles.length || importing || previewing"
-                  v-if="!previewData"
-                >
-                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-upload"></i>
-                  {{ importing ? '导入中...' : '直接导入' }}
-                </button>
-                <button
-                  v-if="previewData"
-                  type="button"
-                  class="btn btn-success"
-                  @click="confirmImport"
-                  :disabled="importing || !(previewData?.partialImportAllowed || previewData?.success)"
-                >
-                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
-                  <i v-else class="bi bi-check-circle"></i>
-                  {{ importing ? '导入中...' : '确认导入' }}
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary"
-                  @click="resetForm"
-                  :disabled="importing || previewing"
-                >
-                  <i class="bi bi-arrow-clockwise"></i> 重置
-                </button>
               </div>
 
               <!-- 预览区域 -->
@@ -359,7 +315,8 @@
                         <div v-if="previewMode" class="question-preview-content mathexam-preview">
                           <div 
                             v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
-                            class="question-text-content mb-2 mathexam-question-body"
+                            class="question-text-content preview-surface mathexam-question-body mb-2"
+                            data-testid="latex-import-preview-question-body"
                           ></div>
                           <!-- 选项（如果是选择题） -->
                           <div v-if="question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)" class="question-options mb-2">
@@ -370,11 +327,18 @@
                             </ChoiceOptionsList>
                           </div>
                           <!-- 答案 -->
-                          <div class="question-answer mb-0" v-if="showAnswerBlock(question)">
+                          <div
+                            class="question-answer mathexam-callout-answer mb-0 mt-2"
+                            v-if="showAnswerBlock(question)"
+                            data-testid="latex-import-preview-answer"
+                          >
                             <strong>答案：</strong>
                             <div v-html="processAnswerTextToHTML(answerForDisplay(question))"></div>
                           </div>
-                          <div v-if="showSolutionBlock(question)" class="question-solution mb-0 mt-2">
+                          <div
+                            v-if="showSolutionBlock(question)"
+                            class="question-solution mathexam-callout-solution mb-0 mt-2"
+                          >
                             <strong>解答：</strong>
                             <div v-html="processAnswerTextToHTML(question.solution)"></div>
                           </div>
@@ -585,6 +549,49 @@
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div v-show="importFlowStep <= 2" class="latex-io-action-bar" data-testid="latex-import-action-bar">
+                <button
+                  type="button"
+                  class="btn btn-info"
+                  @click="previewFile"
+                  :disabled="!selectedTexFiles.length || previewing || importing"
+                >
+                  <span v-if="previewing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-eye"></i>
+                  {{ previewing ? '预览中...' : '预览题目' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  @click="importFile"
+                  :disabled="!selectedTexFiles.length || importing || previewing"
+                  v-if="!previewData"
+                >
+                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-upload"></i>
+                  {{ importing ? '导入中...' : '直接导入' }}
+                </button>
+                <button
+                  v-if="previewData"
+                  type="button"
+                  class="btn btn-success"
+                  @click="confirmImport"
+                  :disabled="importing || !(previewData?.partialImportAllowed || previewData?.success)"
+                >
+                  <span v-if="importing" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-check-circle"></i>
+                  {{ importing ? '导入中...' : '确认导入' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  @click="resetForm"
+                  :disabled="importing || previewing"
+                >
+                  <i class="bi bi-arrow-clockwise"></i> 重置
+                </button>
               </div>
             </div>
           </div>
@@ -1208,11 +1215,9 @@ export default {
   vertical-align: baseline;
 }
 
-.preview-area .question-text-content {
+.preview-area .mathexam-question-body.preview-surface {
   padding: 0.75rem 1rem;
-  background: #fafbff;
-  border-radius: 8px;
-  border: 1px solid #e8ecf4;
+  border-radius: var(--radius-md);
 }
 </style>
 
