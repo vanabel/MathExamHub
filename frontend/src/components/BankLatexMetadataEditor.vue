@@ -12,6 +12,7 @@
       试卷头
     </button>
 
+    <Teleport to="body">
     <div v-if="showModal" class="modal fade show d-block bank-latex-modal-root" tabindex="-1">
       <div class="modal-dialog modal-xl modal-dialog-scrollable bank-latex-modal-dialog">
         <div class="modal-content bank-latex-modal-content">
@@ -222,6 +223,7 @@
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -363,10 +365,13 @@ export default {
 <style scoped>
 .bank-latex-modal-root {
   background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 1060;
 }
 
 .bank-latex-modal-dialog {
   max-width: min(1100px, 96vw);
+  pointer-events: auto;
 }
 
 .bank-latex-modal-header,

@@ -43,11 +43,8 @@ test.describe('bank LaTeX header modal', () => {
     await page.getByPlaceholder('例：西南大学').fill('测试大学');
     await expect(page.getByTestId('bank-header-preview-pane')).toContainText('测试大学');
 
-    const modalBody = page.locator('.bank-latex-modal-body');
-    await modalBody.evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
-    });
     const preambleToggle = page.getByTestId('bank-header-toggle-preamble');
+    await preambleToggle.scrollIntoViewIfNeeded();
     await expect(preambleToggle).toBeVisible();
     await preambleToggle.click();
     await expect(page.getByTestId('bank-header-preamble')).toBeVisible();
