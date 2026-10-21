@@ -21,5 +21,10 @@
   },
   "dependencies": {
     "electron": "^28.1.4"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "electron"
+    ]
   }
 }

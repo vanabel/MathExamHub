@@ -42,6 +42,9 @@ jobs:
       - name: Check deploy shell scripts (bash -n)
         working-directory: ${{ github.workspace }}
         run: bash scripts/check-deploy-shell.sh
+      - name: Check pnpm-workspace.yaml (verifyDepsBeforeRun)
+        working-directory: ${{ github.workspace }}
+        run: bash scripts/check-pnpm-workspace.sh
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
