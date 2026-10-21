@@ -10,6 +10,8 @@ MathExamHub 在仓库内固定（pin）上游 [vanabel/mathexam](https://github.
 | `TeX/mathexam.sty` | 由 `mathexam.dtx` 生成的宏包（编译/导出打包用） |
 | `TeX/VERSION` | 当前 pin 的版本号（单行，如 `2.3.3`） |
 | `docs/vendor/mathexam.sty` | 与 `TeX/mathexam.sty` 同步的副本，便于文档引用 |
+| `docs/templates/mathexam-import-sample.tex` | LaTeX 导入页示例试卷源码 |
+| `frontend/public/downloads/` | 导入页静态下载（`mathexam.sty`、示例 `.tex`、`mathexam-vX.Y.Z.zip`）；由 `scripts/build-mathexam-downloads.mjs` 生成（`frontend` 的 `prebuild` 也会执行） |
 
 **不要**将 Hub 切换到同仓库中的 `mathquiz.sty`（旧版兄弟包）；导入/导出始终以 **mathexam** 为准。
 

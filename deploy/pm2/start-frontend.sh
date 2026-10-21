@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Serve built Vue app for PM2 (port 19896). Run from repo after: npm run build --prefix frontend
+# Serve built Vue app for PM2 (default port 19896). Run from repo after: npm run build --prefix frontend
+# Uses serve@14 with frontend/dist/serve.json (Content-Type / Content-Disposition for /downloads/*).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+PORT="${MATHEXAM_FRONTEND_PORT:-19896}"
 cd "$ROOT/frontend"
-if command -v serve >/dev/null 2>&1; then
-  exec serve -s dist --listen=19896
+if [[ ! -d dist ]]; then
+  echo "missing frontend/dist — run: npm run build --prefix frontend" >&2
+  exit 1
 fi
-exec npx --yes serve@14 -s dist -l 19896
+exec npx --yes serve@14 -s dist -l "$PORT"

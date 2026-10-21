@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
+    "prebuild": "node ../scripts/build-mathexam-downloads.mjs",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "test": "node --test tests/*.test.mjs"
