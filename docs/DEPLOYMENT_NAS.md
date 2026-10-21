@@ -189,10 +189,13 @@ export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 ```bash
 export PATH="$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
 pnpm run update
-# 等价：npm run update  或  bash deploy/pm2/update.sh
+# 等价 fallback（不经过 pnpm 的 pre-run 检查）：npm run update
+# 或直接：bash deploy/pm2/update.sh
 ```
 
-根目录 **`package.json` 的 `update` 脚本**只是入口；`pnpm run update` 在 NAS 上可用（pnpm 与 node 同在前述 PATH 中），但 **依赖安装始终在 backend/frontend 内用 `npm ci`**（不引入 `pnpm-lock.yaml`、不把仓库切到 pnpm）。
+根目录 **`pnpm-workspace.yaml`** 必须被 pnpm 11 识别为 workspace 配置（含 **`packages: ['.']`** 仅根包），并设置 **`verifyDepsBeforeRun: false`**、**`strictDepBuilds: false`**（避免误触发 install 时因 electron 构建策略报 `ERR_PNPM_IGNORED_BUILDS`）。pnpm 11 **不读** `package.json#pnpm` 与根 `.npmrc` 中的同名项。**`npm` / CI 不读取该文件**；backend/frontend 仍各自 **`npm ci`**。
+
+若 `pnpm run update` 仍先 install，可用 **`pnpm_config_verify_deps_before_run=false pnpm run update`** 或 **`npm run update`**（推荐 fallback）。`update.sh` 会删除误生成的根 **`pnpm-lock.yaml`** 及对应 **`node_modules/`**，且不再因未跟踪的 pnpm 产物拒绝执行。`update.sh` 在 shell 默认 Node 22 时仍优先 nvm **Node 20** 并打印版本。
 
 行为摘要：
 
