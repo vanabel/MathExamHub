@@ -189,10 +189,13 @@ export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 ```bash
 export PATH="$HOME/.nvm/versions/node/v20.19.5/bin:$PATH"
 pnpm run update
-# 等价：npm run update  或  bash deploy/pm2/update.sh
+# 等价 fallback（不经过 pnpm 的 pre-run 检查）：npm run update
+# 或直接：bash deploy/pm2/update.sh
 ```
 
-根目录 **`package.json` 的 `update` 脚本**只是入口；`pnpm run update` 在 NAS 上可用（pnpm 与 node 同在前述 PATH 中），但 **依赖安装始终在 backend/frontend 内用 `npm ci`**（不引入 `pnpm-lock.yaml`、不把仓库切到 pnpm）。
+根目录 **`.npmrc`** 含 `verify-deps-before-run=false`，避免 pnpm 10/11 在运行 `update` 前自动 `pnpm install` 根目录（含 electron）。根目录 **`package.json` 的 `update` 脚本**只是入口；**依赖安装仅在 backend/frontend 内用 `npm ci`**（不引入 `pnpm-lock.yaml`、不把仓库切到 pnpm）。
+
+若曾在根目录误跑过 `pnpm install`，请删除 stray 的 **`pnpm-lock.yaml`** 与根 **`node_modules/`**（保留 `backend/node_modules`、`frontend/node_modules` 由 `npm ci` 管理即可）。`update.sh` 会在 shell 默认 Node 22 时仍优先选用 nvm 的 **Node 20** 并打印所用版本。
 
 行为摘要：
 

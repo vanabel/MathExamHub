@@ -24,7 +24,8 @@ ensure_node20() {
     return 0
   }
 
-  if command -v node >/dev/null 2>&1 && _use_node_if_v20 "$(command -v node)"; then
+  # Prefer Synology nvm Node 20 even when interactive shell default is Node 22+.
+  if [[ -x "${NAS_NVM_NODE20_DIR}/node" ]] && _use_node_if_v20 "${NAS_NVM_NODE20_DIR}/node"; then
     return 0
   fi
 
@@ -32,7 +33,7 @@ ensure_node20() {
     return 0
   fi
 
-  if [[ -x "${NAS_NVM_NODE20_DIR}/node" ]] && _use_node_if_v20 "${NAS_NVM_NODE20_DIR}/node"; then
+  if command -v node >/dev/null 2>&1 && _use_node_if_v20 "$(command -v node)"; then
     return 0
   fi
 
