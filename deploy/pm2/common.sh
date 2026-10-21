@@ -10,6 +10,19 @@ source "$(dirname "${BASH_SOURCE[0]}")/pm2-bin.sh"
 # shellcheck source=deploy/pm2/node20.sh
 source "$(dirname "${BASH_SOURCE[0]}")/node20.sh"
 
+# Remove artifacts from accidental `pnpm install` at repo root (NAS); backend/frontend use npm ci.
+clean_stray_pnpm_root_artifacts() {
+  local root="$1"
+  if [[ -f "$root/pnpm-lock.yaml" ]]; then
+    echo "Removing stray root pnpm-lock.yaml (production uses npm in backend/frontend)."
+    rm -f "$root/pnpm-lock.yaml"
+    if [[ -d "$root/node_modules" ]]; then
+      echo "Removing stray root node_modules from pnpm install."
+      rm -rf "$root/node_modules"
+    fi
+  fi
+}
+
 assert_clean_worktree() {
   if ! git diff-index --quiet HEAD --; then
     echo "Refusing: tracked files have uncommitted changes. Commit or stash first." >&2
@@ -27,8 +40,13 @@ assert_clean_worktree() {
         backend/uploads|backend/uploads/*|logs|logs/*)
           continue
           ;;
+        pnpm-lock.yaml|node_modules|node_modules/*)
+          # Stray artifacts from accidental `pnpm install` at repo root (repo uses npm in subdirs).
+          continue
+          ;;
         *)
           echo "Refusing: unexpected untracked path: $path" >&2
+          echo "Hint: remove stray pnpm artifacts (pnpm-lock.yaml, root node_modules) or commit intentional files." >&2
           return 1
           ;;
       esac

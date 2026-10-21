@@ -193,9 +193,9 @@ pnpm run update
 # 或直接：bash deploy/pm2/update.sh
 ```
 
-根目录 **`pnpm-workspace.yaml`**（无 `packages:` 列表）设置 **`verifyDepsBeforeRun: false`**，避免 pnpm 11 在运行 `update` 前自动根目录 `pnpm install`（pnpm 11 会忽略根 `.npmrc` 的同名项）。**`npm` / CI 不读取该文件**；backend/frontend 仍各自 **`npm ci`**。根目录 **`package.json` 的 `update` 脚本**只是入口。
+根目录 **`pnpm-workspace.yaml`** 必须被 pnpm 11 识别为 workspace 配置（含 **`packages: ['.']`** 仅根包），并设置 **`verifyDepsBeforeRun: false`**、**`strictDepBuilds: false`**（避免误触发 install 时因 electron 构建策略报 `ERR_PNPM_IGNORED_BUILDS`）。pnpm 11 **不读** `package.json#pnpm` 与根 `.npmrc` 中的同名项。**`npm` / CI 不读取该文件**；backend/frontend 仍各自 **`npm ci`**。
 
-若 NAS 上曾出现 pnpm 自动生成的 **`pnpm-workspace.yaml` stub**，以仓库内 committed 版本为准；误跑 `pnpm install` 后请删除 stray 的 **`pnpm-lock.yaml`** 与根 **`node_modules/`**。`update.sh` 在 shell 默认 Node 22 时仍优先 nvm **Node 20** 并打印版本。无 pnpm 时可用 **`npm run update`** 作为等价 fallback。
+若 `pnpm run update` 仍先 install，可用 **`pnpm_config_verify_deps_before_run=false pnpm run update`** 或 **`npm run update`**（推荐 fallback）。`update.sh` 会删除误生成的根 **`pnpm-lock.yaml`** 及对应 **`node_modules/`**，且不再因未跟踪的 pnpm 产物拒绝执行。`update.sh` 在 shell 默认 Node 22 时仍优先 nvm **Node 20** 并打印版本。
 
 行为摘要：
 

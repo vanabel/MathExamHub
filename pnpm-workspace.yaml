@@ -1,5 +1,12 @@
-# pnpm 11+: pre-run dep check reads this file (root .npmrc verify-deps-before-run is ignored on NAS).
-# No `packages:` — repo installs backend/frontend with npm ci; this file is pnpm config only.
+# pnpm 11+ reads settings here (not root .npmrc / not package.json#pnpm).
+# Only the repo root is a pnpm workspace member; backend/frontend use npm ci separately.
+packages:
+  - '.'
+
 verifyDepsBeforeRun: false
+# If a pre-run install still runs, do not fail on denied electron postinstall (NAS prod).
+strictDepBuilds: false
 allowBuilds:
   electron: false
+  nodemon: false
+  npm-run-all: false
