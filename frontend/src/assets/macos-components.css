@@ -101,6 +101,18 @@
   font-size: var(--text-sm);
 }
 
+.alert-info {
+  background: var(--callout-info-bg);
+  border-color: var(--callout-info-border);
+  color: var(--callout-info-fg);
+}
+
+.preview-surface,
+.bg-light.preview-surface {
+  background: var(--preview-surface-bg) !important;
+  color: var(--text-primary);
+}
+
 .toast {
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);

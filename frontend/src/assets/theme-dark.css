@@ -53,6 +53,14 @@
   --pill-muted-bg: rgba(255, 255, 255, 0.1);
   --pill-muted-fg: #d1d1d6;
   --pill-muted-border: rgba(255, 255, 255, 0.12);
+  --callout-answer-bg: rgba(10, 132, 255, 0.2);
+  --callout-answer-border: #409cff;
+  --callout-solution-bg: rgba(48, 209, 88, 0.16);
+  --callout-solution-border: #30d158;
+  --callout-info-bg: rgba(10, 132, 255, 0.18);
+  --callout-info-fg: var(--text-primary);
+  --callout-info-border: rgba(10, 132, 255, 0.35);
+  --preview-surface-bg: var(--surface-muted);
 
   --navbar-blur: saturate(180%) blur(20px);
 }
@@ -236,4 +244,90 @@
 [data-bs-theme='dark'] .mathexam-import-guide .card-header.bg-primary-subtle {
   background: var(--color-primary-soft) !important;
   color: var(--text-primary);
+}
+
+[data-bs-theme='dark'] .alert-info {
+  background-color: var(--callout-info-bg) !important;
+  border-color: var(--callout-info-border) !important;
+  color: var(--callout-info-fg) !important;
+}
+
+[data-bs-theme='dark'] .alert-warning {
+  background-color: rgba(255, 159, 10, 0.18) !important;
+  border-color: rgba(255, 159, 10, 0.35) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .alert-success {
+  background-color: rgba(48, 209, 88, 0.16) !important;
+  border-color: rgba(48, 209, 88, 0.35) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .alert-danger {
+  background-color: rgba(255, 69, 58, 0.18) !important;
+  border-color: rgba(255, 69, 58, 0.35) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .card-header.bg-light,
+[data-bs-theme='dark'] .bg-light-subtle {
+  background-color: var(--surface-muted) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+}
+
+[data-bs-theme='dark'] .bg-light,
+[data-bs-theme='dark'] pre.bg-light,
+[data-bs-theme='dark'] .question-preview.bg-light,
+[data-bs-theme='dark'] .match-item.bg-light {
+  background-color: var(--preview-surface-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .table-light,
+[data-bs-theme='dark'] thead.table-light th {
+  --bs-table-bg: var(--surface-muted);
+  --bs-table-color: var(--text-primary);
+  background-color: var(--surface-muted) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .list-group-item {
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+[data-bs-theme='dark'] .mathexam-callout-answer,
+[data-bs-theme='dark'] .question-answer {
+  color: var(--text-primary);
+}
+
+[data-bs-theme='dark'] .mathexam-callout-solution,
+[data-bs-theme='dark'] .question-solution {
+  color: var(--text-primary);
+}
+
+[data-bs-theme='dark'] .bg-primary-subtle,
+[data-bs-theme='dark'] .card-header.bg-primary-subtle {
+  background-color: var(--color-primary-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-bs-theme='dark'] .border-primary-subtle {
+  border-color: rgba(10, 132, 255, 0.35) !important;
+}
+
+[data-bs-theme='dark'] .card-header.bg-info {
+  background-color: rgba(10, 132, 255, 0.35) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-subtle);
+}
+
+[data-bs-theme='dark'] .answer-text-content,
+[data-bs-theme='dark'] .solution-text-content,
+[data-bs-theme='dark'] .mjx-chtml,
+[data-bs-theme='dark'] .question-answer .MathJax {
+  color: var(--text-primary) !important;
 }
