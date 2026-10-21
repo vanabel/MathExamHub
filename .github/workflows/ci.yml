@@ -21,8 +21,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Unit tests (LaTeX processor)
-        run: npm test
       - name: Build frontend (prebuild must not dirty git)
         run: npm run build
       - name: Assert clean worktree after frontend build
@@ -33,6 +31,8 @@ jobs:
             git status --porcelain >&2
             exit 1
           fi
+      - name: Unit tests (LaTeX processor)
+        run: npm test
 
   backend-test:
     runs-on: ubuntu-latest
