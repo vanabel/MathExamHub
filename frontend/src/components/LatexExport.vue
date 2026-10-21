@@ -1397,10 +1397,11 @@ export default {
 }
 
 .page-header {
-  background: white;
+  background: var(--surface-card);
   padding: 1.5rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 .breadcrumb {
@@ -1419,7 +1420,7 @@ export default {
 }
 
 .page-title {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 700;
   margin-bottom: 0.5rem;
   display: flex;
@@ -1443,7 +1444,7 @@ export default {
   padding: 0.65rem 0.75rem;
   border-bottom: 1px solid var(--border-subtle, #e2e8f0);
   cursor: pointer;
-  background: #fff;
+  background: var(--surface-card);
   transition: background 0.15s ease;
 }
 
@@ -1508,11 +1509,11 @@ export default {
 .question-item {
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--surface-card);
 }
 
 .question-item:hover {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   border-color: var(--color-primary, #2563eb) !important;
 }
 

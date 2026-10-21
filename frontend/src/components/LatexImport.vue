@@ -1042,10 +1042,11 @@ export default {
 }
 
 .page-header {
-  background: white;
+  background: var(--surface-card);
   padding: 1.5rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 .breadcrumb {
@@ -1064,7 +1065,7 @@ export default {
 }
 
 .page-title {
-  color: #333;
+  color: var(--text-primary);
   font-weight: 700;
   margin-bottom: 0.5rem;
   display: flex;
@@ -1084,7 +1085,7 @@ export default {
   text-align: center;
   cursor: pointer;
   transition: all 0.3s;
-  background: #f8f9fa;
+  background: var(--surface-muted);
 }
 
 .upload-label:hover {
@@ -1107,7 +1108,7 @@ export default {
 }
 
 .import-options {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   padding: 1.5rem;
   border-radius: 8px;
 }

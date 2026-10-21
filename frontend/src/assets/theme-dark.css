@@ -95,6 +95,27 @@
   background-color: var(--surface-muted) !important;
 }
 
+[data-bs-theme='dark'] .bg-white {
+  background-color: var(--surface-card) !important;
+}
+
+[data-bs-theme='dark'] .badge.bg-warning.text-dark,
+[data-bs-theme='dark'] .badge.text-bg-warning.text-dark {
+  background-color: rgba(255, 159, 10, 0.28) !important;
+  color: #ffd699 !important;
+}
+
+[data-bs-theme='dark'] .badge.bg-info.text-dark {
+  background-color: rgba(10, 132, 255, 0.28) !important;
+  color: #b3d7ff !important;
+}
+
+[data-bs-theme='dark'] .input-group-text.bg-white {
+  background-color: var(--surface-muted) !important;
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
 [data-bs-theme='dark'] .auth-layout {
   background: linear-gradient(165deg, #1c1c1e 0%, #1e1e1e 50%, #2c2c2e 100%);
 }

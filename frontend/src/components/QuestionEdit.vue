@@ -347,7 +347,7 @@ export default {
 
 .form-label {
   font-weight: 500;
-  color: #495057;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -359,7 +359,7 @@ export default {
 }
 
 .options-section {
-  background: #f8f9fa;
+  background: var(--surface-muted);
   padding: 1.5rem;
   border-radius: 8px;
 }
