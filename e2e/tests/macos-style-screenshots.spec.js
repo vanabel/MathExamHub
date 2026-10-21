@@ -61,10 +61,11 @@ test.describe('macOS style screenshots', () => {
       await snap(authPage, slug);
     });
 
+    const runId = Date.now();
     const session = await registerAndLoginSession(page, {
-      uid: `macos_ui_${scheme}_${Date.now()}`,
+      uid: `macos_ui_${scheme}_${runId}`,
       password: 'E2EPass123!',
-      email: `macos_${scheme}@example.com`,
+      email: `macos_${scheme}_${runId}@example.com`,
     });
     const bankId = session.bankId || (await page.evaluate(() => localStorage.getItem('currentBankId')));
     await seedViaPageRequest(page, bankId);
