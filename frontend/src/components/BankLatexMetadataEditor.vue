@@ -371,7 +371,7 @@ export default {
 
 .bank-latex-modal-header,
 .bank-latex-modal-footer {
-  background: #fff;
+  background: var(--surface-card);
   z-index: 2;
 }
 
@@ -389,7 +389,7 @@ export default {
   color: var(--color-primary, #2563eb);
   margin-bottom: 0.65rem;
   padding-bottom: 0.35rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .bank-latex-preview-pane {
@@ -397,9 +397,9 @@ export default {
 }
 
 .bank-latex-preamble {
-  background: #1e1e2e;
-  color: #e2e8f0;
-  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: var(--radius-md, 8px);
   padding: 0.75rem;
   max-height: 220px;
   overflow: auto;
@@ -416,8 +416,8 @@ export default {
   --bs-btn-padding-x: 0.65rem;
   font-size: 0.875rem;
   line-height: 1.25;
-  border-radius: 6px;
-  border-color: rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-sm, 6px);
+  border-color: var(--border-strong);
 }
 
 :deep(.exam-header-preview-inner) {

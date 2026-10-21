@@ -1,0 +1,231 @@
+/**
+ * macOS-style global component polish (uses design tokens; dark via data-bs-theme).
+ */
+
+.card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface-card);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card-header {
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.card-footer {
+  background: var(--surface-muted);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.modal-backdrop.show {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  background: var(--surface-card);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-subtle);
+  gap: 0.5rem;
+}
+
+.modal.show .modal-dialog {
+  animation: mac-modal-in var(--transition-ui) ease-out;
+}
+
+@keyframes mac-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dropdown-menu {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  background: var(--surface-elevated);
+  padding: 0.35rem 0;
+  margin-top: 0.35rem;
+}
+
+.dropdown-item {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background: var(--color-primary-soft);
+  color: var(--color-accent);
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  background: var(--color-primary-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.dropdown-divider {
+  border-color: var(--border-subtle);
+}
+
+.alert {
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  font-size: var(--text-sm);
+}
+
+.toast {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+  background: var(--surface-elevated);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text-primary);
+  --bs-table-border-color: var(--border-subtle);
+  --bs-table-striped-bg: var(--table-stripe-bg);
+  --bs-table-hover-bg: var(--color-primary-soft);
+  font-size: var(--text-sm);
+}
+
+.btn-group > .btn {
+  border-color: var(--border-strong);
+}
+
+.btn-group > .btn-check:checked + .btn,
+.btn-group > .btn.active {
+  background: var(--surface-card);
+  color: var(--color-accent);
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--text-secondary);
+  --bs-btn-border-color: var(--border-strong);
+  --bs-btn-hover-bg: var(--surface-muted);
+  --bs-btn-hover-color: var(--text-primary);
+}
+
+.breadcrumb {
+  --bs-breadcrumb-divider-color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.list-group-item {
+  background: var(--surface-card);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.list-group-item-action:hover {
+  background: var(--color-primary-soft);
+}
+
+code,
+pre,
+.bank-latex-preamble,
+.kp-import-preview,
+.latex-snippet {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+pre,
+.code-block,
+.bank-latex-preamble {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.pdf-container {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--media-frame-bg);
+  margin: 10px 0;
+}
+
+.question-structured-image,
+.latex-figure {
+  border-radius: var(--radius-sm);
+}
+
+[data-bs-theme='dark'] .question-structured-image,
+[data-bs-theme='dark'] .latex-figure:not(.pdf-canvas) {
+  background: #ffffff;
+  padding: 0.35rem;
+}
+
+.math-preview,
+.question-preview,
+.vue-mathjax,
+.question-text-content,
+.answer-text-content,
+.solution-text-content {
+  color: var(--text-primary);
+}
+
+.mjx-chtml,
+.MathJax,
+.MathJax_Display,
+.mjx-container {
+  color: var(--text-primary) !important;
+}
+
+.step-score-badge {
+  color: var(--text-secondary);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.progress {
+  background: var(--surface-muted);
+}
+
+.onboarding-backdrop {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+.onboarding-panel {
+  box-shadow: var(--shadow-modal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal.show .modal-dialog,
+  .app-page {
+    animation: none !important;
+  }
+}
