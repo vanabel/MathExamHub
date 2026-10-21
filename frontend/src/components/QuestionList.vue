@@ -382,14 +382,22 @@
                   class="question-card__detail mt-2"
                   :data-answer-detail-qid="question._id"
                 >
-                  <div v-if="showAnswerBlock(question)" class="question-answer small mb-2">
+                  <div
+                    v-if="showAnswerBlock(question)"
+                    class="question-answer mathexam-callout-answer small mb-2"
+                    data-testid="question-list-answer-block"
+                  >
                     <strong>答案：</strong>
                     <div
                       class="answer-text-content question-card__math-scroll"
                       v-html="renderAnswer(answerForDisplay(question))"
                     ></div>
                   </div>
-                  <div v-if="showSolutionBlock(question)" class="question-solution small">
+                  <div
+                    v-if="showSolutionBlock(question)"
+                    class="question-solution mathexam-callout-solution small"
+                    data-testid="question-list-solution-block"
+                  >
                     <strong>解答：</strong>
                     <div
                       class="solution-text-content question-card__math-scroll"
@@ -1226,19 +1234,23 @@ export default {
   color: var(--text-secondary);
 }
 
-.question-answer {
-  background: #e7f3ff;
+.question-answer,
+.mathexam-callout-answer {
+  background: var(--callout-answer-bg);
+  color: var(--text-primary);
   padding: 0.75rem;
-  border-radius: 8px;
-  border-left: 3px solid var(--color-primary, #2563eb);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--callout-answer-border);
   font-size: 0.95rem;
 }
 
-.question-solution {
-  background: #f0fdf4;
+.question-solution,
+.mathexam-callout-solution {
+  background: var(--callout-solution-bg);
+  color: var(--text-primary);
   padding: 0.75rem;
-  border-radius: 8px;
-  border-left: 3px solid #22c55e;
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--callout-solution-border);
   font-size: 0.95rem;
 }
 

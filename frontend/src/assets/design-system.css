@@ -54,6 +54,14 @@
   --pill-muted-bg: rgba(0, 0, 0, 0.06);
   --pill-muted-fg: var(--text-secondary);
   --pill-muted-border: var(--border-subtle);
+  --callout-answer-bg: rgba(0, 122, 255, 0.1);
+  --callout-answer-border: var(--color-primary);
+  --callout-solution-bg: rgba(52, 199, 89, 0.12);
+  --callout-solution-border: var(--success);
+  --callout-info-bg: rgba(0, 122, 255, 0.1);
+  --callout-info-fg: var(--text-primary);
+  --callout-info-border: rgba(0, 122, 255, 0.25);
+  --preview-surface-bg: var(--surface-muted);
 }
 
 html {
