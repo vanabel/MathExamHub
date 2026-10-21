@@ -1,19 +1,24 @@
 /**
  * LaTeX import/export redesign screenshots @ 1440px (light + dark).
- * Run: LATEX_IO_SCREENSHOT_SCHEME=light|dark npm run e2e -- latex-io-screenshots
+ * Run (needs API proxy on :8080, e.g. node e2e/scripts/ui-v2-static-server.js):
+ *   PLAYWRIGHT_API_URL=http://127.0.0.1:8080/api LATEX_IO_SCREENSHOT_SCHEME=light|dark npx playwright test latex-io-screenshots
  */
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const { execSync } = require('child_process');
 
 const scheme = process.env.LATEX_IO_SCREENSHOT_SCHEME || '';
 const phase = process.env.UI_V2_PHASE || 'after';
 const outRoot = path.join(__dirname, '../../docs/screenshots/latex-io', scheme, phase);
 const VIEWPORT = { width: 1440, height: 900 };
-const fixtureDir = path.join(__dirname, '../../backend/test/fixtures/exam-structure');
-const apiBase = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:3000/api';
+const DEVICE_SCALE = 2;
+const mathexamTemplateZip = path.join(
+  __dirname,
+  '../../frontend/public/downloads/mathexam-v2.3.3.zip',
+);
+const apiBase =
+  process.env.PLAYWRIGHT_API_URL
+  || `${(process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '')}/api`;
 
 const {
   registerAndLoginSession,
@@ -22,10 +27,11 @@ const {
 const { seedViaPageRequest } = require('../helpers/seedUiV2ScreenshotRequest');
 const { assertPageReady, assertNoHorizontalOverflow } = require('../helpers/screenshotAssert');
 
-function buildMathexamZip() {
-  const zipPath = path.join(os.tmpdir(), `latex-io-shot-${Date.now()}.zip`);
-  execSync(`zip -j "${zipPath}" exam.tex exam-body.tex`, { cwd: fixtureDir });
-  return zipPath;
+function mathexamZipForImport() {
+  if (!fs.existsSync(mathexamTemplateZip)) {
+    throw new Error(`missing template zip: ${mathexamTemplateZip}`);
+  }
+  return mathexamTemplateZip;
 }
 
 async function snap(page, slug) {
@@ -40,7 +46,11 @@ async function snap(page, slug) {
 test.describe('LaTeX IO screenshots', () => {
   test.skip(!scheme, 'Set LATEX_IO_SCREENSHOT_SCHEME=light|dark');
 
-  test.use({ colorScheme: scheme === 'dark' ? 'dark' : 'light' });
+  test.use({
+    colorScheme: scheme === 'dark' ? 'dark' : 'light',
+    deviceScaleFactor: DEVICE_SCALE,
+    viewport: VIEWPORT,
+  });
 
   test(`capture import/export ${scheme}`, async ({ page }) => {
     test.setTimeout(600000);
@@ -65,7 +75,7 @@ test.describe('LaTeX IO screenshots', () => {
     await expect(page.getByTestId('latex-import-flow-steps')).toBeVisible({ timeout: 30000 });
     await snap(page, 'latex-import-step-1');
 
-    const zipPath = buildMathexamZip();
+    const zipPath = mathexamZipForImport();
     await page.locator('#fileInput').setInputFiles(zipPath);
     await page.getByRole('button', { name: '预览题目' }).click({ timeout: 120000 });
     await expect(page.getByTestId('latex-import-preview-panel')).toBeVisible({ timeout: 180000 });
@@ -82,10 +92,16 @@ test.describe('LaTeX IO screenshots', () => {
       headers: bankId ? { 'X-Bank-Id': bankId } : {},
     });
     if (listRes.ok()) {
-      const ids = (await listRes.json()).questions?.map((q) => q._id) || [];
-      for (const id of ids.slice(0, 2)) {
-        await page.locator(`.export-question-row`).filter({ has: page.locator(`input[aria-label="选择题目 ${id}"]`) }).click().catch(() => {});
+      const body = await listRes.json();
+      const rows = Array.isArray(body) ? body : body.questions || [];
+      const ids = rows.map((q) => q._id).filter(Boolean);
+      for (const id of ids.slice(0, 4)) {
+        const row = page.locator('.export-question-row').filter({
+          has: page.locator(`input[aria-label="选择题目 ${id}"]`),
+        });
+        await row.click().catch(() => {});
       }
+      await expect(page.getByTestId('latex-export-selection-summary')).toContainText(/已选择 [1-9]/, { timeout: 15000 });
     }
     await snap(page, 'latex-export');
   });
