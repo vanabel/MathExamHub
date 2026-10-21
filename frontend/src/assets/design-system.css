@@ -51,6 +51,9 @@
   --code-bg: #f5f5f7;
   --code-fg: #1d1d1f;
   --media-frame-bg: #f5f5f7;
+  --pill-muted-bg: rgba(0, 0, 0, 0.06);
+  --pill-muted-fg: var(--text-secondary);
+  --pill-muted-border: var(--border-subtle);
 }
 
 html {

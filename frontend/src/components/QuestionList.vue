@@ -281,7 +281,7 @@
                   <span
                     v-for="chip in kpChipsForQuestion(question)"
                     :key="chip.id"
-                    class="badge rounded-pill text-bg-light border kp-chip"
+                    class="badge rounded-pill border kp-chip kp-pill-muted"
                   >{{ chip.label }}</span>
                   <span
                     v-if="question.qualityIssues && question.qualityIssues.includes('step_score_mismatch')"
@@ -327,7 +327,10 @@
               <div class="question-card__body-main flex-grow-1 d-flex flex-column">
                 <div
                   class="question-card__preview"
-                  :class="{ 'question-card__preview--expanded': isCardExpanded(question._id) }"
+                  :class="{
+                    'question-card__preview--expanded': isCardExpanded(question._id),
+                    'question-card__preview--overflow': overflowCardIds[question._id],
+                  }"
                   :data-qid="question._id"
                 >
                   <div
@@ -1152,14 +1155,37 @@ export default {
 }
 
 .question-card__preview:not(.question-card__preview--expanded)::after {
+  content: none;
+}
+
+.question-card__preview--overflow:not(.question-card__preview--expanded)::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 1.75rem;
-  background: linear-gradient(transparent, var(--surface-card, #fff));
+  height: 1.25rem;
+  background: linear-gradient(transparent, var(--surface-card));
   pointer-events: none;
+}
+
+.question-images :deep(.pdf-container),
+.question-images :deep(.question-structured-image),
+.question-images :deep(.latex-figure) {
+  background: var(--media-frame-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.35rem;
+  box-sizing: border-box;
+}
+
+.question-images :deep(.pdf-container) {
+  margin: 0.5rem 0 0;
+}
+
+.question-images :deep(.pdf-canvas) {
+  background: #fff;
+  border-radius: var(--radius-sm);
 }
 
 .question-card__preview--expanded {

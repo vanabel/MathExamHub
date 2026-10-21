@@ -27,9 +27,21 @@ async function snap(page, slug) {
   await assertPageReady(page, slug);
   await assertNoHorizontalOverflow(page, slug);
   await page.setViewportSize(VIEWPORT);
+  if (slug === 'question-list') {
+    await page.locator('.pdf-canvas').first().waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+  }
   await page.waitForTimeout(350);
   fs.mkdirSync(outRoot, { recursive: true });
   await page.screenshot({ path: path.join(outRoot, `${slug}.png`), fullPage: true });
+}
+
+async function snapNavbar(page) {
+  await page.setViewportSize(VIEWPORT);
+  const nav = page.locator('nav.app-navbar');
+  await nav.waitFor({ state: 'visible', timeout: 10000 });
+  fs.mkdirSync(outRoot, { recursive: true });
+  await nav.screenshot({ path: path.join(outRoot, 'navbar-closeup.png') });
 }
 
 test.describe('macOS style screenshots', () => {
@@ -57,6 +69,12 @@ test.describe('macOS style screenshots', () => {
     const bankId = session.bankId || (await page.evaluate(() => localStorage.getItem('currentBankId')));
     await seedViaPageRequest(page, bankId);
 
+    const listRes = await page.request.get(`${apiBase}/questions/list?limit=1`, {
+      headers: bankId ? { 'X-Bank-Id': bankId } : {},
+    });
+    const firstQ = listRes.ok() ? (await listRes.json()).questions?.[0] : null;
+    const editQuestionId = firstQ?._id;
+
     const skipTour = page.getByTestId('onboarding-skip');
     const routes = [
       '/question-list',
@@ -79,6 +97,14 @@ test.describe('macOS style screenshots', () => {
       }
       const slug = route.replace(/^\//, '').replace(/\//g, '-') || 'home';
       await snap(page, slug);
+      if (route === '/question-list') {
+        await snapNavbar(page);
+      }
+    }
+
+    if (editQuestionId) {
+      await page.goto(`${appOrigin}/question-edit/${editQuestionId}`, { waitUntil: 'domcontentloaded' });
+      await snap(page, 'question-edit');
     }
 
     await page.goto(`${appOrigin}/question-list`, { waitUntil: 'domcontentloaded' });

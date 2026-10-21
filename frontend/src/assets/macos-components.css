@@ -180,12 +180,17 @@ pre,
 .question-structured-image,
 .latex-figure {
   border-radius: var(--radius-sm);
+  background: var(--media-frame-bg);
+  border: 1px solid var(--border-subtle);
+  padding: 0.35rem;
+  box-sizing: border-box;
 }
 
-[data-bs-theme='dark'] .question-structured-image,
-[data-bs-theme='dark'] .latex-figure:not(.pdf-canvas) {
-  background: #ffffff;
-  padding: 0.35rem;
+.kp-pill-muted {
+  background: var(--pill-muted-bg) !important;
+  color: var(--pill-muted-fg) !important;
+  border-color: var(--pill-muted-border) !important;
+  font-weight: 500;
 }
 
 .math-preview,
