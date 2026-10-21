@@ -120,6 +120,7 @@
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-info ms-2"
+                    data-testid="latex-export-smart-select"
                     @click="showSmartSelectModal = true"
                     :disabled="questions.length === 0"
                   >
@@ -408,11 +409,22 @@
               <button type="button" class="btn-close" @click="showSmartSelectModal = false"></button>
             </div>
             <div class="modal-body">
-              <p class="text-muted mb-3">
-                根据难度分数自动选择题目。难度分数 = 难度系数 × 题目分数<br>
-                <small>简单: 0.4, 中等: 0.6, 难: 1.0</small>
+              <p class="text-muted mb-3 smart-select-help">
+                在当前列表（当前题库及筛选条件，最多 {{ SMART_SELECT_CANDIDATE_LIMIT }} 道，不含回收站和已归档）中自动勾选题目。
+                难度分数 = 难度系数（易 0.4 / 中 0.6 / 难 1.0）× 分值。可设置题目数量、目标总分或目标难度分数，以及题型分布；随机结果由种子决定，相同种子可复现。
+                不考虑知识点覆盖、使用次数和 A/B 卷重复。应用后会替换已勾选的题目。
+                需要按难度比例、知识点或 A/B 卷组卷，请使用
+                <router-link to="/exam-wizard">组卷向导</router-link>。
               </p>
-              
+
+              <div
+                v-if="smartSelectPoolCapWarning"
+                class="alert alert-warning py-2 small mb-3"
+                data-testid="smart-select-pool-cap-warning"
+              >
+                {{ smartSelectPoolCapWarning }}
+              </div>
+
               <div class="mb-3">
                 <label for="smartSelectMode" class="form-label">选择模式</label>
                 <select v-model="smartSelectMode" id="smartSelectMode" class="form-select">
@@ -429,11 +441,11 @@
                   type="number"
                   class="form-control"
                   min="1"
-                  :max="filteredQuestions.length"
+                  :max="smartSelectCandidates.length"
                   placeholder="请输入题目数量"
                 />
                 <small class="form-text text-muted">
-                  最多可选择 {{ filteredQuestions.length }} 道题目
+                  候选池 {{ smartSelectCandidates.length }} 道（已排除已归档）
                 </small>
               </div>
 
@@ -449,18 +461,56 @@
                   placeholder="请输入目标难度分数"
                 />
                 <small class="form-text text-muted">
-                  当前筛选结果的平均难度分数: {{ averageDifficultyScore.toFixed(2) }}
+                  候选池平均难度分数: {{ averageDifficultyScore.toFixed(2) }}
                 </small>
+              </div>
+
+              <div class="mb-3">
+                <label for="targetTotalScore" class="form-label">目标总分（可选）</label>
+                <input
+                  v-model.number="smartSelectParams.targetTotalScore"
+                  id="targetTotalScore"
+                  type="number"
+                  class="form-control"
+                  min="0"
+                  step="1"
+                  placeholder="留空则不限制总分"
+                />
               </div>
 
               <div class="mb-3">
                 <label class="form-label">排序方式</label>
                 <select v-model="smartSelectParams.sortOrder" class="form-select">
+                  <option value="random">随机（推荐）</option>
                   <option value="asc">难度分数从低到高</option>
                   <option value="desc">难度分数从高到低</option>
-                  <option value="random">随机排序</option>
-                  <option value="type">按类型排序</option>
+                  <option value="type">按题型排序（仅影响本次勾选顺序）</option>
                 </select>
+              </div>
+
+              <div class="mb-3">
+                <label for="smartSelectSeed" class="form-label">随机种子</label>
+                <div class="input-group">
+                  <input
+                    v-model="smartSelectParams.seed"
+                    id="smartSelectSeed"
+                    type="text"
+                    class="form-control"
+                    placeholder="留空则自动生成"
+                    data-testid="smart-select-seed-input"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    data-testid="smart-select-reroll-seed"
+                    @click="rollSmartSelectSeed"
+                  >
+                    换一组
+                  </button>
+                </div>
+                <small v-if="smartSelectSeedUsed != null" class="form-text text-muted">
+                  上次应用使用种子: {{ smartSelectSeedUsed }}
+                </small>
               </div>
 
               <!-- 题型分布设置 -->
@@ -475,7 +525,7 @@
                     {{ enableTypeDistribution ? '禁用' : '启用' }}
                   </button>
                 </div>
-                <div v-if="enableTypeDistribution" class="border rounded p-3 bg-light">
+                <div v-if="enableTypeDistribution" class="border rounded p-3 smart-select-type-panel">
                   <small class="text-muted d-block mb-2">
                     <i class="bi bi-info-circle"></i>
                     设置每种题型的数量或比例。留空表示不限制。
@@ -521,11 +571,42 @@
                 </div>
               </div>
 
-              <div v-if="smartSelectMode === 'difficulty'" class="alert alert-info">
-                <small>
-                  <i class="bi bi-info-circle"></i>
-                  将使用优化算法选择最接近目标难度分数的题目组合
-                </small>
+              <div
+                v-if="smartSelectValidationErrors.length"
+                class="alert alert-danger py-2 small"
+                data-testid="smart-select-validation-errors"
+              >
+                <div v-for="(err, idx) in smartSelectValidationErrors" :key="idx">{{ err }}</div>
+              </div>
+
+              <div
+                v-if="smartSelectPreview"
+                class="smart-select-result border rounded p-3"
+                data-testid="smart-select-result-summary"
+              >
+                <div class="fw-semibold mb-2">选择结果</div>
+                <div class="small text-muted">
+                  题数 {{ smartSelectPreview.count }} · 总分 {{ smartSelectPreview.totalScore }} ·
+                  平均难度系数 {{ smartSelectPreview.averageDifficultyCoefficient.toFixed(2) }} ·
+                  平均难度分 {{ smartSelectPreview.averageDifficultyScore.toFixed(2) }}
+                </div>
+                <div
+                  v-if="Object.keys(smartSelectPreview.typeDistribution).length"
+                  class="small mt-1"
+                >
+                  题型分布：
+                  {{
+                    Object.entries(smartSelectPreview.typeDistribution)
+                      .map(([t, c]) => `${t} ${c}`)
+                      .join('，')
+                  }}
+                </div>
+                <ul
+                  v-if="smartSelectPreview.messages.length"
+                  class="small mb-0 mt-2 smart-select-result-messages"
+                >
+                  <li v-for="(msg, idx) in smartSelectPreview.messages" :key="idx">{{ msg }}</li>
+                </ul>
               </div>
             </div>
             <div class="modal-footer">
@@ -563,12 +644,23 @@ import {
 } from "../utils/latexExamDateForm";
 import PageHeader from "./ui/PageHeader.vue";
 import SubjectCombobox from "./ui/SubjectCombobox.vue";
+import {
+  QUESTION_TYPES,
+  QUESTION_TYPE_ORDER,
+  SMART_SELECT_CANDIDATE_LIMIT,
+} from "../constants/questionTypes.js";
+import { getDifficultyScore } from "../utils/difficultyScore.js";
+import {
+  filterExamPoolCandidates,
+  runSmartSelect,
+} from "../utils/smartSelect.js";
 
 export default {
   name: "LatexExport",
   components: { PageHeader, SubjectCombobox },
   data() {
     return {
+      SMART_SELECT_CANDIDATE_LIMIT,
       questions: [],
       selectedQuestionIds: [],
       loading: false,
@@ -577,34 +669,20 @@ export default {
       showSmartSelectModal: false, // 智能选择模态框
       smartSelectMode: 'count', // 'count' 或 'difficulty'
       enableTypeDistribution: false, // 是否启用题型分布
-      questionTypes: [
-        '判断题',
-        '单选题',
-        '多选题',
-        '填空题',
-        '解答题',
-        '计算题',
-        '证明题',
-        '作图题',
-      ],
-      // 题型排序顺序（用于导出时按顺序排列）
-      typeOrder: [
-        '判断题',
-        '单选题',
-        '多选题',
-        '填空题',
-        '简答题',
-        '作图题',
-        '解答题',
-        '计算题',
-        '证明题',
-      ],
+      questionTypes: [...QUESTION_TYPES],
+      typeOrder: [...QUESTION_TYPE_ORDER],
       typeDistribution: {}, // 题型分布：{ '单选题': 5, '填空题': 3, ... }
+      questionsListTotal: null,
       smartSelectParams: {
         targetCount: 10,
         targetDifficulty: 50,
-        sortOrder: 'asc', // 'asc', 'desc', 'random'
+        targetTotalScore: '',
+        sortOrder: 'random',
+        seed: '',
       },
+      smartSelectSeedUsed: null,
+      smartSelectPreview: null,
+      smartSelectValidationErrors: [],
       mathjaxOptions: mathjaxOptions,
       filters: {
         subject: "",
@@ -663,32 +741,43 @@ export default {
       if (!Array.isArray(this.questions)) {
         return [];
       }
-      const questions = this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
-      // 如果需要按类型排序，对已选择的题目进行排序
-      if (this.smartSelectParams.sortOrder === 'type') {
-        return this.sortQuestionsByType(questions);
-      }
-      return questions;
+      return this.questions.filter((q) => this.selectedQuestionIds.includes(q._id));
     },
     selectedTotalScore() {
       return this.selectedQuestions.reduce((sum, q) => sum + (Number(q.totalScore) || 0), 0);
     },
-    // 获取当前筛选后的题目（用于智能选择）
     filteredQuestions() {
-      // 防御性检查：确保 questions 是数组
       return Array.isArray(this.questions) ? this.questions : [];
     },
-    // 计算平均难度分数
+    smartSelectCandidates() {
+      return filterExamPoolCandidates(this.filteredQuestions);
+    },
+    smartSelectPoolCapWarning() {
+      const total = this.questionsListTotal;
+      if (total == null || total <= SMART_SELECT_CANDIDATE_LIMIT) {
+        return '';
+      }
+      return `当前列表共 ${total} 道，仅前 ${SMART_SELECT_CANDIDATE_LIMIT} 道参与智能选择，请缩小筛选范围`;
+    },
     averageDifficultyScore() {
-      if (this.filteredQuestions.length === 0) return 0;
-      const total = this.filteredQuestions.reduce((sum, q) => {
-        return sum + this.getDifficultyScore(q);
-      }, 0);
-      return total / this.filteredQuestions.length;
+      if (this.smartSelectCandidates.length === 0) return 0;
+      const total = this.smartSelectCandidates.reduce(
+        (sum, q) => sum + getDifficultyScore(q),
+        0,
+      );
+      return total / this.smartSelectCandidates.length;
     },
   },
   watch: {
-    // 当选择的题目改变时，自动更新文件名和元数据
+    showSmartSelectModal(open) {
+      if (open) {
+        this.smartSelectValidationErrors = [];
+        this.smartSelectPreview = null;
+        if (this.smartSelectParams.seed === '' || this.smartSelectParams.seed == null) {
+          this.rollSmartSelectSeed();
+        }
+      }
+    },
     selectedQuestions: {
       handler(newVal) {
         if (newVal.length > 0) {
@@ -897,12 +986,18 @@ export default {
         if (this.filters.subject) params.subject = this.filters.subject;
         if (this.filters.type) params.questionType = this.filters.type;
         if (this.filters.keyword) params.q = this.filters.keyword;
-        params.limit = 500;
+        params.limit = SMART_SELECT_CANDIDATE_LIMIT;
         params.offset = 0;
 
         const response = await axios.get("/questions/list", { params });
         const data = response.data;
-        this.questions = Array.isArray(data) ? data : (data.questions || []);
+        if (Array.isArray(data)) {
+          this.questions = data;
+          this.questionsListTotal = null;
+        } else {
+          this.questions = data.questions || [];
+          this.questionsListTotal = data.total ?? null;
+        }
       } catch (error) {
         console.error("加载题目失败:", error);
         alert("加载题目失败");
@@ -933,42 +1028,34 @@ export default {
     deselectAll() {
       this.selectedQuestionIds = [];
     },
-    // 获取题目的难度分数
-    getDifficultyScore(question) {
-      const difficultyCoefficient = {
-        '简单': 0.4,
-        '中等': 0.6,
-        '难': 1.0,
-      };
-      const coefficient = difficultyCoefficient[question.difficulty] || 0.6;
-      return coefficient * (question.totalScore || 0);
-    },
-    // 获取题型的排序索引
-    getTypeIndex(type) {
-      const index = this.typeOrder.indexOf(type);
-      return index >= 0 ? index : 999; // 未在顺序中的类型排在最后
-    },
-    // 按类型排序题目
-    sortQuestionsByType(questions) {
-      const sorted = [...questions];
-      sorted.sort((a, b) => {
-        const indexA = this.getTypeIndex(a.type);
-        const indexB = this.getTypeIndex(b.type);
-        if (indexA !== indexB) {
-          return indexA - indexB;
-        }
-        // 同一类型内，按难度分数从低到高排序
-        return this.getDifficultyScore(a) - this.getDifficultyScore(b);
-      });
-      return sorted;
-    },
-    // 获取指定题型的可用数量
+    getDifficultyScore,
     getAvailableCountByType(type) {
-      return this.filteredQuestions.filter(q => q.type === type).length;
+      return this.smartSelectCandidates.filter((q) => q.type === type).length;
+    },
+    rollSmartSelectSeed() {
+      this.smartSelectParams.seed = String(Date.now() % 1000000000);
+    },
+    buildSmartSelectSettings() {
+      return {
+        mode: this.smartSelectMode,
+        targetCount: this.smartSelectParams.targetCount,
+        targetDifficulty: this.smartSelectParams.targetDifficulty,
+        targetTotalScore: this.smartSelectParams.targetTotalScore,
+        sortOrder: this.smartSelectParams.sortOrder,
+        seed: this.smartSelectParams.seed,
+        enableTypeDistribution: this.enableTypeDistribution,
+        typeDistribution: { ...this.typeDistribution },
+        questionTypes: this.questionTypes,
+        typeOrder: this.typeOrder,
+      };
     },
     // 自动分配题型分布
     autoFillTypeDistribution() {
-      const total = this.smartSelectParams.targetCount || 10;
+      const total = Number(this.smartSelectParams.targetCount);
+      if (!Number.isFinite(total) || total <= 0) {
+        this.smartSelectValidationErrors = ['请先填写有效的题目数量'];
+        return;
+      }
       const availableTypes = this.questionTypes.filter(
         type => this.getAvailableCountByType(type) > 0
       );
@@ -1006,277 +1093,27 @@ export default {
         this.typeDistribution[type] = null;
       });
     },
-    // 使用动态规划算法选择最接近目标难度分数的题目
-    selectByDifficultyWithDP(questions, targetDifficulty) {
-      // 将难度分数转换为整数（乘以10避免浮点数问题）
-      const scale = 10;
-      const target = Math.round(targetDifficulty * scale);
-      const tolerance = Math.round(targetDifficulty * 0.15 * scale); // 允许15%的误差范围
-
-      // dp[j] 表示难度分数为j时的最佳选择
-      // 使用一维数组优化空间
-      const maxScore = Math.round(target + tolerance);
-      let dp = new Array(maxScore + 1).fill(null).map(() => ({
-        selected: [],
-        score: 0,
-        diff: Infinity,
-      }));
-
-      dp[0] = { selected: [], score: 0, diff: target };
-
-      for (const q of questions) {
-        const qScore = Math.round(q.difficultyScore * scale);
-        const newDp = dp.map(item => ({
-          selected: [...item.selected],
-          score: item.score,
-          diff: item.diff,
-        }));
-
-        for (let j = maxScore; j >= qScore; j--) {
-          const prev = dp[j - qScore];
-          if (prev.selected.length > 0 || j === qScore) {
-            const newDiff = Math.abs(j - target);
-            if (newDiff < newDp[j].diff || 
-                (newDiff === newDp[j].diff && prev.selected.length + 1 < newDp[j].selected.length)) {
-              newDp[j] = {
-                selected: [...prev.selected, q._id],
-                score: j / scale,
-                diff: newDiff,
-              };
-            }
-          }
-        }
-        dp = newDp;
-      }
-
-      // 找到最接近目标的解
-      let best = dp[0];
-      for (let i = 1; i <= maxScore; i++) {
-        if (dp[i].selected.length > 0) {
-          if (dp[i].diff < best.diff || 
-              (dp[i].diff === best.diff && Math.abs(dp[i].score - targetDifficulty) < Math.abs(best.score - targetDifficulty))) {
-            best = dp[i];
-          }
-        }
-      }
-
-      return best.selected.length > 0 ? best.selected : (questions.length > 0 ? [questions[0]._id] : []);
-    },
-    // 应用智能选择
     applySmartSelect() {
-      if (this.filteredQuestions.length === 0) {
-        alert('当前没有可选的题目');
+      const result = runSmartSelect(
+        this.filteredQuestions,
+        this.buildSmartSelectSettings(),
+      );
+      this.smartSelectValidationErrors = result.errors;
+      if (!result.ok) {
+        this.smartSelectPreview = null;
         return;
       }
 
-      // 计算每道题的难度分数
-      const questionsWithScore = this.filteredQuestions.map(q => ({
-        ...q,
-        difficultyScore: this.getDifficultyScore(q),
-      }));
-
-      // 如果启用了题型分布，先按题型分组
-      let candidateQuestions = [...questionsWithScore];
-      
-      if (this.enableTypeDistribution) {
-        // 先选择满足题型分布要求的题目
-        const typeSelectedIds = [];
-        const typeSelected = {};
-        
-        this.questionTypes.forEach(type => {
-          const count = this.typeDistribution[type];
-          if (count && count > 0) {
-            const typeQuestions = candidateQuestions
-              .filter(q => q.type === type && !typeSelectedIds.includes(q._id))
-              .map(q => ({ ...q, difficultyScore: this.getDifficultyScore(q) }));
-            
-            // 按排序方式排序
-            if (this.smartSelectParams.sortOrder === 'asc') {
-              typeQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
-            } else if (this.smartSelectParams.sortOrder === 'desc') {
-              typeQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
-            } else if (this.smartSelectParams.sortOrder === 'type') {
-              // 按类型排序已经在题型循环中处理，这里按难度分数从低到高
-              typeQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
-            } else {
-              typeQuestions.sort(() => Math.random() - 0.5);
-            }
-            
-            const selected = typeQuestions.slice(0, Math.min(count, typeQuestions.length));
-            selected.forEach(q => {
-              typeSelectedIds.push(q._id);
-              typeSelected[q._id] = true;
-            });
-          }
-        });
-
-        // 如果按数量选择，且已选择的题目数量不足，补充其他题目
-        if (this.smartSelectMode === 'count') {
-          const targetCount = this.smartSelectParams.targetCount || 10;
-          const remaining = targetCount - typeSelectedIds.length;
-          
-          if (remaining > 0) {
-            const remainingQuestions = candidateQuestions
-              .filter(q => !typeSelected[q._id])
-              .map(q => ({ ...q, difficultyScore: this.getDifficultyScore(q) }));
-            
-            // 排序
-            if (this.smartSelectParams.sortOrder === 'asc') {
-              remainingQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
-            } else if (this.smartSelectParams.sortOrder === 'desc') {
-              remainingQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
-            } else if (this.smartSelectParams.sortOrder === 'type') {
-              // 按类型排序
-              remainingQuestions.sort((a, b) => {
-                const indexA = this.getTypeIndex(a.type);
-                const indexB = this.getTypeIndex(b.type);
-                if (indexA !== indexB) {
-                  return indexA - indexB;
-                }
-                return a.difficultyScore - b.difficultyScore;
-              });
-            } else {
-              remainingQuestions.sort(() => Math.random() - 0.5);
-            }
-            
-            remainingQuestions.slice(0, remaining).forEach(q => {
-              typeSelectedIds.push(q._id);
-            });
-          }
-          
-          this.selectedQuestionIds = typeSelectedIds.slice(0, targetCount);
-        } else {
-          // 按难度分数选择，先满足题型分布，再优化难度分数
-          this.selectedQuestionIds = typeSelectedIds;
-          
-          // 如果已选择的题目难度分数总和接近目标，直接返回
-          const currentTotal = typeSelectedIds.reduce((sum, id) => {
-            const q = candidateQuestions.find(q => q._id === id);
-            return sum + (q ? q.difficultyScore : 0);
-          }, 0);
-          
-          const target = this.smartSelectParams.targetDifficulty || 50;
-          if (Math.abs(currentTotal - target) / target < 0.1) {
-            // 已经接近目标，直接使用
-          } else {
-            // 使用优化算法调整
-            const remainingQuestions = candidateQuestions.filter(q => !typeSelected[q._id]);
-            const remainingTarget = target - currentTotal;
-            
-            if (remainingTarget > 0 && remainingQuestions.length > 0) {
-              // 使用改进的贪心算法选择剩余题目
-              remainingQuestions.sort((a, b) => {
-                const diffA = Math.abs(a.difficultyScore - remainingTarget);
-                const diffB = Math.abs(b.difficultyScore - remainingTarget);
-                return diffA - diffB;
-              });
-              
-              let currentTotal2 = currentTotal;
-              for (const q of remainingQuestions) {
-                if (currentTotal2 + q.difficultyScore <= target * 1.15) {
-                  typeSelectedIds.push(q._id);
-                  currentTotal2 += q.difficultyScore;
-                  if (currentTotal2 >= target * 0.9) break;
-                }
-              }
-              
-              this.selectedQuestionIds = typeSelectedIds;
-            }
-          }
-        }
-      } else {
-        // 未启用题型分布，使用原有逻辑
-        // 排序
-        let sortedQuestions = [...candidateQuestions];
-        if (this.smartSelectParams.sortOrder === 'asc') {
-          sortedQuestions.sort((a, b) => a.difficultyScore - b.difficultyScore);
-        } else if (this.smartSelectParams.sortOrder === 'desc') {
-          sortedQuestions.sort((a, b) => b.difficultyScore - a.difficultyScore);
-        } else if (this.smartSelectParams.sortOrder === 'type') {
-          // 按类型排序
-          sortedQuestions.sort((a, b) => {
-            const indexA = this.getTypeIndex(a.type);
-            const indexB = this.getTypeIndex(b.type);
-            if (indexA !== indexB) {
-              return indexA - indexB;
-            }
-            // 同一类型内，按难度分数从低到高排序
-            return a.difficultyScore - b.difficultyScore;
-          });
-        } else {
-          sortedQuestions.sort(() => Math.random() - 0.5);
-        }
-
-        let selectedIds = [];
-
-        if (this.smartSelectMode === 'count') {
-          // 按数量选择
-          const count = Math.min(
-            this.smartSelectParams.targetCount || 10,
-            sortedQuestions.length
-          );
-          selectedIds = sortedQuestions.slice(0, count).map(q => q._id);
-        } else {
-          // 按目标难度分数选择（使用优化算法）
-          const target = this.smartSelectParams.targetDifficulty || 50;
-          
-          // 对于较小的题目集合，使用动态规划
-          if (sortedQuestions.length <= 50) {
-            selectedIds = this.selectByDifficultyWithDP(sortedQuestions, target);
-          } else {
-            // 对于较大的集合，使用改进的贪心算法
-            let currentTotal = 0;
-            const tolerance = target * 0.1;
-            
-            // 先尝试选择最接近目标的题目
-            sortedQuestions.sort((a, b) => {
-              const diffA = Math.abs(a.difficultyScore - target);
-              const diffB = Math.abs(b.difficultyScore - target);
-              return diffA - diffB;
-            });
-            
-            for (const q of sortedQuestions) {
-              if (currentTotal + q.difficultyScore <= target + tolerance) {
-                selectedIds.push(q._id);
-                currentTotal += q.difficultyScore;
-                if (currentTotal >= target - tolerance) {
-                  break;
-                }
-              }
-            }
-
-            // 如果没有选择任何题目，至少选择一道
-            if (selectedIds.length === 0 && sortedQuestions.length > 0) {
-              selectedIds = [sortedQuestions[0]._id];
-            }
-          }
-        }
-
-        this.selectedQuestionIds = selectedIds;
+      const replaceCount = this.selectedQuestionIds.length;
+      if (replaceCount > 0) {
+        const ok = window.confirm(`替换当前已选的 ${replaceCount} 道题？`);
+        if (!ok) return;
       }
 
-      this.showSmartSelectModal = false;
-
-      // 显示统计信息
-      const selected = this.selectedQuestions;
-      const totalDifficultyScore = selected.reduce((sum, q) => sum + this.getDifficultyScore(q), 0);
-      const totalScore = selected.reduce((sum, q) => sum + (q.totalScore || 0), 0);
-      
-      // 统计题型分布
-      const typeStats = {};
-      selected.forEach(q => {
-        typeStats[q.type] = (typeStats[q.type] || 0) + 1;
-      });
-      const typeStatsStr = Object.entries(typeStats)
-        .map(([type, count]) => `${type}: ${count}`)
-        .join(', ');
-      
-      alert(
-        `已选择 ${selected.length} 道题目\n` +
-        `总分数: ${totalScore} 分\n` +
-        `总难度分数: ${totalDifficultyScore.toFixed(2)}\n` +
-        (typeStatsStr ? `题型分布: ${typeStatsStr}` : '')
-      );
+      this.smartSelectSeedUsed = result.seedUsed;
+      this.smartSelectParams.seed = String(result.seedUsed);
+      this.smartSelectPreview = result.summary;
+      this.selectedQuestionIds = [...result.selectedIds];
     },
     // 根据选择的题目更新元数据
     updateMetadataFromQuestions(questions) {
@@ -1324,17 +1161,10 @@ export default {
       this.exportStatusError = false;
 
       try {
-        // 如果需要按类型排序，使用排序后的题目ID
-        let questionIds = this.selectedQuestionIds;
-        if (this.smartSelectParams.sortOrder === 'type') {
-          const sortedQuestions = this.sortQuestionsByType(this.selectedQuestions);
-          questionIds = sortedQuestions.map(q => q._id);
-        }
-
         const response = await axios.post(
           "/questions/export/latex",
           {
-            questionIds: questionIds,
+            questionIds: this.selectedQuestionIds,
             metadata: this.metadata,
           },
           {
@@ -1454,6 +1284,20 @@ export default {
 
 .export-question-row:hover {
   background: var(--color-primary-soft, #eff6ff);
+}
+
+.smart-select-type-panel,
+.smart-select-result {
+  background: var(--surface-muted, var(--surface-bg, #f8fafc));
+  border-color: var(--border-subtle, #e2e8f0) !important;
+}
+
+.smart-select-result-messages {
+  color: var(--text-secondary, #64748b);
+}
+
+.smart-select-help a {
+  text-decoration: underline;
 }
 
 .export-question-row--selected {
