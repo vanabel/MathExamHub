@@ -19,6 +19,7 @@ for arg in "$@"; do
   fi
 done
 
+clean_stray_pnpm_root_artifacts "$ROOT"
 assert_clean_worktree
 ensure_node20
 echo "Using Node $(node --version) at $(command -v node)"
