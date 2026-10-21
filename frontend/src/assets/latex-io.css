@@ -1,0 +1,166 @@
+/**
+ * LaTeX import / export — macOS-style layout helpers
+ */
+
+.latex-io-steps__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.latex-io-steps__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.latex-io-steps__item--active {
+  color: var(--color-accent);
+}
+
+.latex-io-steps__item--done {
+  color: var(--text-secondary);
+}
+
+.latex-io-steps__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.latex-io-steps__item--active .latex-io-steps__badge {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-accent);
+}
+
+.latex-io-steps__item--done .latex-io-steps__badge {
+  background: rgba(52, 199, 89, 0.15);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.latex-io-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem 0 0.25rem;
+  margin-top: 1rem;
+  background: linear-gradient(180deg, transparent 0%, var(--surface-card) 28%);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.latex-io-panel-header {
+  background: var(--surface-muted) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.latex-io-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.latex-io-upload-label {
+  border-color: var(--border-strong) !important;
+}
+
+.latex-io-upload-label:hover,
+.latex-io-upload-label.dragover {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-soft) !important;
+}
+
+.latex-io-upload-label.has-file {
+  border-color: var(--success) !important;
+  background: rgba(52, 199, 89, 0.12) !important;
+}
+
+.latex-io-advanced {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  background: var(--surface-card);
+}
+
+.latex-io-advanced summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.latex-io-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.latex-io-preview-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
+  margin: 0;
+}
+
+.latex-io-import-options {
+  background: var(--surface-muted);
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.latex-io-preview-item {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.latex-io-preview-item--warn {
+  border-color: var(--warning);
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.latex-io-export-sidebar {
+  position: sticky;
+  top: calc(var(--navbar-height, 52px) + 0.75rem);
+}
+
+.latex-io-export-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 992px) {
+  .latex-io-export-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+}
+
+.latex-io-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 1rem;
+}

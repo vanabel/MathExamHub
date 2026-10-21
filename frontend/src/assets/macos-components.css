@@ -198,6 +198,14 @@ pre,
   box-sizing: border-box;
 }
 
+.badge.pill-muted,
+.pill-muted.badge {
+  background: var(--pill-muted-bg) !important;
+  color: var(--pill-muted-fg) !important;
+  border: 1px solid var(--pill-muted-border) !important;
+  font-weight: 500;
+}
+
 .kp-pill-muted {
   background: var(--pill-muted-bg) !important;
   color: var(--pill-muted-fg) !important;

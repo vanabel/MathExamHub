@@ -29,8 +29,16 @@
                   导入 / 导出
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" data-testid="question-list-more-menu-panel">
-                  <li><router-link class="dropdown-item" to="/latex-import">LaTeX 导入</router-link></li>
-                  <li><router-link class="dropdown-item" to="/latex-export">LaTeX 导出</router-link></li>
+                  <li>
+                    <router-link class="dropdown-item" to="/latex-import" data-testid="question-list-link-latex-import">
+                      LaTeX 导入
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link class="dropdown-item" to="/latex-export" data-testid="question-list-link-latex-export">
+                      LaTeX 导出
+                    </router-link>
+                  </li>
                 </ul>
               </div>
               <kp-graph-nav-link link-class="btn btn-outline-secondary btn-sm">
