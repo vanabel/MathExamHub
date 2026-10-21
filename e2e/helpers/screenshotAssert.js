@@ -54,7 +54,9 @@ async function assertNoHorizontalOverflow(page, slug) {
 }
 
 async function assertPageReady(page, slug) {
-  await assertNotLoginPage(page, slug);
+  if (slug !== 'login' && slug !== 'register') {
+    await assertNotLoginPage(page, slug);
+  }
   const marker = PAGE_MARKERS[slug];
   if (!marker) return;
   if (marker.path) {
