@@ -72,7 +72,7 @@
                       <i class="bi bi-check-circle"></i>
                       {{ selectedTexFiles.length === 1 ? selectedTexFiles[0].name : `已选 ${selectedTexFiles.length} 个文件` }}
                     </h5>
-                    <p class="text-muted mb-0">支持 .tex / .zip（可多选，含 \\input 子文件），最大 20MB</p>
+                    <p class="text-muted mb-0">支持 .tex / .zip（可多选，含 \input 子文件），最大 20MB</p>
                     <p class="text-muted mb-0 small">
                       请优先使用 mathexam 模板出题（上方可下载 .sty 与示例包），识别最准确。
                     </p>

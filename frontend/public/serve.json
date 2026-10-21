@@ -3,13 +3,15 @@
     {
       "source": "downloads/*.sty",
       "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"mathexam.sty\"" }
       ]
     },
     {
       "source": "downloads/*.zip",
       "headers": [
-        { "key": "Content-Type", "value": "application/zip" }
+        { "key": "Content-Type", "value": "application/zip" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"mathexam-v2.3.3.zip\"" }
       ]
     }
   ]

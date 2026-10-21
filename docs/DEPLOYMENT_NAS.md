@@ -170,7 +170,7 @@ export PM2_BIN=~/pm2-local/node_modules/.bin/pm2
 仓库 **backend/**、**frontend/** 均为 **`package-lock.json` + `npm ci`**；不要用 pnpm 改写 lockfile。
 
 - 后端：`backend/server.js`，端口由 `backend/.env` 的 `PORT` 决定（默认生产 **19897**）。
-- 前端：`deploy/pm2/start-frontend.sh` → `serve -s frontend/dist --listen=19896`。
+- 前端：`deploy/pm2/start-frontend.sh` → **`serve@14 -s frontend/dist`**（默认 **19896**；`frontend/dist/serve.json` 为 `/downloads/*` 设置 Content-Type / Content-Disposition，避免 SPA 回退成 `index.html`）。
 - 重启：`./deploy/pm2/restart-pm2.sh`。
 
 ### 11.4 路由与探活
