@@ -68,7 +68,7 @@
               >
                 <i class="bi bi-journal-text"></i> 题库
               </a>
-              <ul class="dropdown-menu" aria-labelledby="navBankMenu">
+              <ul class="dropdown-menu" aria-labelledby="navBankMenu" data-testid="nav-menu-bank-panel">
                 <li>
                   <router-link
                     class="dropdown-item"
@@ -130,7 +130,7 @@
               >
                 <i class="bi bi-file-earmark-text"></i> 组卷
               </a>
-              <ul class="dropdown-menu" aria-labelledby="navExamMenu">
+              <ul class="dropdown-menu" aria-labelledby="navExamMenu" data-testid="nav-menu-exam-panel">
                 <li>
                   <router-link
                     class="dropdown-item"

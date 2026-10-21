@@ -13,6 +13,7 @@ import VueMathjaxNext from "vue-mathjax-next";
 import axios from "axios"; // 导入 axios
 import router from "./router"; // 导入路由配置
 import { loginUrlWithRedirect } from "./utils/authRedirect";
+import { installBootstrapUiHandlers } from "./utils/bootstrapUi";
 axios.defaults.baseURL =
   process.env.VUE_APP_API_BASE_URL ||
   '/api';
@@ -40,6 +41,8 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+installBootstrapUiHandlers(router);
 
 const app = createApp(App);
 app.use(router); // 使用路由配置
