@@ -1,0 +1,16 @@
+{
+  "headers": [
+    {
+      "source": "downloads/*.sty",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "downloads/*.zip",
+      "headers": [
+        { "key": "Content-Type", "value": "application/zip" }
+      ]
+    }
+  ]
+}
