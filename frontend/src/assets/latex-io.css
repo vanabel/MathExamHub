@@ -142,10 +142,16 @@
 }
 
 .latex-io-import-options {
-  background: var(--surface-muted);
-  padding: 1.25rem 1.35rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.latex-io-import-question-list {
+  max-height: min(520px, 55vh);
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .latex-io-preview-item {
@@ -275,4 +281,104 @@
 
 .export-config-answer-sheet {
   padding-left: 0.1rem;
+}
+
+/* Question list — preview / LaTeX source / expand */
+.latex-view-mode-segment .btn {
+  min-width: 4.5rem;
+}
+
+.latex-io-list-toolbar {
+  row-gap: 0.35rem;
+}
+
+.latex-io-row-expand {
+  font-size: 0.78rem;
+  text-decoration: none;
+  color: var(--color-accent);
+}
+
+.latex-io-source-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--preview-surface-bg, var(--surface-muted));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.45rem 0.55rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 4.35rem;
+}
+
+.latex-io-source-pre--expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  max-height: none;
+  overflow: visible;
+}
+
+.export-question-row__preview--expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  max-height: none;
+  overflow: visible;
+}
+
+.latex-io-import-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 992px) {
+  .latex-io-import-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    align-items: start;
+  }
+}
+
+.latex-io-import-main .latex-io-action-bar {
+  margin-top: 0;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-muted);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.latex-io-import-card-stack {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.latex-io-import-section + .latex-io-import-section {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.latex-io-import-section__body {
+  padding: 1rem 1.15rem;
+}
+
+.latex-io-question-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.latex-io-question-card--warn {
+  border-color: var(--warning);
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.latex-io-import-aside .mathexam-import-guide {
+  margin-bottom: 0 !important;
 }

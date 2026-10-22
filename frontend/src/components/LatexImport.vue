@@ -24,22 +24,28 @@
             </router-link>
           </template>
         </page-header>
-        <MathexamImportGuideCard />
         <ImportFlowSteps :step="importFlowStep" />
       </div>
 
-      <div class="row">
-        <div class="col-lg-8 mx-auto">
-          <div class="card latex-io-card">
-            <div class="card-body latex-io-card-body">
+      <div class="latex-io-import-grid">
+        <div class="latex-io-import-main">
+          <div class="card latex-io-card latex-io-import-card-stack">
+            <div class="card-body p-0 latex-io-card-body">
               <div v-if="formError" class="alert alert-danger" role="alert" data-testid="latex-import-form-error">
                 {{ formError }}
               </div>
               <div v-if="previewError" class="alert alert-danger" role="alert" data-testid="latex-import-preview-error">
                 {{ previewError }}
               </div>
-              <!-- 文件上传区域 -->
-              <div v-show="importFlowStep <= 2" class="upload-area mb-4" data-testid="latex-import-upload-zone">
+              <div
+                v-show="importFlowStep <= 2"
+                class="latex-io-import-section"
+                data-testid="latex-import-upload-zone"
+              >
+                <div class="latex-io-panel-header px-3 py-2">
+                  <h6 class="mb-0 fw-semibold"><i class="bi bi-cloud-upload"></i> 导入文件</h6>
+                </div>
+                <div class="latex-io-import-section__body upload-area">
                 <input
                   ref="fileInput"
                   type="file"
@@ -76,7 +82,7 @@
                     </h5>
                     <p class="text-muted mb-0">支持 .tex / .zip（可多选，含 \input 子文件），最大 20MB</p>
                     <p class="text-muted mb-0 small">
-                      请优先使用 mathexam 模板出题（上方可下载 .sty 与示例包），识别最准确。
+                      请优先使用 mathexam 模板出题（步骤 1 右侧可下载 .sty 与示例包），识别最准确。
                     </p>
                     <p class="text-muted mb-0 small">图片支持：png/jpg/jpeg/gif/pdf</p>
                   </div>
@@ -96,12 +102,13 @@
                   </div>
                 </div>
               </div>
+              </div>
 
-              <!-- 导入选项 -->
-              <div v-show="importFlowStep <= 2" class="import-options latex-io-import-options mb-4">
-                <h5 class="mb-3">
-                  <i class="bi bi-gear"></i> 导入选项
-                </h5>
+              <div v-show="importFlowStep <= 2" class="latex-io-import-section import-options">
+                <div class="latex-io-panel-header px-3 py-2">
+                  <h6 class="mb-0 fw-semibold"><i class="bi bi-gear"></i> 导入选项</h6>
+                </div>
+                <div class="latex-io-import-section__body latex-io-import-options">
                 <div class="row g-3">
                   <div class="col-md-12">
                     <div class="form-check">
@@ -165,6 +172,7 @@
                     </div>
                   </div>
                 </details>
+                </div>
               </div>
 
               <!-- 预览区域 -->
@@ -214,27 +222,24 @@
 
               <div
                 v-if="previewData && !importResult"
-                class="preview-area mt-4"
+                class="latex-io-import-section preview-area"
                 data-testid="latex-import-preview-panel"
               >
-                <div class="card">
-                  <div class="card-header latex-io-panel-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                      <i class="bi bi-eye"></i> 预览识别到的题目
-                    </h5>
-                    <div>
-                      <button
-                        type="button"
-                        class="btn btn-sm"
-                        :class="previewMode ? 'btn-primary' : 'btn-outline-secondary'"
-                        @click="previewMode = !previewMode"
-                      >
-                        <i :class="previewMode ? 'bi bi-eye-fill' : 'bi bi-eye'"></i>
-                        {{ previewMode ? '预览模式' : '文本模式' }}
-                      </button>
-                    </div>
+                <div class="latex-io-panel-header px-3 py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-eye"></i> 预览识别到的题目
+                  </h6>
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <LatexViewModeSegment v-model="viewMode" test-id="latex-import-view-mode" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="expandAllImportRows">
+                      全部展开
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="collapseAllImportRows">
+                      全部收起
+                    </button>
                   </div>
-                  <div class="card-body">
+                </div>
+                <div class="latex-io-import-section__body">
                     <div
                       v-for="(w, wi) in (previewData.warnings || []).filter(x => x.code === 'ZERO_QUESTIONS' || x.code === 'MISSING_INPUT')"
                       :key="'w-' + wi"
@@ -292,71 +297,78 @@
                       </span>
                     </div>
 
-                    <!-- 题目列表 -->
-                    <div class="question-list" style="max-height: 600px; overflow-y: auto">
+                    <div class="question-list latex-io-import-question-list">
                       <div
                         v-for="(question, index) in previewQuestions"
                         :key="index"
-                        class="question-item latex-io-preview-item mb-3 p-3"
-                        :class="{ 'latex-io-preview-item--warn': isDuplicateQuestion(question) }"
+                        class="latex-io-question-card"
+                        :class="{ 'latex-io-question-card--warn': isDuplicateQuestion(question) }"
                       >
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                          <div>
-                            <span class="badge bg-primary me-2">题目 #{{ index + 1 }}</span>
-                            <span class="badge bg-secondary me-2">{{ question.type || '未知类型' }}</span>
-                            <span class="badge bg-info" v-if="question.totalScore">{{ question.totalScore }} 分</span>
-                            <span v-if="isDuplicateQuestion(question)" class="badge bg-warning text-dark ms-2">
-                              <i class="bi bi-exclamation-triangle"></i> 可能重复
-                            </span>
-                          </div>
+                        <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                          <span class="badge badge-type-export">#{{ index + 1 }}</span>
+                          <span class="badge bg-secondary">{{ question.type || '未知类型' }}</span>
+                          <span class="badge pill-muted" v-if="question.totalScore">{{ question.totalScore }} 分</span>
+                          <span v-if="isDuplicateQuestion(question)" class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle"></i> 可能重复
+                          </span>
+                          <button
+                            type="button"
+                            class="btn btn-link btn-sm py-0 ms-auto latex-io-row-expand"
+                            data-testid="latex-import-row-expand"
+                            @click="toggleImportRowExpanded(index)"
+                          >
+                            {{ isImportRowExpanded(index) ? '收起' : '展开' }}
+                          </button>
                         </div>
 
-                        <!-- 预览模式 -->
-                        <div v-if="previewMode" class="question-preview-content mathexam-preview">
-                          <div 
-                            v-html="processQuestionTextToHTML(question.questionText, question.originalLaTeX, questionPreviewOpts(question))"
-                            class="question-text-content preview-surface mathexam-question-body mb-2"
+                        <div v-if="viewMode === 'preview'" class="question-preview-content mathexam-preview">
+                          <div
+                            v-html="importRowDisplayHtml(question, index)"
+                            class="question-text-content preview-surface mathexam-question-body export-question-row__preview small mb-0"
+                            :class="{ 'export-question-row__preview--expanded': isImportRowExpanded(index) }"
                             data-testid="latex-import-preview-question-body"
                           ></div>
-                          <!-- 选项（如果是选择题） -->
-                          <div v-if="question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)" class="question-options mb-2">
+                          <div
+                            v-if="isImportRowExpanded(index) && question.options && Object.keys(question.options).length > 0 && !hasAbcdInOriginal(question)"
+                            class="question-options mb-2 mt-2"
+                          >
                             <ChoiceOptionsList :options="question.options" class="small">
                               <template #default="{ entry }">
                                 <vue-mathjax :formula="entry.text" :options="mathjaxOptions"></vue-mathjax>
                               </template>
                             </ChoiceOptionsList>
                           </div>
-                          <!-- 答案 -->
                           <div
-                            class="question-answer mathexam-callout-answer mb-0 mt-2"
-                            v-if="showAnswerBlock(question)"
+                            v-if="isImportRowExpanded(index) && showAnswerBlock(question)"
+                            class="mathexam-callout-answer mb-0 mt-2 small"
                             data-testid="latex-import-preview-answer"
                           >
                             <strong>答案：</strong>
                             <div v-html="processAnswerTextToHTML(answerForDisplay(question))"></div>
                           </div>
                           <div
-                            v-if="showSolutionBlock(question)"
-                            class="question-solution mathexam-callout-solution mb-0 mt-2"
+                            v-if="isImportRowExpanded(index) && showSolutionBlock(question)"
+                            class="mathexam-callout-solution mb-0 mt-2 small"
                           >
                             <strong>解答：</strong>
                             <div v-html="processAnswerTextToHTML(question.solution)"></div>
                           </div>
                         </div>
-                        <!-- 文本模式 -->
                         <div v-else class="text-mode">
-                          <div class="mb-2">
-                            <strong>题目：</strong>
-                            <pre class="small mb-0 preview-surface p-2 rounded">{{ question.originalLaTeX || question.questionText }}</pre>
-                          </div>
-                          <div v-if="showAnswerBlock(question)" class="mb-2">
-                            <strong>答案：</strong>
-                            <pre class="small mb-0 preview-surface p-2 rounded">{{ answerForDisplay(question) }}</pre>
-                          </div>
-                          <div v-if="showSolutionBlock(question)" class="mb-2">
-                            <strong>解答：</strong>
-                            <pre class="small mb-0 preview-surface p-2 rounded">{{ question.solution }}</pre>
-                          </div>
+                          <pre
+                            class="latex-io-source-pre small mb-0"
+                            :class="{ 'latex-io-source-pre--expanded': isImportRowExpanded(index) }"
+                          >{{ importRowLatexSource(question) }}</pre>
+                          <template v-if="isImportRowExpanded(index)">
+                            <div v-if="showAnswerBlock(question)" class="mt-2">
+                              <strong class="small">答案：</strong>
+                              <pre class="latex-io-source-pre latex-io-source-pre--expanded small mb-0 mt-1">{{ answerForDisplay(question) }}</pre>
+                            </div>
+                            <div v-if="showSolutionBlock(question)" class="mt-2">
+                              <strong class="small">解答：</strong>
+                              <pre class="latex-io-source-pre latex-io-source-pre--expanded small mb-0 mt-1">{{ question.solution }}</pre>
+                            </div>
+                          </template>
                         </div>
 
                         <!-- 重复题目详情 -->
@@ -423,12 +435,12 @@
                         </details>
                       </div>
                     </div>
-                  </div>
                 </div>
               </div>
 
               <!-- 导入结果 -->
-              <div v-if="importResult" class="import-result mt-4" data-testid="latex-import-result-panel">
+              <div v-if="importResult" class="latex-io-import-section import-result" data-testid="latex-import-result-panel">
+                <div class="latex-io-import-section__body">
                 <div
                   class="alert"
                   :class="{
@@ -549,6 +561,7 @@
                     </button>
                   </div>
                 </div>
+                </div>
               </div>
 
               <div v-show="importFlowStep <= 2" class="latex-io-action-bar" data-testid="latex-import-action-bar">
@@ -596,6 +609,9 @@
             </div>
           </div>
         </div>
+        <aside v-if="importFlowStep === 1" class="latex-io-import-aside">
+          <MathexamImportGuideCard />
+        </aside>
       </div>
     </div>
   </div>
@@ -605,11 +621,17 @@
 import axios from "axios";
 import VueMathjaxNext from "vue-mathjax-next";
 import { mathjaxOptions } from "../utils/mathjaxConfig";
-import { processQuestionTextToHTML, processAnswerTextToHTML } from "../utils/latexProcessor";
+import {
+  processQuestionTextToHTML,
+  processAnswerTextToHTML,
+  processQuestionListPreviewToHTML,
+} from "../utils/latexProcessor";
 import ChoiceOptionsList from "./ChoiceOptionsList.vue";
 import PageHeader from "./ui/PageHeader.vue";
 import MathexamImportGuideCard from "./MathexamImportGuideCard.vue";
 import ImportFlowSteps from "./ui/ImportFlowSteps.vue";
+import LatexViewModeSegment from "./ui/LatexViewModeSegment.vue";
+import { loadLatexViewMode, saveLatexViewMode } from "../utils/latexViewMode.js";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
 import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 
@@ -623,6 +645,7 @@ export default {
     PageHeader,
     MathexamImportGuideCard,
     ImportFlowSteps,
+    LatexViewModeSegment,
   },
   data() {
     return {
@@ -635,7 +658,8 @@ export default {
       createdBy: "",
       importResult: null,
       previewData: null,
-      previewMode: true, // true = 预览模式, false = 文本模式
+      viewMode: loadLatexViewMode(),
+      expandedImportRowKeys: {},
       useLlmPreview: false,
       llmEdits: [],
       previewKnowledgePoints: [],
@@ -649,8 +673,16 @@ export default {
       generatedBlueprintId: '',
     };
   },
+  watch: {
+    viewMode(mode) {
+      saveLatexViewMode(mode);
+      if (mode === 'preview' && this.previewData && !this.importResult) {
+        this.$nextTick(() => setTimeout(() => this.typesetPreview(), 80));
+      }
+    },
+  },
   updated() {
-    if (this.previewData && this.previewMode && !this.importResult) {
+    if (this.previewData && this.viewMode === 'preview' && !this.importResult) {
       this.$nextTick(() => {
         setTimeout(() => this.typesetPreview(), 80);
       });
@@ -681,6 +713,7 @@ export default {
         hasOptions,
         mode: 'question',
         questionType: question?.type || '',
+        images: question?.images,
         choiceOptionLabels: shouldUseChoiceOptionLabels({
           questionType: question?.type,
           hasOptions,
@@ -688,6 +721,44 @@ export default {
           originalLaTeX: question?.originalLaTeX,
         }),
       };
+    },
+    importRowLatexSource(question) {
+      return String(question.originalLaTeX || question.questionText || '').trim();
+    },
+    isImportRowExpanded(index) {
+      return Boolean(this.expandedImportRowKeys[index]);
+    },
+    toggleImportRowExpanded(index) {
+      const next = { ...this.expandedImportRowKeys };
+      if (next[index]) delete next[index];
+      else next[index] = true;
+      this.expandedImportRowKeys = next;
+      this.$nextTick(() => this.typesetPreview());
+    },
+    expandAllImportRows() {
+      const next = {};
+      this.previewQuestions.forEach((_, i) => {
+        next[i] = true;
+      });
+      this.expandedImportRowKeys = next;
+      this.$nextTick(() => this.typesetPreview());
+    },
+    collapseAllImportRows() {
+      this.expandedImportRowKeys = {};
+    },
+    importRowDisplayHtml(question, index) {
+      if (!this.isImportRowExpanded(index)) {
+        return processQuestionListPreviewToHTML(
+          question.questionText,
+          question.originalLaTeX,
+          this.questionPreviewOpts(question),
+        );
+      }
+      return processQuestionTextToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        this.questionPreviewOpts(question),
+      );
     },
     typesetPreview() {
       if (window.MathJax && window.MathJax.Hub) {
@@ -992,7 +1063,7 @@ export default {
       this.checkDuplicates = true;
       this.skipDuplicates = false;
       this.duplicateThreshold = 0.85;
-      this.previewMode = true;
+      this.expandedImportRowKeys = {};
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = "";
       }

@@ -1,10 +1,10 @@
 <template>
   <div
     v-if="visible"
-    class="card border-primary-subtle shadow-sm mb-4 mathexam-import-guide"
+    class="card latex-io-card mathexam-import-guide"
     data-testid="mathexam-import-guide"
   >
-    <div class="card-header bg-primary-subtle py-2 d-flex align-items-center justify-content-between gap-2">
+    <div class="card-header latex-io-panel-header py-2 d-flex align-items-center justify-content-between gap-2">
       <button
         type="button"
         class="btn btn-link btn-sm text-start text-decoration-none flex-grow-1 p-0 mathexam-import-guide__toggle"
