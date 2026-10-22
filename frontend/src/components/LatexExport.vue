@@ -1,8 +1,8 @@
 <template>
   <div class="latex-export-container app-page">
     <div class="app-container container-xl">
-      <div class="mb-4">
-        <nav aria-label="breadcrumb" class="mb-3 page-breadcrumb">
+      <div class="mb-2 latex-export-page-head">
+        <nav aria-label="breadcrumb" class="mb-2 page-breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item">
               <router-link to="/question-list" class="text-decoration-none">
@@ -185,199 +185,225 @@
 
         <!-- 导出配置区域 -->
         <div class="latex-io-export-sidebar">
-          <div class="card latex-io-card export-config-card h-100">
+          <div class="card latex-io-card export-config-card">
             <div class="card-header latex-io-panel-header">
               <h5 class="mb-0">
                 <i class="bi bi-gear"></i> 导出配置
               </h5>
-              <p class="small text-muted mb-0 mt-1">试卷头、A/B 卷、答案卷与下载选项</p>
+              <p class="small text-muted mb-0 mt-1">试卷头与下载选项</p>
             </div>
-            <div class="card-body export-config-card__body">
+            <div class="card-body export-config-card__body export-config-compact">
               <div class="export-config-card__fields">
-              <div class="mb-3">
-                <label for="filename" class="form-label">文件名（不含扩展名）</label>
-                <input
-                  v-model="metadata.filename"
-                  id="filename"
-                  type="text"
-                  class="form-control"
-                  placeholder="mathexam-2025-01-01"
-                />
-                <small class="form-text text-muted">
-                  系统会根据是否有图片自动添加 .tex 或 .zip 扩展名
-                </small>
-              </div>
-
-              <div class="mb-3">
-                <label for="university" class="form-label">学校</label>
-                <input
-                  v-model="metadata.university"
-                  id="university"
-                  type="text"
-                  class="form-control"
-                  placeholder="西南大学"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label for="school" class="form-label">学院</label>
-                <input
-                  v-model="metadata.school"
-                  id="school"
-                  type="text"
-                  class="form-control"
-                  placeholder="数学与统计学院"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label for="course" class="form-label">课程</label>
-                <input
-                  v-model="metadata.course"
-                  id="course"
-                  type="text"
-                  class="form-control"
-                  placeholder="与题库科目一致，如解析几何"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label for="AorB" class="form-label">试卷类型</label>
-                <select v-model="metadata.AorB" id="AorB" class="form-select">
-                  <option value="A">A 卷</option>
-                  <option value="B">B 卷</option>
-                </select>
-              </div>
-
-              <div class="mb-3">
-                <label for="examDate" class="form-label">考试日期</label>
-                <input
-                  v-model="metadata.examDate"
-                  id="examDate"
-                  type="date"
-                  class="form-control"
-                  data-testid="latex-export-exam-date"
-                />
-                <small class="text-muted d-block">
-                  导出 <code>\examdate</code>；学年按 <strong>9 月 1 日</strong>起算
-                  <span v-if="exportSuggestedAcademicYear">（→ {{ exportSuggestedAcademicYear }}）</span>
-                </small>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">学年覆盖（可选）</label>
-                <div class="row g-2">
-                  <div class="col-6">
-                    <input
-                      v-model="metadata.academicYearStart"
-                      type="number"
-                      class="form-control"
-                      placeholder="留空=自动"
-                      min="1900"
-                      max="2100"
-                    />
-                  </div>
-                  <div class="col-6">
-                    <input
-                      v-model="metadata.academicYearEnd"
-                      type="number"
-                      class="form-control"
-                      placeholder="留空=自动"
-                      min="1900"
-                      max="2100"
-                    />
-                  </div>
-                </div>
-                <p v-if="exportAcademicYearError" class="small text-danger mb-0 mt-1">{{ exportAcademicYearError }}</p>
-                <small v-else class="text-muted">都留空则仅按考试日期自动推算；都填写时导出 <code>\academicyear</code></small>
-              </div>
-
-              <div class="mb-3">
-                <label for="totaltime" class="form-label">考试时长（分钟）</label>
-                <input
-                  v-model="metadata.totaltime"
-                  id="totaltime"
-                  type="number"
-                  class="form-control"
-                  placeholder="120"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label for="openclose" class="form-label">开闭卷</label>
-                <select v-model="metadata.openclose" id="openclose" class="form-select">
-                  <option value="闭卷">闭卷</option>
-                  <option value="开卷">开卷</option>
-                </select>
-              </div>
-
-              <div class="mb-3">
-                <label for="exportMode" class="form-label">导出内容</label>
-                <select v-model="metadata.exportMode" id="exportMode" class="form-select">
-                  <option value="exam">试卷卷（隐藏答案）</option>
-                  <option value="answer">答案卷（showans）</option>
-                  <option value="both">试卷 + 答案（两个 .tex）</option>
-                </select>
-                <small class="text-muted">ZIP 内附带 pin 版 mathexam.sty，便于 XeLaTeX 编译</small>
-              </div>
-
-              <div v-if="metadata.exportMode === 'exam' || metadata.exportMode === 'both'" class="mb-3">
-                <div class="form-check">
+                <section class="export-config-section">
+                  <h6 class="export-config-section__label">文件</h6>
+                  <label for="filename" class="form-label form-label-sm mb-1">文件名（不含扩展名）</label>
                   <input
-                    id="includeAnswerSheet"
-                    v-model="metadata.includeAnswerSheet"
-                    class="form-check-input"
-                    type="checkbox"
-                  />
-                  <label class="form-check-label" for="includeAnswerSheet">
-                    附加答题卡（mathexam <code>\answertable</code>，适用于选择/判断/填空题）
-                  </label>
-                </div>
-                <div v-if="metadata.includeAnswerSheet" class="mt-2">
-                  <label for="answerSheetCols" class="form-label small">每行答题格数</label>
-                  <input
-                    id="answerSheetCols"
-                    v-model.number="metadata.answerSheetCols"
-                    type="number"
-                    min="3"
-                    max="10"
+                    v-model="metadata.filename"
+                    id="filename"
+                    type="text"
                     class="form-control form-control-sm"
+                    placeholder="mathexam-2025-01-01"
+                    title="有图片时下载 .zip，否则 .tex"
                   />
-                  <label for="answerSheetRowHeight" class="form-label small mt-2">客观题格高（如 1.2em）</label>
-                  <input
-                    id="answerSheetRowHeight"
-                    v-model="metadata.answerSheetRowHeight"
-                    class="form-control form-control-sm"
-                    placeholder="1.2em"
-                  />
-                  <div class="form-check mt-2">
-                    <input
-                      id="includeSubjectiveAnswerAreas"
-                      v-model="metadata.includeSubjectiveAnswerAreas"
-                      class="form-check-input"
-                      type="checkbox"
-                    />
-                    <label class="form-check-label" for="includeSubjectiveAnswerAreas">附加解答题空白作答区</label>
+                </section>
+
+                <section class="export-config-section">
+                  <h6 class="export-config-section__label">试卷信息</h6>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label for="university" class="form-label form-label-sm mb-1">学校</label>
+                      <input
+                        v-model="metadata.university"
+                        id="university"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="西南大学"
+                      />
+                    </div>
+                    <div class="col-6">
+                      <label for="school" class="form-label form-label-sm mb-1">学院</label>
+                      <input
+                        v-model="metadata.school"
+                        id="school"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="数学与统计学院"
+                      />
+                    </div>
+                    <div class="col-12">
+                      <label for="course" class="form-label form-label-sm mb-1">课程</label>
+                      <input
+                        v-model="metadata.course"
+                        id="course"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="与题库科目一致，如解析几何"
+                      />
+                    </div>
                   </div>
-                  <label v-if="metadata.includeSubjectiveAnswerAreas" for="answerSheetSubjectiveRowHeight" class="form-label small mt-2">解答区行高</label>
-                  <input
-                    v-if="metadata.includeSubjectiveAnswerAreas"
-                    id="answerSheetSubjectiveRowHeight"
-                    v-model="metadata.answerSheetSubjectiveRowHeight"
-                    class="form-control form-control-sm"
-                    placeholder="6em"
-                  />
-                </div>
-              </div>
+                </section>
 
-              </div>
+                <section class="export-config-section">
+                  <h6 class="export-config-section__label">考试</h6>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <label for="AorB" class="form-label form-label-sm mb-1">试卷类型</label>
+                      <select v-model="metadata.AorB" id="AorB" class="form-select form-select-sm">
+                        <option value="A">A 卷</option>
+                        <option value="B">B 卷</option>
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label for="openclose" class="form-label form-label-sm mb-1">开闭卷</label>
+                      <select v-model="metadata.openclose" id="openclose" class="form-select form-select-sm">
+                        <option value="闭卷">闭卷</option>
+                        <option value="开卷">开卷</option>
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label for="examDate" class="form-label form-label-sm mb-1">考试日期</label>
+                      <input
+                        v-model="metadata.examDate"
+                        id="examDate"
+                        type="date"
+                        class="form-control form-control-sm"
+                        data-testid="latex-export-exam-date"
+                      />
+                    </div>
+                    <div class="col-6">
+                      <label for="totaltime" class="form-label form-label-sm mb-1">时长（分钟）</label>
+                      <input
+                        v-model="metadata.totaltime"
+                        id="totaltime"
+                        type="number"
+                        class="form-control form-control-sm"
+                        placeholder="120"
+                      />
+                    </div>
+                  </div>
+                  <p class="export-config-hint small text-muted mb-0 mt-1">
+                    <code>\examdate</code>；学年自 9/1 起算
+                    <span v-if="exportSuggestedAcademicYear">→ {{ exportSuggestedAcademicYear }}</span>
+                  </p>
+                </section>
 
-              <div
-                class="preview-surface rounded p-3 mb-3 mt-2"
-                data-testid="latex-export-structure-preview"
-              >
-                <div class="small fw-semibold mb-2">导出结构预览</div>
-                <pre class="latex-io-preview-pre">{{ exportStructurePreviewText }}</pre>
+                <details
+                  class="latex-io-advanced export-config-more"
+                  data-testid="latex-export-more-options"
+                >
+                  <summary class="small fw-semibold text-secondary user-select-none">更多选项</summary>
+                  <div class="mt-2">
+                    <p class="small text-muted mb-2">
+                      下载扩展名按是否含图片自动选 .tex 或 .zip。
+                    </p>
+                    <label class="form-label form-label-sm mb-1">学年覆盖（可选）</label>
+                    <div class="row g-2">
+                      <div class="col-6">
+                        <input
+                          v-model="metadata.academicYearStart"
+                          type="number"
+                          class="form-control form-control-sm"
+                          placeholder="起始年"
+                          min="1900"
+                          max="2100"
+                          aria-label="学年起始年"
+                        />
+                      </div>
+                      <div class="col-6">
+                        <input
+                          v-model="metadata.academicYearEnd"
+                          type="number"
+                          class="form-control form-control-sm"
+                          placeholder="结束年"
+                          min="1900"
+                          max="2100"
+                          aria-label="学年结束年"
+                        />
+                      </div>
+                    </div>
+                    <p v-if="exportAcademicYearError" class="small text-danger mb-0 mt-1">{{ exportAcademicYearError }}</p>
+                    <p v-else class="export-config-hint small text-muted mb-0 mt-1">
+                      留空则按考试日期推算；填写则导出 <code>\academicyear</code>
+                    </p>
+                  </div>
+                </details>
+
+                <section class="export-config-section">
+                  <h6 class="export-config-section__label">导出内容</h6>
+                  <label for="exportMode" class="form-label form-label-sm mb-1">内容</label>
+                  <select v-model="metadata.exportMode" id="exportMode" class="form-select form-select-sm">
+                    <option value="exam">试卷卷（隐藏答案）</option>
+                    <option value="answer">答案卷（showans）</option>
+                    <option value="both">试卷 + 答案（两个 .tex）</option>
+                  </select>
+                  <p class="export-config-hint small text-muted mb-0 mt-1">ZIP 含 pin 版 mathexam.sty</p>
+
+                  <div
+                    v-if="metadata.exportMode === 'exam' || metadata.exportMode === 'both'"
+                    class="mt-2"
+                  >
+                    <div class="form-check form-check-sm">
+                      <input
+                        id="includeAnswerSheet"
+                        v-model="metadata.includeAnswerSheet"
+                        class="form-check-input"
+                        type="checkbox"
+                      />
+                      <label class="form-check-label small" for="includeAnswerSheet">
+                        附加答题卡（<code>\answertable</code>）
+                      </label>
+                    </div>
+                    <div v-if="metadata.includeAnswerSheet" class="mt-2 export-config-answer-sheet">
+                      <div class="row g-2">
+                        <div class="col-6">
+                          <label for="answerSheetCols" class="form-label form-label-sm mb-1">每行格数</label>
+                          <input
+                            id="answerSheetCols"
+                            v-model.number="metadata.answerSheetCols"
+                            type="number"
+                            min="3"
+                            max="10"
+                            class="form-control form-control-sm"
+                          />
+                        </div>
+                        <div class="col-6">
+                          <label for="answerSheetRowHeight" class="form-label form-label-sm mb-1">客观格高</label>
+                          <input
+                            id="answerSheetRowHeight"
+                            v-model="metadata.answerSheetRowHeight"
+                            class="form-control form-control-sm"
+                            placeholder="1.2em"
+                          />
+                        </div>
+                      </div>
+                      <div class="form-check form-check-sm mt-2">
+                        <input
+                          id="includeSubjectiveAnswerAreas"
+                          v-model="metadata.includeSubjectiveAnswerAreas"
+                          class="form-check-input"
+                          type="checkbox"
+                        />
+                        <label class="form-check-label small" for="includeSubjectiveAnswerAreas">解答题空白区</label>
+                      </div>
+                      <div v-if="metadata.includeSubjectiveAnswerAreas" class="mt-2">
+                        <label for="answerSheetSubjectiveRowHeight" class="form-label form-label-sm mb-1">解答区行高</label>
+                        <input
+                          id="answerSheetSubjectiveRowHeight"
+                          v-model="metadata.answerSheetSubjectiveRowHeight"
+                          class="form-control form-control-sm"
+                          placeholder="6em"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <details
+                  class="latex-io-advanced export-config-preview"
+                  data-testid="latex-export-structure-preview"
+                >
+                  <summary class="small fw-semibold text-secondary user-select-none">导出结构预览</summary>
+                  <pre class="latex-io-preview-pre export-config-preview__pre mt-2">{{ exportStructurePreviewText }}</pre>
+                </details>
               </div>
 
               <div class="export-config-card__footer latex-io-export-actions" data-testid="latex-export-action-bar">
@@ -1280,7 +1306,17 @@ export default {
 
 <style scoped>
 .latex-export-container {
-  padding: 2rem 0;
+  padding: 1rem 0 1.25rem;
+}
+
+@media (min-width: 992px) {
+  .latex-export-page-head :deep(.page-header) {
+    padding: 1rem 1.25rem;
+  }
+
+  .latex-export-page-head :deep(.page-header .page-subtitle) {
+    margin-bottom: 0;
+  }
 }
 
 .page-header {
@@ -1402,8 +1438,8 @@ export default {
 
 .export-config-card__footer {
   flex-shrink: 0;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
   border-top: 1px solid var(--border-subtle, #e2e8f0);
 }
 

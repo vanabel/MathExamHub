@@ -162,6 +162,45 @@
 .latex-io-export-sidebar {
   position: sticky;
   top: calc(var(--navbar-height, 52px) + 0.75rem);
+  align-self: start;
+}
+
+@media (min-width: 992px) {
+  .latex-io-export-sidebar {
+    max-height: min(
+      calc(100vh - var(--navbar-height, 52px) - 1.5rem),
+      calc(100vh - 17rem)
+    );
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .export-config-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .export-config-card .export-config-card__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .export-config-card .export-config-card__fields {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+  }
+
+  .export-config-card .export-config-preview,
+  .export-config-card .export-config-card__footer {
+    flex-shrink: 0;
+  }
 }
 
 .latex-io-export-grid {
@@ -183,4 +222,57 @@
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-subtle);
   margin-top: 1rem;
+}
+
+/* LaTeX export — compact sidebar config */
+.export-config-compact {
+  padding: 0.85rem 1rem !important;
+}
+
+.export-config-section {
+  margin-bottom: 0.65rem;
+}
+
+.export-config-section__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.export-config-compact .form-label-sm {
+  font-size: 0.78rem;
+  margin-bottom: 0.15rem;
+  color: var(--text-secondary);
+}
+
+.export-config-hint {
+  line-height: 1.35;
+  font-size: 0.72rem;
+}
+
+.export-config-hint code {
+  font-size: 0.68rem;
+}
+
+.export-config-more {
+  margin-bottom: 0.65rem;
+}
+
+.export-config-preview {
+  margin-bottom: 0.5rem;
+}
+
+.export-config-preview__pre {
+  max-height: 7.5rem;
+}
+
+.export-config-compact .form-check-sm .form-check-label {
+  line-height: 1.35;
+}
+
+.export-config-answer-sheet {
+  padding-left: 0.1rem;
 }
