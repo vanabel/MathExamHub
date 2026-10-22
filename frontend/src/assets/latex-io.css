@@ -296,9 +296,13 @@
   font-size: 0.78rem;
   text-decoration: none;
   color: var(--color-accent);
+  white-space: nowrap;
 }
 
 .latex-io-source-pre {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.72rem;
   line-height: 1.45;
@@ -309,28 +313,67 @@
   padding: 0.45rem 0.55rem;
   white-space: pre-wrap;
   word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
   max-height: 4.35rem;
 }
 
+.latex-io-source-pre:not(.latex-io-source-pre--expanded) {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  width: 100%;
+}
+
 .latex-io-source-pre--expanded {
   display: block;
+  width: 100%;
   -webkit-line-clamp: unset;
   line-clamp: unset;
   max-height: none;
   overflow: visible;
 }
 
+.export-question-row__preview {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .export-question-row__preview--expanded {
   display: block;
+  width: 100%;
   -webkit-line-clamp: unset;
   line-clamp: unset;
   max-height: none;
   overflow: visible;
+}
+
+.latex-io-question-card .export-question-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.latex-io-question-card .export-question-row__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.latex-io-question-card .latex-io-row-expand {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.latex-io-question-card .question-preview-content,
+.latex-io-question-card .text-mode {
+  width: 100%;
+  min-width: 0;
 }
 
 .latex-io-import-grid {
@@ -372,6 +415,8 @@
   border-radius: var(--radius-md);
   padding: 0.65rem 0.75rem;
   margin-bottom: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .latex-io-question-card--warn {
