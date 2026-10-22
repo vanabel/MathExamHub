@@ -92,9 +92,9 @@
                 </div>
               </div>
 
-              <!-- 全选/取消全选和预览模式 -->
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
+              <!-- 全选 / 视图 / 展开 -->
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 latex-io-list-toolbar">
+                <div class="d-flex flex-wrap align-items-center gap-2">
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-primary"
@@ -104,23 +104,33 @@
                   </button>
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-secondary ms-2"
+                    class="btn btn-sm btn-outline-secondary"
                     @click="deselectAll"
                   >
                     <i class="bi bi-x-square"></i> 取消全选
                   </button>
+                  <LatexViewModeSegment v-model="viewMode" test-id="latex-export-view-mode" />
                   <button
                     type="button"
-                    class="btn btn-sm"
-                    :class="previewMode ? 'btn-success' : 'btn-outline-success'"
-                    @click="previewMode = !previewMode"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-testid="latex-export-expand-all"
+                    @click="expandAllExportRows"
+                    :disabled="questions.length === 0"
                   >
-                    <i :class="previewMode ? 'bi bi-eye-fill' : 'bi bi-eye'"></i>
-                    {{ previewMode ? '预览模式' : '文本模式' }}
+                    全部展开
                   </button>
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-info ms-2"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-testid="latex-export-collapse-all"
+                    @click="collapseAllExportRows"
+                    :disabled="questions.length === 0"
+                  >
+                    全部收起
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-info"
                     data-testid="latex-export-smart-select"
                     @click="showSmartSelectModal = true"
                     :disabled="questions.length === 0"
@@ -171,11 +181,40 @@
                       <span class="badge badge-type-export">{{ question.type }}</span>
                       <span class="badge bg-secondary">{{ question.totalScore }} 分</span>
                       <span class="badge pill-muted">{{ question.subject }}</span>
+                      <button
+                        type="button"
+                        class="btn btn-link btn-sm py-0 ms-auto latex-io-row-expand"
+                        data-testid="latex-export-row-expand"
+                        @click.stop="toggleExportRowExpanded(question._id)"
+                      >
+                        {{ isExportRowExpanded(question._id) ? '收起' : '展开' }}
+                      </button>
                     </div>
                     <div
+                      v-if="viewMode === 'preview'"
                       class="export-question-row__preview question-text-content small"
-                      v-html="exportRowPreviewHtml(question)"
+                      :class="{ 'export-question-row__preview--expanded': isExportRowExpanded(question._id) }"
+                      v-html="exportRowDisplayHtml(question)"
                     ></div>
+                    <pre
+                      v-else
+                      class="latex-io-source-pre small mb-0"
+                      :class="{ 'latex-io-source-pre--expanded': isExportRowExpanded(question._id) }"
+                    >{{ exportRowLatexSource(question) }}</pre>
+                    <div
+                      v-if="viewMode === 'preview' && isExportRowExpanded(question._id) && showAnswerBlock(question)"
+                      class="mathexam-callout-answer export-question-row__answer small mt-2"
+                    >
+                      <strong>答案：</strong>
+                      <div v-html="processAnswerTextToHTML(answerForDisplay(question))"></div>
+                    </div>
+                    <div
+                      v-if="viewMode === 'preview' && isExportRowExpanded(question._id) && showSolutionBlock(question)"
+                      class="mathexam-callout-solution export-question-row__solution small mt-2"
+                    >
+                      <strong>解答：</strong>
+                      <div v-html="processAnswerTextToHTML(question.solution)"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -670,11 +709,11 @@ import {
   processQuestionText,
   processAnswerText,
   processQuestionTextToHTML,
+  processAnswerTextToHTML,
   processQuestionListPreviewToHTML,
   buildFigureRefDisplayMap,
 } from "../utils/latexProcessor";
 import { shouldUseChoiceOptionLabels } from "../utils/choiceOptions";
-import { answerForDisplay } from "../utils/questionAnswerDisplay";
 import {
   normalizeAcademicYearOverride,
   suggestedAcademicYearLabel,
@@ -682,6 +721,9 @@ import {
 } from "../utils/latexExamDateForm";
 import PageHeader from "./ui/PageHeader.vue";
 import SubjectCombobox from "./ui/SubjectCombobox.vue";
+import LatexViewModeSegment from "./ui/LatexViewModeSegment.vue";
+import { loadLatexViewMode, saveLatexViewMode } from "../utils/latexViewMode.js";
+import { answerForDisplay, showAnswerBlock, showSolutionBlock } from "../utils/questionAnswerDisplay";
 import {
   QUESTION_TYPES,
   QUESTION_TYPE_ORDER,
@@ -695,7 +737,7 @@ import {
 
 export default {
   name: "LatexExport",
-  components: { PageHeader, SubjectCombobox },
+  components: { PageHeader, SubjectCombobox, LatexViewModeSegment },
   data() {
     return {
       SMART_SELECT_CANDIDATE_LIMIT,
@@ -703,7 +745,8 @@ export default {
       selectedQuestionIds: [],
       loading: false,
       exporting: false,
-      previewMode: false, // 预览模式开关
+      viewMode: loadLatexViewMode(),
+      expandedExportRowIds: {},
       showSmartSelectModal: false, // 智能选择模态框
       smartSelectMode: 'count', // 'count' 或 'difficulty'
       enableTypeDistribution: false, // 是否启用题型分布
@@ -852,6 +895,10 @@ export default {
     },
   },
   watch: {
+    viewMode(mode) {
+      saveLatexViewMode(mode);
+      this.$nextTick(() => this.renderMathJax());
+    },
     showSmartSelectModal(open) {
       if (open) {
         this.smartSelectValidationErrors = [];
@@ -895,8 +942,45 @@ export default {
     processQuestionTextToHTML,
     processQuestionListPreviewToHTML,
     answerForDisplay,
+    showAnswerBlock,
+    showSolutionBlock,
+    processAnswerTextToHTML,
+    isExportRowExpanded(id) {
+      return Boolean(this.expandedExportRowIds[id]);
+    },
+    toggleExportRowExpanded(id) {
+      const next = { ...this.expandedExportRowIds };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      this.expandedExportRowIds = next;
+      this.$nextTick(() => this.renderMathJax());
+    },
+    expandAllExportRows() {
+      const next = {};
+      for (const q of this.questions) {
+        if (q._id) next[q._id] = true;
+      }
+      this.expandedExportRowIds = next;
+      this.$nextTick(() => this.renderMathJax());
+    },
+    collapseAllExportRows() {
+      this.expandedExportRowIds = {};
+    },
+    exportRowLatexSource(question) {
+      return String(question.originalLaTeX || question.questionText || '').trim();
+    },
     exportRowPreviewHtml(question) {
       return this.processQuestionListPreviewToHTML(
+        question.questionText,
+        question.originalLaTeX,
+        this.questionPreviewOpts(question),
+      );
+    },
+    exportRowDisplayHtml(question) {
+      if (!this.isExportRowExpanded(question._id)) {
+        return this.exportRowPreviewHtml(question);
+      }
+      return this.processQuestionTextToHTML(
         question.questionText,
         question.originalLaTeX,
         this.questionPreviewOpts(question),
@@ -1404,7 +1488,7 @@ export default {
   font-weight: 600;
 }
 
-.export-question-row__preview {
+.export-question-row__preview:not(.export-question-row__preview--expanded) {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -1412,6 +1496,12 @@ export default {
   overflow: hidden;
   line-height: 1.45;
   max-height: 4.35rem;
+  color: var(--text-primary, #0f172a);
+  word-break: break-word;
+}
+
+.export-question-row__preview--expanded {
+  line-height: 1.45;
   color: var(--text-primary, #0f172a);
   word-break: break-word;
 }
