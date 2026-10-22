@@ -176,14 +176,16 @@
                     @change="toggleSelection(question._id)"
                     @click.stop
                   />
-                  <div class="export-question-row__body min-width-0">
-                    <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
-                      <span class="badge badge-type-export">{{ question.type }}</span>
-                      <span class="badge bg-secondary">{{ question.totalScore }} 分</span>
-                      <span class="badge pill-muted">{{ question.subject }}</span>
+                  <div class="export-question-row__body">
+                    <div class="export-question-row__meta">
+                      <div class="export-question-row__badges">
+                        <span class="badge badge-type-export">{{ question.type }}</span>
+                        <span class="badge bg-secondary">{{ question.totalScore }} 分</span>
+                        <span class="badge pill-muted">{{ question.subject }}</span>
+                      </div>
                       <button
                         type="button"
-                        class="btn btn-link btn-sm py-0 ms-auto latex-io-row-expand"
+                        class="btn btn-link btn-sm py-0 latex-io-row-expand"
                         data-testid="latex-export-row-expand"
                         @click.stop="toggleExportRowExpanded(question._id)"
                       >
@@ -1453,6 +1455,36 @@ export default {
   cursor: pointer;
   background: var(--surface-card);
   transition: background 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.export-question-row__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.export-question-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.export-question-row__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.export-question-row__meta .latex-io-row-expand {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .export-question-row:last-child {

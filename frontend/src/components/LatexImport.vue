@@ -304,16 +304,18 @@
                         class="latex-io-question-card"
                         :class="{ 'latex-io-question-card--warn': isDuplicateQuestion(question) }"
                       >
-                        <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
-                          <span class="badge badge-type-export">#{{ index + 1 }}</span>
-                          <span class="badge bg-secondary">{{ question.type || '未知类型' }}</span>
-                          <span class="badge pill-muted" v-if="question.totalScore">{{ question.totalScore }} 分</span>
-                          <span v-if="isDuplicateQuestion(question)" class="badge bg-warning text-dark">
-                            <i class="bi bi-exclamation-triangle"></i> 可能重复
-                          </span>
+                        <div class="export-question-row__meta">
+                          <div class="export-question-row__badges">
+                            <span class="badge badge-type-export">#{{ index + 1 }}</span>
+                            <span class="badge bg-secondary">{{ question.type || '未知类型' }}</span>
+                            <span class="badge pill-muted" v-if="question.totalScore">{{ question.totalScore }} 分</span>
+                            <span v-if="isDuplicateQuestion(question)" class="badge bg-warning text-dark">
+                              <i class="bi bi-exclamation-triangle"></i> 可能重复
+                            </span>
+                          </div>
                           <button
                             type="button"
-                            class="btn btn-link btn-sm py-0 ms-auto latex-io-row-expand"
+                            class="btn btn-link btn-sm py-0 latex-io-row-expand"
                             data-testid="latex-import-row-expand"
                             @click="toggleImportRowExpanded(index)"
                           >
